@@ -1,0 +1,12 @@
+[package]
+name = "stage3"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+fabric = { path = "../fabric" }
+fse = { path = "../fse" }
+invariant_ppt = { path = "../invariant_ppt" }
+
+[dev-dependencies]
+proptest = "1.11.0"

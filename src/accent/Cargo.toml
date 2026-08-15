@@ -1,0 +1,14 @@
+[package]
+name = "accent"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+calibration = { path = "../calibration" }
+corpus = { path = "../corpus" }
+fabric = { path = "../fabric" }
+fse = { path = "../fse" }
+invariant_ppt = { path = "../invariant_ppt" }
+
+[dev-dependencies]
+proptest = "1.11.0"

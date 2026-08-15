@@ -1,0 +1,38 @@
+# --- Secrets / credentials (repo is public) ---
+.env
+.env.*
+!*.env.example
+*.token
+.secrets/
+.beads-credential-key
+
+# --- Audio corpora (never commit raw audio) ---
+data/corpus/raw/
+*.mp3
+*.flac
+*.wav
+data/session/audio/
+
+# --- Agent / IDE internal tooling (not for public) ---
+.opencode/
+.serena/
+.agents/
+.claude/
+.codex/
+opencode.jsonc
+AGENTS.md
+CLAUDE.md
+agents.md
+
+# --- Beads issue tracker (local-only database + Dolt) ---
+.beads/
+.beads.dolt/
+
+# --- Rust build artifacts ---
+target/
+**/target/
+
+# --- Caches ---
+.ruff_cache/
+*.pyc
+__pycache__/

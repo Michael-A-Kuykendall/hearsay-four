@@ -1,0 +1,12 @@
+[package]
+name = "fse"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+calibration = { path = "../calibration" }
+invariant_ppt = { path = "../invariant_ppt" }
+
+[dev-dependencies]
+corpus = { path = "../corpus" }
+proptest = "1.11.0"

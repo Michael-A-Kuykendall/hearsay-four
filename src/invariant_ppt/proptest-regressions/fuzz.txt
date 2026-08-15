@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc fe72efc7c644c983cb79c5f9edb624ae3f36ffdb92e9d7f6779fad7a7bbcc9ef # shrinks to messages = ["xolempo", "uwnlfvz", "qdrfop", "utw", "sqxcynf", "cm", "pkb", "w", "ato"]
+cc 0badb5538b4b5909cba6c85fe081f42001d87e884df0f3107e08baf8d04f549e # shrinks to messages = ["batpl", "xst", "jrbvq", "gpwuf", "hxotbo", "iuiay", "t", "apcaft", "rno", "exdkw", "l", "cn", "xwc", "sldw", "jgus", "d", "a", "pven", "hr", "ctezt", "mdsyp", "mceo", "ig", "xycz", "kisfz", "vnfnt", "bpy", "wbo", "pz"]
