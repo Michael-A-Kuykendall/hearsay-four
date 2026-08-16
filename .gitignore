@@ -23,6 +23,8 @@ opencode.jsonc
 AGENTS.md
 CLAUDE.md
 agents.md
+plan.md
+.session-recovery/
 
 # --- Beads issue tracker (local-only database + Dolt) ---
 .beads/
