@@ -101,6 +101,13 @@ impl Fabric {
     /// conclusion's prior justification, this *adds* a new justification set
     /// to it. If the new set's premises are all active and the conclusion was
     /// inactive, the conclusion reactivates (survival across re-assertion).
+    ///
+    /// Subsumption-based minimality (6za.1): the justification list for a
+    /// conclusion is kept minimal under the subset order. A set J2 subsumed
+    /// by J1 (`J1.premises ⊆ J2.premises`) is inert — whenever J2 is active,
+    /// J1 is too, so J2 can never be the deciding support. Subsumed sets are
+    /// pruned at assert time (normalization); retraction still never deletes
+    /// anything (`retraction_preserves`).
     pub fn assert(&mut self, conclusion: FactId, premises: BTreeSet<FactId>, unconditional: bool) {
         let j = Justification {
             conclusion,
@@ -110,17 +117,31 @@ impl Fabric {
         // A fresh direct assertion re-arms a deliberately-retracted fact:
         // reactivation is now permitted again (aem.13 §4).
         self.deliberately_retracted.remove(&conclusion);
-        // Only store if not already present (avoid duplicate justifications).
         {
             let state = self
                 .facts
                 .get_mut(&conclusion)
                 .expect("fact must be interned");
+            // Exact duplicate -> no-op.
             if state.justifications.contains(&j) {
                 return;
             }
+            // Dominated by an existing set with a premise-subset of ours ->
+            // the new set is subsumed and can never decide support. Skip it.
+            if state
+                .justifications
+                .iter()
+                .any(|existing| existing.premises.is_subset(&j.premises))
+            {
+                return;
+            }
+            // Our set strictly dominates some existing sets -> prune them.
+            state
+                .justifications
+                .retain(|existing| !j.premises.is_subset(&existing.premises));
             state.justifications.push(j.clone());
         }
+        self.assert_minimal_invariant(conclusion);
 
         // If the new set is fully active and the conclusion was inactive,
         // reactivate it (survival semantics).
@@ -224,6 +245,24 @@ impl Fabric {
         j.premises
             .iter()
             .all(|p| self.facts.get(p).map(|s| s.active).unwrap_or(false))
+    }
+
+    /// Subsumption-minimality invariant (`justification_set_minimal`): no two
+    /// justification sets of one conclusion may be comparable under the
+    /// premise-subset order. Checked after every mutation of a conclusion's
+    /// justification list.
+    fn assert_minimal_invariant(&self, conclusion: FactId) {
+        let js: &[Justification] = self
+            .facts
+            .get(&conclusion)
+            .map(|s| s.justifications.as_slice())
+            .unwrap_or(&[]);
+        let violated = js.iter().enumerate().any(|(i, a)| {
+            js[i + 1..]
+                .iter()
+                .any(|b| a.premises.is_subset(&b.premises))
+        });
+        assert_invariant(!violated, "justification_set_minimal", Some("fabric"));
     }
 
     fn set_active(&mut self, fact: FactId, active: bool) {
@@ -502,5 +541,88 @@ mod tests {
         f.assert_assumption(new_premise);
         f.assert(retired, premises(&[new_premise.0]), false);
         assert!(f.is_active(retired), "fresh justif re-assert revives");
+    }
+
+    #[test]
+    fn subsumed_superset_not_stored() {
+        // 6za.1: asserting a set dominated by an existing smaller set is a
+        // no-op — {p1} already decides everything {p1,p2} could.
+        let mut f = Fabric::new();
+        let p1 = f.intern();
+        let p2 = f.intern();
+        let concl = f.intern();
+        f.assert_assumption(p1);
+        f.assert_assumption(p2);
+        f.assert(concl, premises(&[p1.0]), false);
+        f.assert(concl, premises(&[p1.0, p2.0]), false);
+        assert_eq!(f.justifications(concl).len(), 1);
+        assert_eq!(f.justifications(concl)[0].premises.len(), 1);
+    }
+
+    #[test]
+    fn subsuming_assert_prunes_existing_superset() {
+        // Asserting a strictly smaller set prunes the stored superset.
+        let mut f = Fabric::new();
+        let p1 = f.intern();
+        let p2 = f.intern();
+        let concl = f.intern();
+        f.assert_assumption(p1);
+        f.assert_assumption(p2);
+        f.assert(concl, premises(&[p1.0, p2.0]), false);
+        assert_eq!(f.justifications(concl).len(), 1);
+        f.assert(concl, premises(&[p1.0]), false);
+        assert_eq!(f.justifications(concl).len(), 1, "superset pruned");
+        assert_eq!(f.justifications(concl)[0].premises.len(), 1);
+    }
+
+    #[test]
+    fn disjoint_sets_both_kept() {
+        // Guard against over-pruning: incomparable sets must all survive.
+        let mut f = Fabric::new();
+        let p1 = f.intern();
+        let p2 = f.intern();
+        let concl = f.intern();
+        f.assert_assumption(p1);
+        f.assert_assumption(p2);
+        f.assert(concl, premises(&[p1.0]), false);
+        f.assert(concl, premises(&[p2.0]), false);
+        assert_eq!(f.justifications(concl).len(), 2);
+        assert_eq!(f.support_count(concl), 2);
+    }
+
+    #[test]
+    fn assumption_subsumes_conditional_derivations_of_same_fact() {
+        // An empty-premise (axiom) justification is a subset of every other
+        // premise set for the same conclusion — later conditional derivations
+        // of an already-axiomatic fact are inert and are not stored.
+        let mut f = Fabric::new();
+        let p = f.intern();
+        let concl = f.intern();
+        f.assert_assumption(p);
+        f.assert_assumption(concl);
+        f.assert(concl, premises(&[p.0]), false);
+        assert_eq!(f.justifications(concl).len(), 1);
+        assert!(f.justifications(concl)[0].premises.is_empty());
+        // Survival behavior unchanged by the pruning:
+        f.retract(p);
+        assert!(f.is_active(concl), "axiom keeps concl active regardless");
+    }
+
+    #[test]
+    fn minimality_preserves_retraction_outcomes() {
+        // Pruning is semantically inert: with {p1} kept and {p1,p2} pruned,
+        // retracting p2 must NOT retract concl, and retracting p1 must.
+        let mut f = Fabric::new();
+        let p1 = f.intern();
+        let p2 = f.intern();
+        let concl = f.intern();
+        f.assert_assumption(p1);
+        f.assert_assumption(p2);
+        f.assert(concl, premises(&[p1.0]), false);
+        f.assert(concl, premises(&[p1.0, p2.0]), false);
+        f.retract(p2);
+        assert!(f.is_active(concl), "pruned set was not load-bearing");
+        f.retract(p1);
+        assert!(!f.is_active(concl), "minimal set was load-bearing");
     }
 }
