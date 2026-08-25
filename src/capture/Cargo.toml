@@ -1,0 +1,18 @@
+[package]
+name = "capture"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+calibration = { path = "../calibration" }
+fse = { path = "../fse" }
+cpal = { version = "0.15", optional = true }
+
+[features]
+default = []
+# Real microphone input via cpal (ALSA/PulseAudio on Linux, CoreAudio on macOS,
+# WASAPI on Windows). Requires system audio dev libraries to build.
+mic = ["dep:cpal"]
+
+[dev-dependencies]
+proptest = "1.11.0"

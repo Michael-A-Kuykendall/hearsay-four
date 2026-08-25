@@ -44,6 +44,8 @@ impl Enrollment {
 
 /// A capture backend seam. The prototype uses a stub that synthesizes frames;
 /// the real system implements this with the actual mic + FSE front end.
+/// The real implementation lives in the `capture` crate (`MicCapture`, behind
+/// its `mic` feature); this trait is the stable contract both satisfy.
 pub trait CaptureBackend {
     /// Capture one utterance of the given prompt, returning feature frames.
     fn capture(&mut self, prompt: &str) -> Vec<[f64; FEATURE_DIM]>;
