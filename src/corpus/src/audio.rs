@@ -9,7 +9,6 @@
 //! when the source rate differs from 16 kHz.
 
 use std::fs::File;
-use std::io::BufReader;
 use std::path::Path;
 
 use invariant_ppt::assert_invariant;
@@ -85,23 +84,62 @@ pub fn decode_wav(path: &Path) -> Result<PcmAudio, String> {
 }
 
 /// Decode an MPEG audio file (MP1/2/2.5 Layer III, incl. ADTS-ish streams and
-/// mislabeled `.wav` files) via `minimp3`.
+/// mislabeled `.wav` files) via `symphonia`.
 pub fn decode_mp3(path: &Path) -> Result<PcmAudio, String> {
+    use symphonia::core::audio::SampleBuffer;
+    use symphonia::core::codecs::CODEC_TYPE_NULL;
+    use symphonia::core::errors::Error as SymError;
+    use symphonia::core::formats::FormatOptions;
+    use symphonia::core::io::MediaSourceStream;
+    use symphonia::core::meta::MetadataOptions;
+    use symphonia::core::probe::Hint;
+
     let file = File::open(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let mut decoder = minimp3::Decoder::new(BufReader::new(file));
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+    let mut hint = Hint::new();
+    hint.with_extension("mp3");
+
+    let probed = symphonia::default::get_probe()
+        .format(
+            &hint,
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )
+        .map_err(|e| format!("{}: MP3 probe error: {e}", path.display()))?;
+    let mut format = probed.format;
+
+    let track = format
+        .tracks()
+        .iter()
+        .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
+        .ok_or_else(|| format!("{}: no audio track found", path.display()))?
+        .clone();
+    let mut decoder = symphonia::default::get_codecs()
+        .make(
+            &track.codec_params,
+            &symphonia::core::codecs::DecoderOptions::default(),
+        )
+        .map_err(|e| format!("{}: MP3 decoder init error: {e}", path.display()))?;
+
     let mut samples: Vec<i16> = Vec::new();
     let mut sample_rate: Option<u32> = None;
-    let mut channels: Option<u16> = None;
+    let mut channels: u16 = 0;
     loop {
-        match decoder.next_frame() {
-            Ok(frame) => {
-                let rate = u32::try_from(frame.sample_rate).map_err(|_| {
-                    format!(
-                        "{}: negative sample rate {}",
-                        path.display(),
-                        frame.sample_rate
-                    )
-                })?;
+        let packet = match format.next_packet() {
+            Ok(p) => p,
+            // Clean end-of-stream.
+            Err(SymError::IoError(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                break;
+            }
+            Err(e) => {
+                return Err(format!("{}: MP3 demux error: {e}", path.display()));
+            }
+        };
+        match decoder.decode(&packet) {
+            Ok(decoded) => {
+                let spec = *decoded.spec();
+                let rate = spec.rate;
                 match sample_rate {
                     None => sample_rate = Some(rate),
                     Some(r) if r != rate => {
@@ -114,10 +152,13 @@ pub fn decode_mp3(path: &Path) -> Result<PcmAudio, String> {
                     }
                     _ => {}
                 }
-                channels = Some(frame.channels as u16);
-                samples.extend_from_slice(&frame.data);
+                channels = channels.max(spec.channels.count() as u16);
+                let mut sbuf = SampleBuffer::<i16>::new(decoded.capacity() as u64, spec);
+                sbuf.copy_interleaved_ref(decoded);
+                samples.extend_from_slice(sbuf.samples());
             }
-            Err(minimp3::Error::Eof) => break,
+            // Skip corrupt packets instead of failing the whole clip.
+            Err(SymError::DecodeError(_)) => continue,
             Err(e) => {
                 return Err(format!("{}: MP3 decode error: {e}", path.display()));
             }
@@ -128,7 +169,7 @@ pub fn decode_mp3(path: &Path) -> Result<PcmAudio, String> {
     }
     Ok(PcmAudio {
         sample_rate: sample_rate.unwrap_or(0),
-        channels: channels.unwrap_or(1),
+        channels: channels.max(1),
         samples,
     })
 }

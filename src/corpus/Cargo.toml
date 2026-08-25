@@ -5,7 +5,9 @@ edition = "2024"
 
 [dependencies]
 hound = "3.5.1"
-minimp3 = "0.5.2"
+# MP3 decoding: symphonia replaces minimp3 (Dependabot GHSA-7mcq-f592-pf7v:
+# slice-ring-buffer <=0.3.4 double-free, unpatched; minimp3 0.5 is unmaintained).
+symphonia = { version = "0.5.4", default-features = false, features = ["mp3"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
