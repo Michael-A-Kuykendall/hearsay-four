@@ -11,7 +11,7 @@ use std::path::Path;
 
 use accent::measure::{apply_rule, load_session, measure_session, BucketStat};
 use accent::{decode_session_audio, ConditionA, ConditionB};
-use calibration::{fit_baseline, Frame};
+use calibration::{fit_baseline, Baseline, Frame, FEATURE_DIM};
 use fse::{extract_features, window_audio};
 
 fn main() -> Result<(), String> {
@@ -42,21 +42,19 @@ fn main() -> Result<(), String> {
     // this would come from enrollment, but for the experiment we use a
     // baseline from the session audio itself, so Condition A and B see
     // the same initial reference.)
-    let windows = window_audio(&audio.frames, audio.sample_rate);
-    let features = extract_features(&windows, audio.sample_rate)
-        .map_err(|e| format!("extract_features: {e}"))?;
-    if features.len() < 100 {
-        return Err(format!(
-            "only {} frames — need >=100 for baseline",
-            features.len()
-        ));
-    }
-    let baseline = fit_baseline(&features[..100]).ok_or("fit_baseline failed")?;
-    println!(
-        "baseline fitted from {} frames (mean[0]={:.4})",
-        baseline.frame_count,
-        baseline.mean.first().copied().unwrap_or(0.0)
-    );
+    // Use a TRULY GENERIC baseline: mean=0, var=1 per dimension. This is
+    // what synthesis §6 calls "scored fresh against a generic reference" —
+    // NOT a per-speaker fit. Fitting the baseline from the speaker's own
+    // first frames would conflate per-speaker adaptation with drift
+    // handling (the first 100 frames ARE the speaker's voice, so A's NLL
+    // is artificially low for early utterances and the experiment loses
+    // sensitivity to drift).
+    let baseline = calibration::Baseline {
+        mean: vec![0.0; FEATURE_DIM],
+        variance: vec![1.0; FEATURE_DIM],
+        frame_count: 0,
+    };
+    println!("baseline: GENERIC (mean=0, var=1 per dim) — §6 'generic reference'");
 
     let a = ConditionA::new(baseline.clone());
     let mut b = ConditionB::new(baseline);
