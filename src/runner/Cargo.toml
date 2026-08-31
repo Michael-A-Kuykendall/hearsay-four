@@ -1,0 +1,13 @@
+[package]
+name = "runner"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+calibration = { path = "../calibration" }
+fse = { path = "../fse" }
+arena = { path = "../arena" }
+stage3 = { path = "../stage3" }
+corpus = { path = "../corpus" }
+fabric = { path = "../fabric" }
+invariant_ppt = { path = "../invariant_ppt" }
