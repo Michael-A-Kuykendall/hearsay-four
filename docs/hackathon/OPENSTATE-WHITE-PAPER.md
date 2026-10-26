@@ -206,3 +206,58 @@ carry created/updated/closed timestamps. End-of-project accounting =
 `bd history` per bead + audit log + gate evidence in close reasons.
 Novelty claim for submission: the whole orchestration is beads-native —
 the issue tracker IS the scheduler, the merger, and the time clock.
+
+## 12. Track A/B rerun — packaging lane (Oct 26 evening, in progress)
+
+Same shape as the morning run, second lap: substrate beads sequential on
+main, surface beads parallel on refreshed tracks.
+
+- `9hh` (track-c, main): sample clip cut with the repo's own decoder
+  (throwaway trimmer in /tmp against `corpus::audio::decode_to_pcm16k`,
+  loudest-8s window) → `data/demo/sample.wav` (252K) + README provenance
+  + narrow `.gitignore` exception. Gate: demo exit 0, 4-word transcript,
+  all chains terminate. Closed, committed as `6626f00`.
+- `9gc` (track-c, main): `--json` on `hearsay-demo` reusing
+  `output::Transcript` serialization + `WordRecord::validate`-first
+  contract. Test-first: focused `json_output` test written before
+  `emit_json` existed (observed `E0425` failure), then green; CLI gate on
+  the `9hh` fixture: exit 0, 4 words with text+provenance; runner suite
+  7+1, clippy `-D warnings`, fmt. Closed, committed as `cd892f3`.
+- Tracks `track-a`/`track-b` fast-forwarded to `cd892f3` (both clean,
+  both ancestors — zero-divergence refresh).
+- `2sh` (track-a) and `dyy` (track-b) launched as parallel subagents on
+  their worktrees after the substrate landed.
+- Track B landed first: `dyy` closed green (release script + README +
+  smoke JSON + guard evidence + checksums; commit `eb2a81b`), merged to
+  main as `937dacf`, release gate re-verified on the merged tree (binary
+  OK, `sha256sum -c` OK).
+- Track A hit a real plan mismatch and the discipline worked: the child
+  proved the wasm32 closure fails in `wait-timeout` (proptest declared
+  as a hard dep in `invariant_ppt` but used only in `cfg(test)` fuzz
+  code), stopped before writing repo code, released `2sh` to OPEN with
+  the evidence in bead notes. Fix filed as `amc` (one-line manifest
+  move, verified: 20 tests green, wasm32 links), closed and committed as
+  `a4bd294`; `2sh` now depends on `amc` and is retrying on a refreshed
+  track-a. Total cost of the mismatch: one prerequisite bead, zero
+  wasted implementation, zero broken trees.
+- Retry landed: `2sh` closed green on track-a (4 wasm-demo tests, wasm32
+  links, page with both callouts, guard green; commit `3db7990`), merged
+  to main, gate re-verified on the merged tree. Track B's release gate
+  likewise re-verified post-merge. Runner suite re-run after the `amc`
+  manifest move: 7+1 passed.
+- Lane totals: 5 beads closed (`9hh`, `9gc`, `amc`, `dyy`, `2sh`),
+  2 track merges, 0 pushes. Remaining: `o20` (needs owner recording),
+  `say` (submission review, gate `3ww`). The final argument for the
+  submission: every claim in this paper traces to a bead close reason
+  with a command and an observed result — the speed came from parallel
+  tracks with zero-divergence refreshes plus a queue that made the one
+  real blocker cheap (a child proved it, a one-line bead fixed it, the
+  retry landed).
+
+OpenState usage this lap (all observed): every source edit went through
+`ast_search` → `read_text_region`/`read_symbol` → `preview` → `apply`
+(`symbol_overview` supplied the real `MicCapture`/`FullPipeline`
+surfaces after two hallucinated APIs were compiler-rejected on the
+previous lap). Edit batches on one file serialize on digest (second
+preview rebases); batches across files apply in parallel. No shell
+redirects into the repo; no hand-written files except /tmp probes.
