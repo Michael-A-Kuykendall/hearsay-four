@@ -12,8 +12,10 @@
 //! (invariants `provenance_terminates`, `chain_acyclic`, contract tests)
 //! stays in nak.1 — it is deliberately NOT built here.
 
+use serde::{Deserialize, Serialize};
+
 /// One candidate word or phoneme string with its competition score.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Hypothesis {
     /// Candidate word or phoneme string.
     pub text: String,
@@ -24,7 +26,8 @@ pub struct Hypothesis {
 }
 
 /// Survival status of a hypothesis (schema section 3.3).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum HypothesisStatus {
     Committed,
     Retracted,
@@ -32,7 +35,7 @@ pub enum HypothesisStatus {
 }
 
 /// The specific evidence that decided winner over loser (schema 3.4).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Evidence {
     pub kind: EvidenceKind,
     /// Human-readable why.
@@ -42,7 +45,8 @@ pub struct Evidence {
 }
 
 /// Evidence source kinds (schema section 3.4).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum EvidenceKind {
     Lexical,
     Phonological,
@@ -52,14 +56,15 @@ pub enum EvidenceKind {
 }
 
 /// One derivation layer, strictly ascending frame -> sequence (schema 3.5).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ChainLayer {
     pub level: ChainLevel,
     pub nodes: Vec<Node>,
 }
 
 /// Layer levels, in strictly ascending derivation order (schema section 4).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ChainLevel {
     Frame,
     Phoneme,
@@ -72,7 +77,7 @@ pub enum ChainLevel {
 ///
 /// `id` stands in for the hash-consed arena `NodeId`; the mapping to the
 /// real arena ids is nak.1's job, not this scaffold's.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Node {
     pub id: u64,
     /// E.g. "/t/", "SYL:ta", "WORD:table".
@@ -84,7 +89,7 @@ pub struct Node {
 }
 
 /// Reference to an arena justification set (survival semantics, aem.13).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct JustificationRef {
     pub justification_id: String,
     /// Premise node ids (strictly lower layers only, INV `chain_acyclic`).
@@ -94,14 +99,14 @@ pub struct JustificationRef {
 }
 
 /// The derivation, layer by layer, down to acoustic evidence (schema 3.5).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProvenanceChain {
     /// Acoustic -> phone -> syllable -> lexical -> sequence.
     pub layers: Vec<ChainLayer>,
 }
 
 /// The per-word root record (schema section 3.2).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WordRecord {
     /// The transcribed word.
     pub text: String,
@@ -122,7 +127,7 @@ pub struct WordRecord {
 }
 
 /// Session metadata for a [`Transcript`] (schema section 3.1).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SessionMeta {
     pub speaker_id: String,
     pub recording_ref: String,
@@ -130,7 +135,7 @@ pub struct SessionMeta {
 }
 
 /// Transcript output: words plus session context (schema section 3.1).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Transcript {
     pub words: Vec<WordRecord>,
     pub session: SessionMeta,
@@ -414,6 +419,99 @@ impl WordRecord {
     }
 }
 
+impl WordRecord {
+    /// Serialize this record to JSON for the human reviewer (nak.2, schema
+    /// section 5). `serde_json` would silently emit NaN/inf as `null`, so
+    /// the contract (INV `score_in_range`) is enforced first: out-of-range
+    /// scores surface as an `Err` here instead of corrupt JSON.
+    pub fn to_json(&self) -> Result<String, serde_json::Error> {
+        use serde::ser::Error as _;
+        self.validate()
+            .map_err(|failure| serde_json::Error::custom(format!("{failure:?}")))?;
+        serde_json::to_string_pretty(self)
+    }
+
+    /// Parse a record back from [`WordRecord::to_json`] output. Callers
+    /// re-check the chain contract with [`WordRecord::validate`].
+    pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
+        serde_json::from_str(json)
+    }
+
+    /// One-screen human-reviewer rendering (nak.2, schema section 5):
+    /// answers "why this word and not that one?" by showing `winner`,
+    /// `losing`, and `decided_by` together, with the `provenance` chain
+    /// listed from the acoustic (frame) layer up for expansion.
+    pub fn render(&self) -> String {
+        fn level_name(level: ChainLevel) -> &'static str {
+            match level {
+                ChainLevel::Frame => "frame",
+                ChainLevel::Phoneme => "phoneme",
+                ChainLevel::Syllable => "syllable",
+                ChainLevel::Lexical => "lexical",
+                ChainLevel::Sequence => "sequence",
+            }
+        }
+        fn status_name(status: HypothesisStatus) -> &'static str {
+            match status {
+                HypothesisStatus::Committed => "committed",
+                HypothesisStatus::Retracted => "retracted",
+                HypothesisStatus::Survived => "survived",
+            }
+        }
+        fn kind_name(kind: EvidenceKind) -> &'static str {
+            match kind {
+                EvidenceKind::Lexical => "lexical",
+                EvidenceKind::Phonological => "phonological",
+                EvidenceKind::Sequence => "sequence",
+                EvidenceKind::Acoustic => "acoustic",
+                EvidenceKind::Calibration => "calibration",
+            }
+        }
+        let mut out = format!(
+            "word {:?} [{}ms-{}ms] confidence {:.2}\n",
+            self.text, self.start_ms, self.end_ms, self.confidence
+        );
+        out.push_str(&format!(
+            "WINNER: {:?} (score {:.2}, {})\n",
+            self.winner.text,
+            self.winner.score,
+            status_name(self.winner.status)
+        ));
+        out.push_str("LOSING:\n");
+        for hypothesis in &self.losing {
+            out.push_str(&format!(
+                "  - {:?} (score {:.2}, {})\n",
+                hypothesis.text,
+                hypothesis.score,
+                status_name(hypothesis.status)
+            ));
+        }
+        out.push_str(&format!(
+            "DECIDED BY [{} strength {:.2}]: {}\n",
+            kind_name(self.decided_by.kind),
+            self.decided_by.strength,
+            self.decided_by.description
+        ));
+        out.push_str("PROVENANCE (acoustic layer first, expand downward):\n");
+        for layer in &self.provenance.layers {
+            out.push_str(&format!("  [{}]\n", level_name(layer.level)));
+            for node in &layer.nodes {
+                out.push_str(&format!(
+                    "    id={} {:?} active={}\n",
+                    node.id, node.label, node.active
+                ));
+                for support in &node.support {
+                    out.push_str(&format!(
+                        "      <- {} premises={:?} unconditional={}\n",
+                        support.justification_id, support.premises, support.unconditional
+                    ));
+                }
+            }
+        }
+        out
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -691,5 +789,75 @@ mod tests {
             live_record(duplicated).validate(),
             Err(ChainError::DuplicateNodeId(1))
         );
+    }
+
+    #[test]
+    fn render_json_serializes_word_record() {
+        // (1) A WordRecord serializes to JSON ...
+        let record = live_record(sample_chain());
+        let json = record.to_json().expect("valid record serializes");
+        let value: serde_json::Value =
+            serde_json::from_str(&json).expect("to_json emits valid JSON");
+        // (2) ... with winner + losing + decided_by present, so a reviewer
+        // can ask "why this word and not that one?".
+        assert_eq!(value["text"], "table");
+        assert_eq!(value["winner"]["text"], "table");
+        assert_eq!(value["losing"][0]["text"], "cable");
+        let decided = value["decided_by"]["description"]
+            .as_str()
+            .expect("decided_by has a description");
+        assert!(!decided.is_empty());
+        assert_eq!(value["decided_by"]["kind"], "acoustic");
+    }
+
+    #[test]
+    fn render_shows_winner_loser_and_decided_by() {
+        // The one-screen rendering puts winner, losing, and decided_by
+        // together, with the chain expandable to the acoustic layer.
+        let record = live_record(sample_chain());
+        let screen = record.render();
+        assert!(screen.contains("WINNER:"), "winner shown");
+        assert!(screen.contains("\"table\""), "winner word shown");
+        assert!(screen.contains("LOSING:"), "losing section shown");
+        assert!(screen.contains("\"cable\""), "losing word shown");
+        assert!(screen.contains("DECIDED BY"), "deciding evidence shown");
+        assert!(
+            screen.contains("onset burst energy favors /t/ over /k/"),
+            "deciding reason shown"
+        );
+        assert!(screen.contains("[frame]"), "acoustic layer expandable");
+        assert!(screen.contains("FRAME:0-20ms"), "acoustic node shown");
+    }
+
+    #[test]
+    fn render_scores_are_finite_and_in_range() {
+        // (3) INV `score_in_range`: no NaN/inf in scores.
+        let record = live_record(sample_chain());
+        assert!(record.validate().is_ok());
+        assert!(record.to_json().is_ok());
+        let mut bad = live_record(sample_chain());
+        bad.confidence = f32::NAN;
+        assert_eq!(
+            bad.validate(),
+            Err(ChainError::ScoreOutOfRange("confidence"))
+        );
+        assert!(bad.to_json().is_err(), "NaN must not serialize");
+        let mut inf = live_record(sample_chain());
+        inf.winner.score = f32::INFINITY;
+        assert_eq!(
+            inf.validate(),
+            Err(ChainError::ScoreOutOfRange("winner.score"))
+        );
+        assert!(inf.to_json().is_err(), "inf must not serialize");
+    }
+
+    #[test]
+    fn render_round_trips_through_schema() {
+        // (4) The JSON rendering round-trips through the schema unchanged.
+        let record = live_record(sample_chain());
+        let json = record.to_json().expect("valid record serializes");
+        let back = WordRecord::from_json(&json).expect("round-trip parses");
+        assert_eq!(back, record);
+        assert!(back.validate().is_ok());
     }
 }
