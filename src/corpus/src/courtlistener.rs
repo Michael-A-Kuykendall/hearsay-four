@@ -140,6 +140,26 @@ impl CourtListenerClient {
         }
         Ok(all)
     }
+    /// Download raw bytes from an audio URL with the API token auth.
+    /// Used by the corpus-fetch bin for `local_path_mp3` / `download_url`.
+    pub fn download_bytes(&self, url: &str) -> Result<Vec<u8>, String> {
+        let resp = self
+            .http
+            .get(url)
+            .header(
+                reqwest::header::AUTHORIZATION,
+                format!("Token {}", self.token),
+            )
+            .send()
+            .map_err(|e| format!("GET {url}: {e}"))?;
+        let status = resp.status();
+        if !status.is_success() {
+            return Err(format!("GET {url}: HTTP {status}"));
+        }
+        resp.bytes()
+            .map(|b| b.to_vec())
+            .map_err(|e| format!("GET {url}: read body: {e}"))
+    }
 }
 
 /// A single SCOTUS audio object with its transcript, saved to `data/corpus/`.
