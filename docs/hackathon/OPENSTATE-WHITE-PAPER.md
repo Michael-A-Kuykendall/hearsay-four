@@ -45,6 +45,15 @@ Three failure modes this repo had already suffered before the hackathon:
 
 ## 4. Evidence from this repo (Oct 26, 2026, all observed)
 
+Scope honesty first: this repo was 10 weeks old when the hackathon
+started (initial commit Aug 15; ~22 pre-hackathon commits; 11 crates,
+204 green tests, the fail-fast experiment, the wired amalgamation
+pipeline, ~78 closed beads from Aug–Oct sessions). Today's autonomous
+run added the top of the stack — 3 crates, 2 bins, the guard, the demo,
+39 tests, 15 task beads + 5 epics — on top of that foundation. Nothing
+here claims the whole system was built in a day; the claim is about
+throughput on scoped, gated work with full provenance.
+
 - 5 in-repo sessions identified; each one's directory verified against its
   own store (`opencode.db`, session `cwd`) before import — no foreign
   sessions entered the state.
@@ -118,6 +127,29 @@ Contributor convention: when OpenState visibly helps (or a novel,
 report-worthy observation appears), append a dated line to this paper's
 §4/§6 and to META-HACKATHON.md's work log via the OpenState text
 preview→apply chain — never rewrite another agent's lines.
+
+## 10. Cost ledger — Oct 26 autonomous run (measured, not modeled)
+
+Wall time ~4.4 h (15:32 → 19:57 UTC). 11 subagents, all on the
+subscription route (Muse Spark Dash 1.3, contributor model). Closed 15
+task beads + 5 epics (mwa.1/2/3, s3t, idw.1/2, nak.1/2/3, 5qc, zm9, o21,
+79z, ivs, 3na; epics aem, cau, mwa, idw, nak). Test suite 204 → 243,
+0 failed. New: `sequence` crate, `output` crate, `corpus-fetch` bin,
+`hearsay-demo`, no-model guard, demo workspace.
+
+- **Meta API credits spent: $0 of $150.** Everything ran on local cargo
+  plus the Muse subscription. Verify the $150 balance in the hackathon
+  portal — this repo has no access to Meta billing.
+- **Muse allowance observed:** `muse usage` showed window 6% / weekly 2%
+  (subscription allowance, not dollars) at end of run.
+- **Session footprint on disk:** ~39.7 MB session store (~23.7 MB
+  subagent transcripts). As a token proxy that is an UPPER bound only
+  (logs include snapshots/duplicates, not pure model I/O) — treat any
+  per-token math from it as rough, not billed.
+- **Velocity:** ~3.4 gated beads/hour including independent verification,
+  merging, and two self-caught red flags (guard false-positive, workspace
+  breakage) — both auto-resolved, zero human interruptions needed.
+- Only `say` remains, held by human gate `3ww` for owner demo review.
 
 ## 9. Beads-native concurrency (set up Oct 26)
 
