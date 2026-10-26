@@ -11,6 +11,7 @@ pub mod derive;
 pub mod drift;
 pub mod feedback;
 pub mod measure;
+pub mod window_feedback;
 
 use invariant_ppt::assert_invariant;
 

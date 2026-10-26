@@ -12,3 +12,4 @@ invariant_ppt = { path = "../invariant_ppt" }
 
 [dev-dependencies]
 proptest = "1.11.0"
+stage3 = { path = "../stage3" }
