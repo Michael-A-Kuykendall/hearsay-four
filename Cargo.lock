@@ -8,7 +8,6 @@ version = "0.1.0"
 dependencies = [
  "fabric",
  "invariant_ppt",
- "proptest",
 ]
 
 [[package]]
@@ -120,7 +119,6 @@ version = "0.1.0"
 dependencies = [
  "fabric",
  "invariant_ppt",
- "proptest",
 ]
 
 [[package]]
@@ -168,7 +166,6 @@ version = "0.1.0"
 dependencies = [
  "hound",
  "invariant_ppt",
- "proptest",
  "reqwest",
  "serde",
  "serde_json",
@@ -264,9 +261,7 @@ name = "fse"
 version = "0.1.0"
 dependencies = [
  "calibration",
- "corpus",
  "invariant_ppt",
- "proptest",
 ]
 
 [[package]]
@@ -612,7 +607,6 @@ dependencies = [
  "arena",
  "fabric",
  "invariant_ppt",
- "proptest",
 ]
 
 [[package]]
@@ -688,7 +682,6 @@ name = "output"
 version = "0.1.0"
 dependencies = [
  "invariant_ppt",
- "proptest",
  "serde",
  "serde_json",
 ]
@@ -1032,7 +1025,6 @@ dependencies = [
  "fabric",
  "invariant_ppt",
  "lexicon",
- "proptest",
 ]
 
 [[package]]
@@ -1137,7 +1129,6 @@ dependencies = [
  "fabric",
  "fse",
  "invariant_ppt",
- "proptest",
 ]
 
 [[package]]
