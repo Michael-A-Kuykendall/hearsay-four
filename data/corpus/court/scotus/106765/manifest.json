@@ -1,0 +1,10 @@
+{
+  "date_created": "2026-10-06T11:36:48.071372-07:00",
+  "docket": "https://www.courtlistener.com/api/rest/v4/dockets/73274859/?format=json",
+  "download_url": "http://www.supremecourt.gov/media/audio/mp3files/25-170.mp3",
+  "duration": 6405.0,
+  "has_transcript": true,
+  "id": 106765,
+  "local_path_mp3": "mp3/2026/10/05/suncor_energy_u.s.a._inc._v._commissioners_of_boulder_county_cl_1.mp3",
+  "stt_status": 1
+}

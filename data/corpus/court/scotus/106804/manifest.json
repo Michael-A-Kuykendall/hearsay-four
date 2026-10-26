@@ -1,0 +1,10 @@
+{
+  "date_created": "2026-10-07T11:37:08.066773-07:00",
+  "docket": "https://www.courtlistener.com/api/rest/v4/dockets/73279024/?format=json",
+  "download_url": "http://www.supremecourt.gov/media/audio/mp3files/25-579.mp3",
+  "duration": 4542.0,
+  "has_transcript": true,
+  "id": 106804,
+  "local_path_mp3": "mp3/2026/10/07/department_of_air_force_v._prutehi_guahan_cl.mp3",
+  "stt_status": 1
+}

@@ -1,0 +1,10 @@
+{
+  "date_created": "2026-10-13T11:32:28.528194-07:00",
+  "docket": "https://www.courtlistener.com/api/rest/v4/dockets/73277583/?format=json",
+  "download_url": "http://www.supremecourt.gov/media/audio/mp3files/25-5343.mp3",
+  "duration": 6865.0,
+  "has_transcript": true,
+  "id": 106844,
+  "local_path_mp3": "mp3/2026/10/13/beaird_v._united_states_cl_1.mp3",
+  "stt_status": 1
+}

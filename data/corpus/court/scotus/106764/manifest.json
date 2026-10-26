@@ -1,0 +1,10 @@
+{
+  "date_created": "2026-10-06T11:36:44.527695-07:00",
+  "docket": "https://www.courtlistener.com/api/rest/v4/dockets/73278555/?format=json",
+  "download_url": "http://www.supremecourt.gov/media/audio/mp3files/25-498.mp3",
+  "duration": 3663.0,
+  "has_transcript": true,
+  "id": 106764,
+  "local_path_mp3": "mp3/2026/10/06/anderson_v._intel_corp._investment_policy_committee_cl.mp3",
+  "stt_status": 1
+}

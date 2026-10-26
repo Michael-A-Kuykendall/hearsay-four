@@ -1,0 +1,47 @@
+# Meta Global AI Developer Hackathon 2026 — Hearsay-IV Entry
+
+Owner: Michael A. Kuykendall. Event runs the build Oct 26 – Nov 4, 2026.
+
+## The event (verified Oct 26, 2026 via web search)
+
+- **Name:** Meta Global AI Developer Hackathon 2026 (run by Meta with
+  Cerebral Valley). 10-day virtual build, worldwide, selection-capped at
+  20,000 participants.
+- **Build window:** Oct 26 → Nov 4, 2026.
+- **Submission deadline: Nov 4, 9:00 PM ET (Nov 5, 02:00 UTC).**
+  Judging Nov 5–9, winners announced Nov 10.
+- **Prizes:** $1M cash pool. **Credits:** $150 Meta Model API credits per
+  participant (owner plans to extend via the contributor model).
+- **Build with:** Meta's newest models, Meta open-weights models, Muse Code.
+- Links: [Cerebral Valley event page](https://cerebralvalley.ai/e/meta-ai-developer-hackathon)
+  (Meta dev events page: `dev.meta.ai/events/`).
+
+## Our entry
+
+**Hearsay-IV** — Hearsay-III (1983) re-implemented with the blackboard
+swapped for the patent-pending saturation fabric: a fully mechanistic,
+model-free, offline speech transcription device. No neural nets, no
+embeddings, no learned weights anywhere (enforced by bead
+`hearsay-four-ivs`, `scripts/no_model_guard.sh`). Accent tracking +
+classical techniques throughout. Full thesis in [the whitepaper](OPENSTATE-WHITE-PAPER.md).
+
+## Internal vs official dates
+
+- **Internal target: Nov 1** (bead `hearsay-four-say`). Finish the work here.
+- **Submission: Nov 4, 9:00 PM ET.** Buffer for packaging, demo, and writeup.
+- Running through the tape either way: remainder becomes beads.
+
+## Work log (hackathon period)
+
+| Date | Done |
+|---|---|
+| Oct 26 | Assessed all 5 in-repo sessions (reset + verified replay, 3464 records). Mandated OpenState tools in AGENTS.md for Muse. Stabilization baseline 204 tests green. |
+| Oct 26 | Closed `ivs` (no-model guard, proven red+green), `o21` (lexicon crate scaffold, 4 tests), `79z` (corpus-fetch bin, 5 SCOTUS objects, idempotent). Suite now 208 tests, 0 failed. |
+| Oct 26 | Failure-mode audit: method-call refs invisible to `find_referencing_symbols` (real gap, `Fabric`→65 refs works); diagnostics unsupported on 2/2 files (real limitation); replay-order **cleared** (1355 = 1355 both orders — earlier gap was my comparison error). Filed conclusion bead `5qc` (missing verifiable endpoint) + prep bead `zm9` (`src/output` scaffold). Concurrency plan in whitepaper §8. |
+| Oct 26 | Beads-native concurrency stood up: `swarm validate` waves (mwa, nak linear, parallel across tracks); labels `hackathon`+`track-a/b/c`; human gate `3ww` holding `say` for owner demo review; worktrees `track-a`/`track-b` (branches, shared DB, auto-gitignored); `merge-slot` for landing; `epic close-eligible` retired aem+cau; `audit record` timestamping for the time-saved ledger. Whitepaper §9. Ready: mwa.1 (A), zm9 (B). |
+
+## Rules of engagement for this repo during the event
+
+- Beads are the work queue; every bead carries a green/red gate.
+- No-model constraint is load-bearing: run the guard before any submission.
+- Patent internals stay out of git and beads (repo will go public).

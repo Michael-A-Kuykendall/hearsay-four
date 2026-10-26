@@ -1,0 +1,10 @@
+{
+  "date_created": "2026-10-14T11:33:07.653007-07:00",
+  "docket": "https://www.courtlistener.com/api/rest/v4/dockets/73278510/?format=json",
+  "download_url": "http://www.supremecourt.gov/media/audio/mp3files/25-459.mp3",
+  "duration": 5081.0,
+  "has_transcript": true,
+  "id": 106874,
+  "local_path_mp3": "mp3/2026/10/14/salazar_v._paramount_global_cl_2.mp3",
+  "stt_status": 1
+}
