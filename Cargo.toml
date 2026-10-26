@@ -1,0 +1,8 @@
+# Track A workspace root (bead hearsay-four-5qc): exposes the runner's
+# `hearsay-demo` bin as `cargo run --bin hearsay-demo` from this directory.
+# Only the runner is a member; every other stage crate stays a standalone
+# package reached through the runner's path dependencies, so their existing
+# per-crate gates (`cd src/<crate> && cargo test ...`) are unchanged.
+[workspace]
+members = ["src/runner"]
+resolver = "2"
