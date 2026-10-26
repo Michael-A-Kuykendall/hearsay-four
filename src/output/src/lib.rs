@@ -513,6 +513,9 @@ impl WordRecord {
 }
 
 #[cfg(test)]
+mod ppt_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
