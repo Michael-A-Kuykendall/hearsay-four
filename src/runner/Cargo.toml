@@ -11,3 +11,6 @@ stage3 = { path = "../stage3" }
 corpus = { path = "../corpus" }
 fabric = { path = "../fabric" }
 invariant_ppt = { path = "../invariant_ppt" }
+lexicon = { path = "../lexicon" }
+sequence = { path = "../sequence" }
+output = { path = "../output" }
