@@ -7,7 +7,7 @@
 //! proposes — it has never been run end-to-end on the real audio before.
 
 use std::env;
-use std::path::Path;
+use std::path::PathBuf;
 
 use accent::measure::{BucketStat, apply_rule, load_session, measure_session};
 use accent::{ConditionA, ConditionB, decode_session_audio};
@@ -15,11 +15,26 @@ use calibration::FEATURE_DIM;
 
 fn main() -> Result<(), String> {
     let args: Vec<String> = env::args().collect();
-    // Optional: limit to first N rows for a smoke test.
-    let limit = args.get(1).and_then(|s| s.parse::<usize>().ok());
-
-    let root = Path::new("/home/michael/repos/hearsay-four/data/session");
-    let rows = load_session(root).map_err(|e| format!("load manifest: {e}"))?;
+    // Optional: --root <dir> scores a different session layout (default:
+    // the 39c.2 fixture), and a bare N limits to the first N rows.
+    let mut root = PathBuf::from("/home/michael/repos/hearsay-four/data/session");
+    let mut limit: Option<usize> = None;
+    let mut i = 1;
+    while i < args.len() {
+        if args[i] == "--root" {
+            i += 1;
+            root = args
+                .get(i)
+                .map(PathBuf::from)
+                .ok_or_else(|| "--root needs a directory".to_string())?;
+        } else if let Ok(n) = args[i].parse::<usize>() {
+            limit = Some(n);
+        } else {
+            return Err(format!("unknown arg {:?}", args[i]));
+        }
+        i += 1;
+    }
+    let rows = load_session(&root).map_err(|e| format!("load manifest: {e}"))?;
     let total_rows = rows.len();
     let rows: Vec<_> = if let Some(n) = limit {
         rows.into_iter().take(n).collect()
@@ -28,8 +43,15 @@ fn main() -> Result<(), String> {
     };
     println!("manifest: {total_rows} rows, running {}", rows.len());
 
-    println!("decoding MP3...");
-    let audio = decode_session_audio().map_err(|e| format!("decode: {e}"))?;
+    let custom_root = root.as_os_str() != "/home/michael/repos/hearsay-four/data/session";
+    println!("decoding session audio...");
+    let audio = if custom_root {
+        // Ingested runs (bead o20): single WAV written by session-ingest.
+        corpus::audio::decode_to_pcm16k(&root.join("audio/run1.wav"))
+            .map_err(|e| format!("decode: {e}"))?
+    } else {
+        decode_session_audio().map_err(|e| format!("decode: {e}"))?
+    };
     println!(
         "  sample_rate={} frames={} duration={:.1}s",
         audio.sample_rate,

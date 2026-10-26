@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 calibration = { path = "../calibration" }
+hound = "3.5"
 corpus = { path = "../corpus" }
 fabric = { path = "../fabric" }
 fse = { path = "../fse" }

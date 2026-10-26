@@ -10,6 +10,7 @@ dependencies = [
  "corpus",
  "fabric",
  "fse",
+ "hound",
  "invariant_ppt",
  "proptest",
  "stage3",
@@ -517,9 +518,6 @@ dependencies = [
 [[package]]
 name = "invariant_ppt"
 version = "0.1.0"
-dependencies = [
- "proptest",
-]
 
 [[package]]
 name = "ipnet"
