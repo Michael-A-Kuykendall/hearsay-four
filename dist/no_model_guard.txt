@@ -1,0 +1,1 @@
+NO-MODEL GUARD GREEN: no ML crates, weight files, model APIs, or STT-in-scoring-path.
