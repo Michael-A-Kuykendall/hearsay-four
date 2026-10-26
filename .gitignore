@@ -11,6 +11,8 @@ data/corpus/raw/
 *.mp3
 *.flac
 *.wav
+# Narrow exception: the zero-config demo fixture (bead 9hh) only.
+!data/demo/sample.wav
 data/session/audio/
 
 # --- Agent / IDE internal tooling (not for public) ---
