@@ -19,5 +19,6 @@ exclude = [
     "src/output",
     "src/sequence",
     "src/stage3",
+    "src/wasm-demo",
 ]
 resolver = "2"

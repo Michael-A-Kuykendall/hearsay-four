@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hearsay-IV WASM demo (model-free pipeline)</title>
+<!--
+  BUILD (run from the repo worktree root before serving):
+    wasm-pack build src/wasm-demo --target web --out-dir web/pkg
+    python3 -m http.server 8000   # then open http://localhost:8000/web/demo.html
+  The Rust crate alone links without the JS glue:
+    cd src/wasm-demo && cargo build --offline --target wasm32-unknown-unknown
+  Audio decode happens in this page (WebAudio), never in the module: the
+  WASM export takes an Int16Array of mono 16 kHz PCM and returns a JSON
+  string. The module performs no network or filesystem I/O.
+-->
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 72ch; margin: 2em auto; padding: 0 1em; }
+  #drop { border: 2px dashed #888; padding: 1.5em; text-align: center; margin: 1em 0; }
+  #drop.over { border-color: #000; background: #f0f0f0; }
+  .word { border: 1px solid #ccc; margin: 0.4em 0; padding: 0.4em; cursor: pointer; }
+  .word .detail { display: none; margin-top: 0.4em; font-size: 0.9em; }
+  .word.open .detail { display: block; }
+  .phone { cursor: pointer; color: #064; }
+  .frames { display: none; margin-left: 1.5em; color: #444; }
+  .phone.open + .frames { display: block; }
+  pre.guard { background: #f6f6f6; padding: 0.8em; white-space: pre-wrap; }
+  .notice { background: #fff8e1; border: 1px solid #e0c; border-color: #d9b400; padding: 0.8em; margin: 1em 0; }
+  #status { font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>Hearsay-IV interactive demo (WebAssembly, model-free)</h1>
+
+<div class="notice" id="vocab-notice">
+  <strong>closed vocabulary notice:</strong> this pipeline transcribes into a
+  fixed closed vocabulary of 30 words (a CMUdict-shaped lookup table, phone
+  strings only — not a model). Any utterance is aligned to the
+  nearest-pronunciation entry by classical edit distance; out-of-vocabulary
+  speech still resolves to the closest table entry, and the provenance tree
+  below shows exactly which phones decided each word.
+</div>
+
+<div class="notice">
+  <strong>no-model guard:</strong> the scoring path contains no neural net,
+  transformer, embedding model, or learned weights — classical techniques
+  only (windowed features, Mahalanobis-ish phone scoring, hash-consed arena,
+  commit window, edit-distance lexicon lookup, counted bigrams). The page
+  decodes audio with WebAudio outside WASM; the module itself never touches
+  the network or the filesystem.
+  <pre class="guard" id="guard-output">NO-MODEL GUARD GREEN: no ML crates, weight files, model APIs, or STT-in-scoring-path.
+(verdict of scripts/no_model_guard.sh on the demo tree; re-run it to refresh.)</pre>
+</div>
+
+<h2>1. Audio in (decoded page-side to mono 16 kHz PCM)</h2>
+<div id="drop">Drop a .wav/.mp3 file here, or use the controls below.</div>
+<p>
+  <input type="file" id="file" accept="audio/*,.wav,.mp3">
+  <button id="sample">Load default clip (data/demo/sample.wav)</button>
+</p>
+<p>
+  <button id="rec">Record from microphone</button>
+  <button id="stop" disabled>Stop</button>
+</p>
+
+<h2>2. Transcribe in WASM</h2>
+<p><button id="go" disabled>Transcribe (PCM16k-in / JSON-out)</button>
+<span id="status">wasm bundle not loaded yet.</span></p>
+
+<h2>3. Transcript (word → phones → frame evidence)</h2>
+<div id="out"><p>No transcript yet.</p></div>
+
+<script type="module">
+let wasm = null;
+let pcm16k = null; // Int16Array, mono 16k
+const status = (t) => { document.getElementById('status').textContent = t; };
+
+// The wasm bundle is built separately (see the BUILD comment at the top of
+// this file). If it is absent the page still documents the pipeline; the
+// interactive transcribe step is owned by bead hearsay-four-say.
+try {
+  wasm = await import('./pkg/wasm_demo.js');
+  await wasm.default();
+  const info = JSON.parse(wasm.demo_info());
+  status(`wasm ready: closed vocabulary of ${info.closed_vocabulary_size} words, ${info.sample_rate} Hz.`);
+} catch (e) {
+  status('wasm bundle not built yet (run wasm-pack per the BUILD note); decode preview still works.');
+}
+
+/** Decode any audio Blob to mono 16k Int16 samples, page-side (WebAudio). */
+async function decodeToMono16k(blob) {
+  const buf = await blob.arrayBuffer();
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const ac = new AC();
+  const audio = await ac.decodeAudioData(buf);
+  const seconds = audio.duration;
+  const off = new OfflineAudioContext(1, Math.ceil(16000 * seconds), 16000);
+  const src = off.createBufferSource();
+  src.buffer = audio;
+  src.connect(off.destination);
+  src.start();
+  const rendered = await off.startRendering();
+  const f32 = rendered.getChannelData(0);
+  const out = new Int16Array(f32.length);
+  for (let i = 0; i < f32.length; i++) {
+    const v = Math.max(-1, Math.min(1, f32[i]));
+    out[i] = Math.round(v * 32767);
+  }
+  await ac.close();
+  return out;
+}
+
+async function ingest(blob, ref) {
+  status(`decoding ${ref} to mono 16 kHz PCM (page-side, outside WASM)…`);
+  pcm16k = await decodeToMono16k(blob);
+  document.getElementById('go').disabled = false;
+  status(`decoded ${pcm16k.length} samples @16kHz (${(pcm16k.length / 16000).toFixed(1)}s). Ready to transcribe.`);
+}
+
+document.getElementById('file').addEventListener('change', (e) => {
+  if (e.target.files[0]) ingest(e.target.files[0], e.target.files[0].name);
+});
+const drop = document.getElementById('drop');
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', (e) => {
+  e.preventDefault(); drop.classList.remove('over');
+  if (e.dataTransfer.files[0]) ingest(e.dataTransfer.files[0], e.dataTransfer.files[0].name);
+});
+document.getElementById('sample').addEventListener('click', async () => {
+  const res = await fetch('../data/demo/sample.wav');
+  if (!res.ok) { status('default clip not reachable over this transport (serve the repo root over http).'); return; }
+  ingest(await res.blob(), 'data/demo/sample.wav');
+});
+
+let recorder = null, chunks = [];
+document.getElementById('rec').addEventListener('click', async () => {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  recorder = new MediaRecorder(stream);
+  chunks = [];
+  recorder.ondataavailable = (e) => chunks.push(e.data);
+  recorder.onstop = () => ingest(new Blob(chunks), 'microphone capture');
+  recorder.start();
+  document.getElementById('stop').disabled = false;
+});
+document.getElementById('stop').addEventListener('click', () => {
+  if (recorder) { recorder.stop(); document.getElementById('stop').disabled = true; }
+});
+document.getElementById('go').addEventListener('click', () => {
+  if (!wasm || !pcm16k) { status('need the wasm bundle and decoded PCM first.'); return; }
+  status('transcribing in WASM (PCM16k-in / JSON-out)…');
+  // The module takes Int16Array PCM and returns a JSON string: transcript
+  // with expandable provenance trees, or {"error": ...}.
+  const json = wasm.transcribe_pcm16k(pcm16k, 16000);
+  render(JSON.parse(json));
+});
+
+/** Render transcript with word → phones → frame-evidence expansion. */
+function render(result) {
+  const out = document.getElementById('out');
+  out.innerHTML = '';
+  if (result.error) {
+    status('pipeline error: ' + result.error);
+    out.innerHTML = '<p>Error: ' + escapeHtml(result.error) + '</p>';
+    return;
+  }
+  const words = result.transcript.words;
+  const stats = result.stats;
+  status(`done: ${words.length} words, ${stats.frame_count} frames, ${stats.arena_facts} arena facts.`);
+  const head = document.createElement('p');
+  head.textContent = words.map((w) => w.text).join(' ');
+  out.appendChild(head);
+  const layersOf = (chain) => Object.fromEntries(chain.layers.map((l) => [l.level, l.nodes]));
+  words.forEach((w) => {
+    const div = document.createElement('div');
+    div.className = 'word';
+    const layers = layersOf(w.provenance);
+    const phones = layers.phoneme || [];
+    const frames = layers.frame || [];
+    div.innerHTML =
+      '<strong>' + escapeHtml(w.text) + '</strong> ' +
+      `[${w.start_ms}ms-${w.end_ms}ms] confidence ${w.confidence.toFixed(2)} ` +
+      '<em>(click to expand provenance)</em>' +
+      '<div class="detail">' +
+        '<div>WINNER: ' + escapeHtml(w.winner.text) +
+          ' (score ' + w.winner.score.toFixed(2) + ', ' + w.winner.status + ')</div>' +
+        '<div>LOSING: ' + w.losing.map((l) =>
+          escapeHtml(l.text) + ' (' + l.score.toFixed(2) + ', ' + l.status + ')').join(', ') + '</div>' +
+        '<div>DECIDED BY [' + w.decided_by.kind + ' ' +
+          w.decided_by.strength.toFixed(2) + ']: ' +
+          escapeHtml(w.decided_by.description) + '</div>' +
+        '<div>PHONES (click a phone for its frame evidence):</div>' +
+        '<div>' + phones.map((p) =>
+          '<span class="phone" data-premises=\'' + JSON.stringify(p.support[0] ? p.support[0].premises : []) +
+          '\'>' + escapeHtml(p.label) + '</span> ').join('') + '</div>' +
+        '<div class="frames"></div>' +
+      '</div>';
+    div.addEventListener('click', (e) => {
+      if (e.target.classList && e.target.classList.contains('phone')) {
+        const box = div.querySelector('.frames');
+        const ids = JSON.parse(e.target.dataset.premises);
+        const byId = Object.fromEntries(frames.map((f) => [f.id, f.label]));
+        box.innerHTML = 'frame evidence: ' +
+          (ids.length ? ids.map((id) => escapeHtml(byId[id] || ('frame#' + id))).join(', ')
+                       : '(ungrounded — should not happen)');
+        e.target.classList.toggle('open');
+        return;
+      }
+      div.classList.toggle('open');
+    });
+    out.appendChild(div);
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+</script>
+</body>
+</html>
