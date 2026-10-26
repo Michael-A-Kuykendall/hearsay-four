@@ -23,7 +23,7 @@ done < <(find "$REPO/src" "$REPO/data" -type f \
   -not -path '*/target/*' 2>/dev/null)
 
 # 3. Model-loading APIs in Rust sources.
-if grep -rEi '(onnxruntime|tract-pulse|candle::|tch::|burn::|hf_hub|from_pretrained|load_model|safetensors::)' --include='*.rs' "$REPO/src" 2>/dev/null; then
+if grep -rEi '(onnxruntime|tract-pulse|candle::|\btch::|burn::|hf_hub|from_pretrained|load_model|safetensors::)' --include='*.rs' "$REPO/src" 2>/dev/null; then
   hit "model-loading API usage in Rust sources (see above)"
 fi
 
