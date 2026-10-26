@@ -13,12 +13,40 @@
 use std::path::PathBuf;
 
 use output::SessionMeta;
-use runner::{FullPipelineConfig, generic_reference_baseline, run_full_pipeline};
+use runner::{
+    FullPipelineConfig, FullPipelineOutput, generic_reference_baseline, run_full_pipeline,
+};
+
+/// Validate every word's chain, then serialize transcript + run stats.
+///
+/// Mirrors the human path's contract: termination at frame-level acoustic
+/// evidence is enforced before anything is emitted, so `--json` output is
+/// as trustworthy as the one-screen render.
+fn emit_json(out: &FullPipelineOutput) -> Result<String, String> {
+    for word in &out.transcript.words {
+        word.validate().map_err(|failure| {
+            format!(
+                "provenance contract failed for {:?}: {failure:?}",
+                word.text
+            )
+        })?;
+    }
+    let value = serde_json::json!({
+        "transcript": &out.transcript,
+        "stats": {
+            "frame_count": out.stats.frame_count,
+            "chunk_count": out.stats.chunk_count,
+            "arena_facts": out.stats.arena_facts,
+            "word_count": out.stats.word_count,
+        },
+    });
+    serde_json::to_string_pretty(&value).map_err(|e| format!("JSON serialization failed: {e}"))
+}
 
 fn usage() -> ! {
     eprintln!(
         "usage: hearsay-demo --input <audio.mp3|wav> \
-         [--max-secs N] [--chunk-secs N]\n\
+         [--max-secs N] [--chunk-secs N] [--json]\n\
          defaults: --max-secs 12 --chunk-secs 2 (one committed word per chunk)"
     );
     std::process::exit(2);
@@ -39,6 +67,7 @@ fn main() {
     let mut input: Option<PathBuf> = None;
     let mut max_secs = 12.0f64;
     let mut chunk_secs = 2.0f64;
+    let mut json = false;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -63,11 +92,14 @@ fn main() {
                 }
                 chunk_secs = parse_secs("--chunk-secs", &args[i]);
             }
+            "--json" => {
+                json = true;
+            }
             "--help" | "-h" => {
                 println!(
                     "hearsay-demo: full 5-stage pipeline demo\n\n\
                      usage: hearsay-demo --input <audio.mp3|wav> \
-                     [--max-secs N] [--chunk-secs N]"
+                     [--max-secs N] [--chunk-secs N] [--json]"
                 );
                 return;
             }
@@ -122,6 +154,19 @@ fn main() {
         }
     }
 
+    if json {
+        match emit_json(&out) {
+            Ok(rendered) => {
+                println!("{rendered}");
+            }
+            Err(e) => {
+                eprintln!("hearsay-demo: {e}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+
     let text: String = out
         .transcript
         .words
@@ -151,5 +196,42 @@ fn main() {
     );
     for word in &out.transcript.words {
         println!("{}", word.render());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use output::Transcript;
+    use runner::{FullPipelineOutput, FullPipelineStats};
+
+    fn empty_output() -> FullPipelineOutput {
+        FullPipelineOutput {
+            transcript: Transcript {
+                words: vec![],
+                session: SessionMeta {
+                    speaker_id: "test".to_string(),
+                    recording_ref: "test".to_string(),
+                    started_ms: 0,
+                },
+                conditions: None,
+            },
+            stats: FullPipelineStats {
+                frame_count: 0,
+                chunk_count: 0,
+                arena_facts: 0,
+                word_count: 0,
+            },
+        }
+    }
+
+    #[test]
+    fn json_output_emits_transcript_shape() {
+        let json = emit_json(&empty_output()).expect("empty transcript serializes");
+        let v: serde_json::Value =
+            serde_json::from_str(&json).expect("emit_json produces valid JSON");
+        assert_eq!(v["transcript"]["words"].as_array().unwrap().len(), 0);
+        assert!(v.get("stats").is_some(), "stats section present");
+        assert_eq!(v["stats"]["word_count"], 0);
     }
 }

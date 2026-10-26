@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 calibration = { path = "../calibration" }
+serde_json = "1"
 fse = { path = "../fse" }
 arena = { path = "../arena" }
 stage3 = { path = "../stage3" }
