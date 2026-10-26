@@ -151,6 +151,30 @@ task beads + 5 epics (mwa.1/2/3, s3t, idw.1/2, nak.1/2/3, 5qc, zm9, o21,
   breakage) — both auto-resolved, zero human interruptions needed.
 - Only `say` remains, held by human gate `3ww` for owner demo review.
 
+## 11. Evening session — human-experiment tooling + mic saga (Oct 26, observed)
+
+- Built the missing recorder: `MicCapture::record_raw()` (mono i16 + rate;
+  `record()` delegates) and `record-session` bin behind `--features mic`
+  (`--list-devices`, enrollment capture, utterance loop from `--script`,
+  `manifest.tsv`). Bead `zg8` closed green. OpenState chain used
+  end-to-end: symbol_overview → read_symbol/read_text_region → 8×
+  preview→apply (including 2 compiler-driven corrections: tuple return,
+  `new(duration_ms)` ctor, cpal-direct device listing) → cargo
+  build/test/clippy/fmt. No file was written by hand; every byte went
+  through preview→apply or `cargo fmt`.
+- Failure modes, both exercised: (a) anchor-digest staleness on
+  same-file double previews — second apply rebased cleanly, no lost edit;
+  (b) hallucinated APIs (`list_devices`, `default()`) — compiler rejected,
+  `symbol_overview` supplied the real surface. Local-tool discipline held:
+  no defect filed against the OpenState app from this session.
+- WSL2 audio finding: `/proc/asound/cards` absent — no passthrough without
+  usbipd; wrote and fixed `attach-usb-mic.ps1` (missing `bind` step was the
+  attach failure). Decision: Windows-native recording session; audit found
+  zero platform-specific code (cpal 0.15 WASAPI needs no setup). Filed
+  `o20` (scorer adapter). Open beads after tonight: `say` (gate `3ww`),
+  `o20` (unclaimed). Uncommitted work: capture crate (mic refactor, bin,
+  hound dep) — commit pending owner review.
+
 ## 9. Beads-native concurrency (set up Oct 26)
 
 The beads app turned out to already contain the orchestration layer, so
