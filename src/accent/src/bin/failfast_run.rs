@@ -9,10 +9,9 @@
 use std::env;
 use std::path::Path;
 
-use accent::measure::{apply_rule, load_session, measure_session, BucketStat};
-use accent::{decode_session_audio, ConditionA, ConditionB};
-use calibration::{fit_baseline, Baseline, Frame, FEATURE_DIM};
-use fse::{extract_features, window_audio};
+use accent::measure::{BucketStat, apply_rule, load_session, measure_session};
+use accent::{ConditionA, ConditionB, decode_session_audio};
+use calibration::FEATURE_DIM;
 
 fn main() -> Result<(), String> {
     let args: Vec<String> = env::args().collect();
