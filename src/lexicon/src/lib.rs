@@ -15,6 +15,9 @@ use fabric::FactId;
 
 pub mod word_match;
 
+#[cfg(test)]
+mod ppt_tests;
+
 /// Standard 39-phone ARPABET set (aem.10): 15 vowels + 24 consonants.
 pub const PHONEME_ALPHABET: [&str; 39] = [
     "AA", "AE", "AH", "AO", "AW", "AY", "EH", "ER", "EY", "IH", "IY", "OW", "OY", "UH", "UW", "B",
