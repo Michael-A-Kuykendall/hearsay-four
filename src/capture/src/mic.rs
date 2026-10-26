@@ -58,6 +58,15 @@ impl MicCapture {
     /// Record one utterance and return MFCC frames (empty on stream error —
     /// the downstream `Enrollment::is_valid` invariant catches that).
     pub fn record(&mut self) -> Vec<Frame> {
+        let (mono, sample_rate) = self.record_raw();
+        pcm::to_frames(&mono, sample_rate).unwrap_or_default()
+    }
+
+    /// Record one utterance and return raw mono i16 PCM plus the device
+    /// sample rate (empty vec when no stream could run). Powers the
+    /// `record-session` bin's WAV output; `record()` is this plus the
+    /// FSE front end.
+    pub fn record_raw(&mut self) -> (Vec<i16>, u32) {
         let sample_format = self.config.sample_format();
         let cfg: cpal::StreamConfig = self.config.clone().into();
         let sample_rate = cfg.sample_rate.0;
@@ -111,10 +120,10 @@ impl MicCapture {
         };
 
         let Some(stream) = stream.as_mut() else {
-            return Vec::new();
+            return (Vec::new(), sample_rate);
         };
         if stream.play().is_err() {
-            return Vec::new();
+            return (Vec::new(), sample_rate);
         }
 
         // Collect chunks for the recording window, mixing to mono.
@@ -131,7 +140,7 @@ impl MicCapture {
         // Stop capture; dropping the stream releases the device.
         let _ = stream.pause();
 
-        pcm::to_frames(&mono, sample_rate).unwrap_or_default()
+        (mono, sample_rate)
     }
 }
 

@@ -7,6 +7,7 @@ edition = "2024"
 calibration = { path = "../calibration" }
 fse = { path = "../fse" }
 cpal = { version = "0.15", optional = true }
+hound = "3.5"
 
 [features]
 default = []
@@ -16,3 +17,8 @@ mic = ["dep:cpal"]
 
 [dev-dependencies]
 proptest = "1.11.0"
+
+[[bin]]
+name = "record-session"
+path = "src/bin/record-session.rs"
+required-features = ["mic"]
