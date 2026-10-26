@@ -10,3 +10,4 @@ mod feedback_tests;
 mod measure_tests;
 mod ppt_accent_tests;
 mod ppt_tests;
+mod window_feedback_tests;
