@@ -42,3 +42,7 @@ __pycache__/
 
 # --- Openstate session state ---
 /.openstate
+# bd worktree
+track-a/
+# bd worktree
+track-b/
