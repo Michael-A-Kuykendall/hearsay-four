@@ -13,6 +13,8 @@ use std::collections::HashMap;
 use arena::{Arena, Candidate};
 use fabric::FactId;
 
+pub mod word_match;
+
 /// Standard 39-phone ARPABET set (aem.10): 15 vowels + 24 consonants.
 pub const PHONEME_ALPHABET: [&str; 39] = [
     "AA", "AE", "AH", "AO", "AW", "AY", "EH", "ER", "EY", "IH", "IY", "OW", "OY", "UH", "UW", "B",
