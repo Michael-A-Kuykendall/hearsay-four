@@ -7,3 +7,6 @@ edition = "2024"
 arena = { path = "../arena" }
 fabric = { path = "../fabric" }
 invariant_ppt = { path = "../invariant_ppt" }
+
+[dev-dependencies]
+proptest = "1.11.0"

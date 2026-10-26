@@ -186,6 +186,7 @@ dependencies = [
  "arena",
  "fabric",
  "invariant_ppt",
+ "proptest",
 ]
 
 [[package]]
