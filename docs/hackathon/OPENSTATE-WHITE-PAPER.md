@@ -254,6 +254,27 @@ main, surface beads parallel on refreshed tracks.
   real blocker cheap (a child proved it, a one-line bead fixed it, the
   retry landed).
 
+## 13. Run1 verdict (Oct 26 evening — the experiment scores)
+
+- Windows lane merged (`872e54e`, add/add resolved for origin's
+  `--resume-at` version), 121 WAVs verified in `sessions/run1/`
+  (120 utterances, 30 words × 4, all 48 kHz mono; 23 rows 143520
+  samples — the adapter uses actual lengths, as designed).
+- `o20` built and closed: `session-ingest` (validation, enrollment
+  skip, pre-registered K=3×40, cumulative timestamps) plus
+  `failfast_run --root`. Bead gate ran on a synthetic 2-bucket
+  real-speech fixture (exit 0, stats + verdict line) before the real
+  session was touched.
+- Run1 result: exit 0, **PASS** — check1 true, check2 margin 107.53
+  against a 0.02 floor, check3 true; per-bucket mean scores
+  A=(171.50, 177.47, 200.42), B=(85.21, 77.95, 84.87).
+- Limits, stated plainly: the baseline is generic (enrollment wiring
+  is follow-up bead `fo7`), the compared quantities are mean-NLL
+  magnitudes per the implemented 39c.5 rule rather than hand-counted
+  word errors, and B leads from bucket 0 (no first-half
+  comparability baseline). The verdict is recorded; the interpretation
+  belongs to the submission writeup under `say`, not to this ledger.
+
 OpenState usage this lap (all observed): every source edit went through
 `ast_search` → `read_text_region`/`read_symbol` → `preview` → `apply`
 (`symbol_overview` supplied the real `MicCapture`/`FullPipeline`
