@@ -5,4 +5,19 @@
 # per-crate gates (`cd src/<crate> && cargo test ...`) are unchanged.
 [workspace]
 members = ["src/runner"]
+exclude = [
+    "src/accent",
+    "src/arena",
+    "src/calibration",
+    "src/capture",
+    "src/corpus",
+    "src/fabric",
+    "src/fse",
+    "src/groebner",
+    "src/invariant_ppt",
+    "src/lexicon",
+    "src/output",
+    "src/sequence",
+    "src/stage3",
+]
 resolver = "2"
