@@ -930,6 +930,7 @@ dependencies = [
  "lexicon",
  "output",
  "sequence",
+ "serde_json",
  "stage3",
 ]
 
