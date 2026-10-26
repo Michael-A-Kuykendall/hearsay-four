@@ -344,6 +344,7 @@ dependencies = [
  "fabric",
  "invariant_ppt",
  "lexicon",
+ "proptest",
 ]
 
 [[package]]

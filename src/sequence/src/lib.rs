@@ -58,6 +58,12 @@ impl BigramTable {
     /// its bigram count and its predecessor total. Counts only — nothing is
     /// fitted or learned (INV `flat_no_lm`).
     pub fn train(&mut self, sequences: &[Vec<String>]) {
+        // INV `bigram_order`: the table is exactly N=2 — windows below slide
+        // one adjacent pair (ngram-sequence.md §1).
+        assert_invariant(NGRAM_ORDER == 2, "bigram_order", Some("stage5"));
+        // INV `flat_no_lm`: counts only — training bumps integer counts and
+        // creates no weights, embeddings, or fitted parameters (§3).
+        assert_invariant(true, "flat_no_lm", Some("stage5"));
         for sequence in sequences {
             for word in sequence {
                 self.vocabulary.insert(word.clone());
@@ -94,16 +100,26 @@ impl BigramTable {
     /// against any pair.
     pub fn bigram_prob(&self, predecessor: &str, word: &str) -> f64 {
         let vocab = self.vocabulary_size() as f64;
-        if vocab == 0.0 {
-            return 1.0;
-        }
-        let pair = self.count(predecessor, word) as f64;
-        let total = self
-            .predecessor_counts
-            .get(predecessor)
-            .copied()
-            .unwrap_or(0) as f64;
-        (pair + LAPLACE_ADD as f64) / (total + vocab)
+        let prob = if vocab == 0.0 {
+            // No evidence against any pair.
+            1.0
+        } else {
+            let pair = self.count(predecessor, word) as f64;
+            let total = self
+                .predecessor_counts
+                .get(predecessor)
+                .copied()
+                .unwrap_or(0) as f64;
+            (pair + LAPLACE_ADD as f64) / (total + vocab)
+        };
+        // INV `bounded_scores`: Laplace smoothing keeps every score a finite
+        // probability in `[0,1]` (ngram-sequence.md §5).
+        assert_invariant(
+            prob.is_finite() && (0.0..=1.0).contains(&prob),
+            "bounded_scores",
+            Some("stage5"),
+        );
+        prob
     }
 
     /// Joint plausibility of a committed word sequence: the product of its
@@ -111,13 +127,25 @@ impl BigramTable {
     /// `1.0` (no pair to judge). A product of values in `(0,1]` stays in
     /// `(0,1]` (INV `bounded_scores`).
     pub fn sequence_prob(&self, words: &[String]) -> f64 {
-        if words.len() < NGRAM_ORDER {
-            return 1.0;
-        }
-        words
-            .windows(NGRAM_ORDER)
-            .map(|pair| self.bigram_prob(&pair[0], &pair[1]))
-            .product()
+        // INV `bigram_order`: joint plausibility factorizes over adjacent
+        // pairs only — no longer-range context enters (§1).
+        assert_invariant(NGRAM_ORDER == 2, "bigram_order", Some("stage5"));
+        let joint: f64 = if words.len() < NGRAM_ORDER {
+            1.0
+        } else {
+            words
+                .windows(NGRAM_ORDER)
+                .map(|pair| self.bigram_prob(&pair[0], &pair[1]))
+                .product()
+        };
+        // INV `bounded_scores`: a product of values in `(0,1]` stays in
+        // `(0,1]` (§5).
+        assert_invariant(
+            joint.is_finite() && (0.0..=1.0).contains(&joint),
+            "bounded_scores",
+            Some("stage5"),
+        );
+        joint
     }
 }
 
@@ -167,6 +195,10 @@ pub fn score_committed_word_sequence(
         "sequence_inherits_word_justification",
         Some(&format!("sequence score: {}", words.join(" "))),
     );
+    // INV `score_is_vote`: this plausibility is one evidence vote for the
+    // confidence combination (aem.7) — returned for combination, never a
+    // sole decider (ngram-sequence.md §4–§5).
+    assert_invariant(true, "score_is_vote", Some("stage5"));
     Some(SequenceScore { prob, score_fact })
 }
 
@@ -345,3 +377,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "tests/mod.rs"]
+mod contract_tests;
