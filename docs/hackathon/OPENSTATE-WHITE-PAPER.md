@@ -45,7 +45,7 @@ Three failure modes this repo had already suffered before the hackathon:
 
 ## 4. Evidence from this repo (Oct 26, 2026, all observed)
 
-Scope honesty first: this repo was 10 weeks old when the hackathon
+Scope accounting, from git log and bead counts: this repo was 10 weeks old when the hackathon
 started (initial commit Aug 15; ~22 pre-hackathon commits; 11 crates,
 204 green tests, the fail-fast experiment, the wired amalgamation
 pipeline, ~78 closed beads from Aug–Oct sessions). Today's autonomous
@@ -78,7 +78,7 @@ throughput on scoped, gated work with full provenance.
 - **Speed with receipts.** The full session archaeology above took one
   sitting and left the store checkpointed for the next session.
 
-## 6. Agent opinion (requested, kept honest)
+## 6. Agent assessment (requested; weaknesses included with evidence)
 
 Where it earned its keep today: verification-before-claim (the reset
 refusal surfaced a real journal/id-mapping quirk instead of silently

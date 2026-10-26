@@ -35,7 +35,7 @@ k), the unconditional/defeasible distinction does real, load-bearing work.
 This supports pursuing the stability-classification claim: the classification
 is meaningful, not vacuous.
 
-## Caveat (honest)
+## Caveat (scope of the measurement)
 
 This is a *representative synthetic* measurement over hand-built ideals, not
 exhaustive over all polynomial ideals. The exact fraction depends on ideal
