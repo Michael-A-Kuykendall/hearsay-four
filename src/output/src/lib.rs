@@ -201,6 +201,219 @@ impl Transcript {
     }
 }
 
+/// A provenance/record validation failure (contract invariants, nak.3).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ChainError {
+    /// No layers at all; nothing grounds the word.
+    EmptyChain,
+    /// The bottom layer is not frame-level acoustic evidence.
+    BaseNotFrame,
+    /// Layer levels do not strictly ascend (index of offending layer).
+    LevelsNotAscending(usize),
+    /// Two nodes share one id (would allow cyclic reads).
+    DuplicateNodeId(u64),
+    /// A frame node carries support refs instead of acoustic grounding.
+    FrameNodeHasSupport(u64),
+    /// A non-frame node has no justification (dangling mid-chain root).
+    NodeWithoutSupport(u64),
+    /// A premise id resolves to no node in any layer.
+    DanglingPremise { node: u64, premise: u64 },
+    /// A premise points at the same or a higher layer (cycle risk).
+    NonAscendingPremise { node: u64, premise: u64 },
+    /// No premise path from this node down to a frame node.
+    UngroundedNode(u64),
+    /// `losing` is empty (INV `records_loser_and_evidence`).
+    NoLosingHypothesis,
+    /// `decided_by` carries no human-readable reason.
+    EmptyDecidingEvidence,
+    /// A score/strength field is NaN, infinite, or outside [0,1].
+    ScoreOutOfRange(&'static str),
+}
+
+impl ChainLevel {
+    fn rank(self) -> u8 {
+        match self {
+            ChainLevel::Frame => 0,
+            ChainLevel::Phoneme => 1,
+            ChainLevel::Syllable => 2,
+            ChainLevel::Lexical => 3,
+            ChainLevel::Sequence => 4,
+        }
+    }
+}
+
+impl ProvenanceChain {
+    /// Check INV `provenance_terminates` + INV `chain_acyclic`: layers start
+    /// at frame-level acoustic evidence, strictly ascend, every premise
+    /// resolves to a strictly lower layer, and every node reaches a frame
+    /// node by following premises.
+    pub fn validate(&self) -> Result<(), ChainError> {
+        if self.layers.is_empty() {
+            return Err(ChainError::EmptyChain);
+        }
+        if self.layers[0].level != ChainLevel::Frame {
+            return Err(ChainError::BaseNotFrame);
+        }
+        for (index, window) in self.layers.windows(2).enumerate() {
+            if window[1].level.rank() <= window[0].level.rank() {
+                return Err(ChainError::LevelsNotAscending(index + 1));
+            }
+        }
+        let mut layer_of: std::collections::BTreeMap<u64, usize> =
+            std::collections::BTreeMap::new();
+        for (index, layer) in self.layers.iter().enumerate() {
+            for node in &layer.nodes {
+                if layer_of.insert(node.id, index).is_some() {
+                    return Err(ChainError::DuplicateNodeId(node.id));
+                }
+            }
+        }
+        for (index, layer) in self.layers.iter().enumerate() {
+            for node in &layer.nodes {
+                if index == 0 {
+                    if !node.support.is_empty() {
+                        return Err(ChainError::FrameNodeHasSupport(node.id));
+                    }
+                } else if node.support.is_empty() {
+                    return Err(ChainError::NodeWithoutSupport(node.id));
+                }
+                for justification in &node.support {
+                    for &premise in &justification.premises {
+                        match layer_of.get(&premise) {
+                            None => {
+                                return Err(ChainError::DanglingPremise {
+                                    node: node.id,
+                                    premise,
+                                });
+                            }
+                            Some(&premise_layer) if premise_layer >= index => {
+                                return Err(ChainError::NonAscendingPremise {
+                                    node: node.id,
+                                    premise,
+                                });
+                            }
+                            Some(_) => {}
+                        }
+                    }
+                }
+            }
+        }
+        // Every node must reach a frame node by descending premises.
+        // Frame nodes are grounded by construction; memoize per node.
+        let mut grounded: std::collections::BTreeMap<u64, bool> = std::collections::BTreeMap::new();
+        for layer in &self.layers {
+            for node in &layer.nodes {
+                if !Self::reaches_frame(node.id, &self.layers, &layer_of, &mut grounded) {
+                    return Err(ChainError::UngroundedNode(node.id));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn reaches_frame(
+        id: u64,
+        layers: &[ChainLayer],
+        layer_of: &std::collections::BTreeMap<u64, usize>,
+        grounded: &mut std::collections::BTreeMap<u64, bool>,
+    ) -> bool {
+        if let Some(&done) = grounded.get(&id) {
+            return done;
+        }
+        // Cycle guard: mark in-progress as ungrounded while descending.
+        grounded.insert(id, false);
+        let index = match layer_of.get(&id) {
+            None => return false,
+            Some(&index) => index,
+        };
+        if index == 0 {
+            grounded.insert(id, true);
+            return true;
+        }
+        let node = layers[index]
+            .nodes
+            .iter()
+            .find(|node| node.id == id)
+            .expect("id mapped to this layer");
+        let mut ok = false;
+        'outer: for justification in &node.support {
+            // Vacuous (premise-free) support above the frame layer grounds
+            // nothing; only frame nodes bottom out the chain.
+            if justification.premises.is_empty() {
+                continue;
+            }
+            for &premise in &justification.premises {
+                if !Self::reaches_frame(premise, layers, layer_of, grounded) {
+                    continue 'outer;
+                }
+            }
+            ok = true;
+            break;
+        }
+        grounded.insert(id, ok);
+        ok
+    }
+}
+
+impl WordRecord {
+    /// Build a record from live justification sets, then enforce the
+    /// contract before returning it.
+    ///
+    /// Live-read contract (fabric `proof_tree` pattern, see
+    /// `src/fabric/src/provenance.rs`): the caller walks the live
+    /// `Fabric::justifications` graph for the committed word — the same
+    /// always-on sets bead 6za.2 keeps, never a query-time reconstruction —
+    /// maps each fact to a [`Node`] (hash-consed arena `NodeId` as `id`) and
+    /// each live justification set to a [`JustificationRef`], groups nodes
+    /// into strictly ascending [`ChainLayer`]s bottoming out at frame-level
+    /// acoustic evidence, and passes the result here with the committed
+    /// winner, the losing hypotheses it beat (stage3/stage4 N-best outputs),
+    /// and the deciding evidence. Validation (INVs `provenance_terminates`,
+    /// `records_loser_and_evidence`, `score_in_range`, `chain_acyclic`)
+    /// runs before the record is returned.
+    pub fn committed_from_live(
+        text: impl Into<String>,
+        span_ms: (u64, u64),
+        confidence: f32,
+        winner: Hypothesis,
+        losing: Vec<Hypothesis>,
+        decided_by: Evidence,
+        provenance: ProvenanceChain,
+    ) -> Result<Self, ChainError> {
+        let record = Self::committed(
+            text, span_ms, confidence, winner, losing, decided_by, provenance,
+        );
+        record.validate()?;
+        Ok(record)
+    }
+
+    /// Check INVs `records_loser_and_evidence`, `score_in_range`, plus the
+    /// full chain contract (`provenance_terminates`, `chain_acyclic`).
+    pub fn validate(&self) -> Result<(), ChainError> {
+        if self.losing.is_empty() {
+            return Err(ChainError::NoLosingHypothesis);
+        }
+        if self.decided_by.description.trim().is_empty() {
+            return Err(ChainError::EmptyDecidingEvidence);
+        }
+        for (field, value) in [
+            ("confidence", self.confidence),
+            ("winner.score", self.winner.score),
+            ("decided_by.strength", self.decided_by.strength),
+        ] {
+            if !value.is_finite() || !(0.0..=1.0).contains(&value) {
+                return Err(ChainError::ScoreOutOfRange(field));
+            }
+        }
+        for hypothesis in &self.losing {
+            if !hypothesis.score.is_finite() || !(0.0..=1.0).contains(&hypothesis.score) {
+                return Err(ChainError::ScoreOutOfRange("losing.score"));
+            }
+        }
+        self.provenance.validate()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -334,5 +547,149 @@ mod tests {
             None,
         );
         assert_eq!(transcript.words.len(), 1);
+    }
+
+    fn live_record(chain: ProvenanceChain) -> WordRecord {
+        WordRecord::committed(
+            "table",
+            (0, 420),
+            0.91,
+            Hypothesis::new("table", 0.91, HypothesisStatus::Committed),
+            vec![Hypothesis::new("cable", 0.62, HypothesisStatus::Retracted)],
+            Evidence::new(
+                EvidenceKind::Acoustic,
+                "onset burst energy favors /t/ over /k/",
+                0.78,
+            ),
+            chain,
+        )
+    }
+
+    #[test]
+    fn provenance_chain_terminates_at_acoustic_evidence() {
+        // A committed word validates: the chain bottoms out at frame-level
+        // acoustic evidence (INV `provenance_terminates`).
+        let record = live_record(sample_chain());
+        assert!(record.validate().is_ok());
+        assert!(
+            WordRecord::committed_from_live(
+                "table",
+                (0, 420),
+                0.91,
+                Hypothesis::new("table", 0.91, HypothesisStatus::Committed),
+                vec![Hypothesis::new("cable", 0.62, HypothesisStatus::Retracted)],
+                Evidence::new(
+                    EvidenceKind::Acoustic,
+                    "onset burst energy favors /t/ over /k/",
+                    0.78,
+                ),
+                sample_chain(),
+            )
+            .is_ok()
+        );
+
+        // A premise pointing at no node is a dangling ref: rejected.
+        let mut dangling = sample_chain();
+        dangling.layers[4].nodes[0].support[0].premises = vec![999];
+        assert_eq!(
+            live_record(dangling).validate(),
+            Err(ChainError::DanglingPremise {
+                node: 5,
+                premise: 999
+            })
+        );
+
+        // The chain must bottom out at frame evidence, not above it.
+        let mut no_base = sample_chain();
+        no_base.layers.remove(0);
+        assert_eq!(
+            live_record(no_base).validate(),
+            Err(ChainError::BaseNotFrame)
+        );
+
+        // Frame nodes are acoustic ground: they carry no support refs.
+        let mut frame_support = sample_chain();
+        frame_support.layers[0].nodes[0]
+            .support
+            .push(JustificationRef {
+                justification_id: "j-frame-bogus".to_string(),
+                premises: vec![],
+                unconditional: true,
+            });
+        assert_eq!(
+            live_record(frame_support).validate(),
+            Err(ChainError::FrameNodeHasSupport(1))
+        );
+    }
+
+    #[test]
+    fn provenance_chain_records_loser_and_evidence() {
+        // INV `records_loser_and_evidence`: >=1 losing hypothesis plus the
+        // deciding evidence, on every record.
+        let record = live_record(sample_chain());
+        assert!(!record.losing.is_empty());
+        assert!(!record.decided_by.description.is_empty());
+
+        let mut no_loser = live_record(sample_chain());
+        no_loser.losing.clear();
+        assert_eq!(no_loser.validate(), Err(ChainError::NoLosingHypothesis));
+
+        let mut no_evidence = live_record(sample_chain());
+        no_evidence.decided_by.description.clear();
+        assert_eq!(
+            no_evidence.validate(),
+            Err(ChainError::EmptyDecidingEvidence)
+        );
+
+        let mut bad_score = live_record(sample_chain());
+        bad_score.confidence = f32::NAN;
+        assert_eq!(
+            bad_score.validate(),
+            Err(ChainError::ScoreOutOfRange("confidence"))
+        );
+    }
+
+    #[test]
+    fn provenance_chain_strictly_ascends_acyclic() {
+        // INV `chain_acyclic`: layers strictly ascend frame -> sequence and
+        // no premise points at the same or a higher layer.
+        assert!(live_record(sample_chain()).validate().is_ok());
+
+        let mut descending = sample_chain();
+        descending.layers.swap(1, 3);
+        assert_eq!(
+            live_record(descending).validate(),
+            Err(ChainError::LevelsNotAscending(2))
+        );
+
+        // Self-reference is a cycle: rejected.
+        let mut cyclic = sample_chain();
+        cyclic.layers[2].nodes[0].support[0].premises = vec![3];
+        assert_eq!(
+            cyclic.validate(),
+            Err(ChainError::NonAscendingPremise {
+                node: 3,
+                premise: 3
+            })
+        );
+
+        // A premise skipping down past the frame layer dangles: rejected.
+        let mut upward = sample_chain();
+        upward.layers[1].nodes[0].support[0].premises = vec![4];
+        assert_eq!(
+            upward.validate(),
+            Err(ChainError::NonAscendingPremise {
+                node: 2,
+                premise: 4
+            })
+        );
+
+        // Shared ids would let a read loop back on itself: rejected.
+        let mut duplicated = sample_chain();
+        duplicated.layers[1].nodes[0].id = 1;
+        assert_eq!(
+            live_record(duplicated).validate(),
+            Err(ChainError::DuplicateNodeId(1))
+        );
     }
 }
