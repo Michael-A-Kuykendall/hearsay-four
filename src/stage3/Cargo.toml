@@ -10,3 +10,6 @@ invariant_ppt = { path = "../invariant_ppt" }
 
 [dev-dependencies]
 proptest = "1.11.0"
+# C1 (bead hearsay-four-shq): propagation tests construct committed
+# WordRecords, so the output crate is a test-only dependency.
+output = { path = "../output" }

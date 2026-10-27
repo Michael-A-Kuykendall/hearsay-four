@@ -33,7 +33,9 @@ const CONTRACT_INVARIANTS: &[&str] = &[
     "chain_acyclic",
 ];
 
-/// A minimal valid chain: frame -> phoneme -> lexical, ids 1-3.
+/// A minimal valid chain: frame -> phoneme -> lexical, ids 1-3. Ratings
+/// descend (90/85/80): in range and monotone non-increasing
+/// (bead hearsay-four-shq).
 fn sample_chain() -> ProvenanceChain {
     ProvenanceChain::new(vec![
         ChainLayer {
@@ -43,6 +45,7 @@ fn sample_chain() -> ProvenanceChain {
                 label: "FRAME:0-20ms".to_string(),
                 support: vec![],
                 active: true,
+                rating: 90.0,
             }],
         },
         ChainLayer {
@@ -56,6 +59,7 @@ fn sample_chain() -> ProvenanceChain {
                     unconditional: false,
                 }],
                 active: true,
+                rating: 85.0,
             }],
         },
         ChainLayer {
@@ -69,6 +73,7 @@ fn sample_chain() -> ProvenanceChain {
                     unconditional: false,
                 }],
                 active: true,
+                rating: 80.0,
             }],
         },
     ])
@@ -87,6 +92,8 @@ fn sample_record(chain: ProvenanceChain) -> WordRecord {
             0.78,
         ),
         chain,
+        85.0,
+        "2 channels; log-odds 1.7346; rating 85.00",
     )
 }
 
@@ -114,6 +121,10 @@ fn valid_chain(frame_nodes: usize, upper_layers: usize, seed: u64) -> Provenance
     let mut next_id: u64 = 1;
     let mut lower_ids: Vec<u64> = Vec::new();
     let mut state = seed;
+    // Ratings descend 5.0 per layer from 90.0 at the frame layer: every
+    // fuzzed chain is monotone non-increasing by construction
+    // (bead hearsay-four-shq).
+    let layer_rating = |index: usize| 90.0 - 5.0 * index as f64;
     for (index, level) in LEVELS.iter().enumerate().take(depth) {
         let node_count = if index == 0 {
             frame_nodes.max(1)
@@ -145,6 +156,7 @@ fn valid_chain(frame_nodes: usize, upper_layers: usize, seed: u64) -> Provenance
                 label: format!("node-{id}"),
                 support,
                 active: true,
+                rating: layer_rating(index),
             });
             lower_ids.push(id);
         }
@@ -169,6 +181,11 @@ fn valid_record(word: &str, confidence: f32, chain: ProvenanceChain) -> WordReco
         )],
         Evidence::new(EvidenceKind::Acoustic, "fuzz deciding evidence", 0.5),
         chain,
+        // Propagated stage-3 rating on the 0–100 scale mirrors the
+        // confidence fixture (bead hearsay-four-shq); the summary is fixed
+        // synthetic text, never empty.
+        f64::from(confidence) * 100.0,
+        "fuzz evidence summary",
     )
 }
 
@@ -244,6 +261,8 @@ fn contract_stage11_output_invariants_enforced() {
             0.78,
         ),
         sample_chain(),
+        85.0,
+        "2 channels; log-odds 1.7346; rating 85.00",
     )
     .is_ok();
     let mut no_base = sample_chain();

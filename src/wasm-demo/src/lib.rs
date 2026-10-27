@@ -293,7 +293,19 @@ pub fn run_demo_pipeline(
         let close_result = window.close();
         std::mem::swap(&mut window.fabric, &mut shared_fabric);
         drop(window);
-        close_result.map_err(|e| format!("chunk {chunk_idx}: window close: {e:?}"))?;
+        // C1 (bead hearsay-four-shq): keep the stage-3 commit winner — its
+        // 0–100 rating propagates verbatim into the committed WordRecord
+        // below (a move, not a scheduling layer: alpha-indexed-dispatch).
+        let (window_winner, _survivors) =
+            close_result.map_err(|e| format!("chunk {chunk_idx}: window close: {e:?}"))?;
+        // `rating()` asserts finiteness (INV `rating_in_range`); a
+        // non-finite commit score degrades to 0.0 here instead, matching the
+        // `clamp01` tolerance the confidence path below already uses.
+        let source_rating = if window_winner.log_odds.is_finite() {
+            window_winner.rating()
+        } else {
+            0.0
+        };
 
         // Collapse consecutive duplicate top-1 phonemes into a phone sequence
         // with frame spans (run-length dedupe — counting, not learning).
@@ -383,15 +395,24 @@ pub fn run_demo_pipeline(
         // premises.
         let mut seen_frames = BTreeSet::new();
         let mut frame_nodes: Vec<Node> = Vec::new();
+        // C1 (bead hearsay-four-shq): frame nodes carry the acoustic
+        // rating for their frame (top score mapped to the 0–100 scale).
+        // Upper layers derive ratings at or below their premises, so the
+        // chain validates monotone non-increasing.
+        let mut frame_rating: BTreeMap<u64, f64> = BTreeMap::new();
         for (i, facts) in per_frame_facts.iter().enumerate() {
+            let acoustic_rating =
+                f64::from(clamp01(top_scores.get(i).copied().unwrap_or(0.0))) * 100.0;
             for fid in facts {
                 if seen_frames.insert(*fid) {
                     let start_ms = chunk_start_ms + i as u64 * shift_ms;
+                    frame_rating.insert(fid.0, acoustic_rating);
                     frame_nodes.push(Node {
                         id: fid.0,
                         label: format!("FRAME:{start_ms}-{}ms", start_ms + win_ms),
                         support: vec![],
                         active: shared_fabric.is_active(*fid),
+                        rating: acoustic_rating,
                     });
                 }
             }
@@ -412,11 +433,20 @@ pub fn run_demo_pipeline(
                 }
             }
         }
+        // Phoneme ratings sit at the minimum premise (frame) rating, so no
+        // phoneme node exceeds the acoustic evidence it derives from.
+        let mut phon_rating: BTreeMap<u64, f64> = BTreeMap::new();
         let phon_nodes: Vec<Node> = phone_order
             .iter()
             .enumerate()
             .map(|(k2, (fid, ph))| {
                 let premises: Vec<u64> = phone_span_frames[fid].iter().copied().collect();
+                let rating = premises
+                    .iter()
+                    .map(|premise| frame_rating.get(premise).copied().unwrap_or(0.0))
+                    .fold(f64::INFINITY, f64::min);
+                let rating = if rating.is_finite() { rating } else { 0.0 };
+                phon_rating.insert(fid.0, rating);
                 Node {
                     id: fid.0,
                     label: format!("/{ph}/"),
@@ -426,10 +456,24 @@ pub fn run_demo_pipeline(
                         unconditional: false,
                     }],
                     active: shared_fabric.is_active(*fid),
+                    rating,
                 }
             })
             .collect();
         let lex_premises: Vec<u64> = phone_order.iter().map(|(id, _)| id.0).collect();
+        // Lexical rating: at most the weakest phoneme premise and the
+        // pronunciation-similarity rating, so the word never outranks its
+        // evidence.
+        let lex_rating = lex_premises
+            .iter()
+            .map(|premise| phon_rating.get(premise).copied().unwrap_or(0.0))
+            .fold(f64::INFINITY, f64::min)
+            .min((f64::from(clamp01(winner_sim)) * 100.0).max(0.0));
+        let lex_rating = if lex_rating.is_finite() {
+            lex_rating
+        } else {
+            0.0
+        };
         let lex_node = Node {
             id: word_fact.0,
             label: format!("WORD:{winner_word}"),
@@ -439,7 +483,16 @@ pub fn run_demo_pipeline(
                 unconditional: false,
             }],
             active: shared_fabric.is_active(word_fact),
+            rating: lex_rating,
         };
+        // Sequence rating: at most the lexical premise and the bigram
+        // plausibility rating.
+        let joint_rating = if joint.is_finite() {
+            (joint.clamp(0.0, 1.0) * 100.0).max(0.0)
+        } else {
+            0.0
+        };
+        let seq_rating = lex_rating.min(joint_rating);
         let seq_node = Node {
             id: score_fact.0,
             label: format!("SEQ:{} p={joint:.4}", committed_words.join(" ")),
@@ -449,6 +502,7 @@ pub fn run_demo_pipeline(
                 unconditional: false,
             }],
             active: shared_fabric.is_active(score_fact),
+            rating: seq_rating,
         };
         let chain = ProvenanceChain::new(vec![
             ChainLayer {
@@ -495,6 +549,15 @@ pub fn run_demo_pipeline(
             ),
             clamp01((winner_sim - runner_best + 1.0) / 2.0),
         );
+        // C1 (bead hearsay-four-shq): propagate the stage-3 commit
+        // winner's rating verbatim, with a per-record evidence summary.
+        let evidence_summary = format!(
+            "stage-3 commit winner rating {source_rating:.2} over {} frames; \
+             {} phones; nearest-pronunciation {winner_word} sim {winner_sim:.4}; \
+             bigram p={joint:.4}",
+            per_frame_facts.len(),
+            phones.len(),
+        );
         let record = WordRecord::committed_from_live(
             winner_word.clone(),
             (chunk_start_ms, chunk_end_ms),
@@ -503,6 +566,8 @@ pub fn run_demo_pipeline(
             losing,
             decided_by,
             chain,
+            source_rating,
+            evidence_summary,
         )
         .map_err(|e| format!("chunk {chunk_idx}: provenance contract: {e:?}"))?;
         records.push(record);

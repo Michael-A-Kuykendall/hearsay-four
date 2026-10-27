@@ -6,11 +6,13 @@
 //! d73.5 gate: `cd src/stage3 && cargo test promotion`
 //! d73.6 gate: `cd src/stage3 && cargo test retraction`
 //! d73.7 gate: `cd src/stage3 && cargo test --all-features`
+//! C1 gate (bead hearsay-four-shq): `cd src/stage3 && cargo test propagation`
 
 mod fst_tests;
 mod nbest_tests;
 mod ppt_tests;
 mod promotion_tests;
+mod propagation_tests;
 mod retraction_tests;
 mod spe_rule_tests;
 mod sweep_tests;
