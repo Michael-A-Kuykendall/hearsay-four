@@ -10,6 +10,7 @@ fse = { path = "../fse" }
 arena = { path = "../arena" }
 stage3 = { path = "../stage3" }
 corpus = { path = "../corpus" }
+hound = "3"
 fabric = { path = "../fabric" }
 invariant_ppt = { path = "../invariant_ppt" }
 lexicon = { path = "../lexicon" }

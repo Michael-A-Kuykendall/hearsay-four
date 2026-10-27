@@ -765,6 +765,7 @@ dependencies = [
  "corpus",
  "fabric",
  "fse",
+ "hound",
  "invariant_ppt",
  "lexicon",
  "output",
