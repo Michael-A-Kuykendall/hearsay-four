@@ -13,6 +13,8 @@
 //! [`run_full_pipeline`] (bead hearsay-four-5qc); [`run_pipeline`] covers
 //! stages 1→2→3 per the fail-fast framing in synthesis §6.
 
+pub mod rtf;
+
 use std::collections::HashMap;
 
 use arena::Candidate as ArenaCandidate;
