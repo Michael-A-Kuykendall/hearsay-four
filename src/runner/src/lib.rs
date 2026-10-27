@@ -471,12 +471,12 @@ fn process_chunk(
             // closed (bounded memory — prior audio dropped, only
             // justifications retained). Re-arm it so this chunk's candidates
             // stay live: `assert_assumption` clears the deliberate-retraction
-            // mark and the assert-time `reactivate_ready` cascade revives
-            // dependents — that cascade inside `Fabric::assert` IS the
-            // existing reactivation hook (stage3 `window.rs` offers no
-            // `reactivate_ready` entry point of its own: only
-            // offer/accumulate/close). In batch nothing is retracted mid-run,
-            // so old facts are already active and this is a no-op there.
+            // mark and the assert-time propagation cascade revives dependents
+            // — that cascade inside `Fabric::assert` IS the existing
+            // reactivation hook (stage3 `window.rs` offers no propagation
+            // entry point of its own: only offer/accumulate/close). In batch
+            // nothing is retracted mid-run, so old facts are already active
+            // and this is a no-op there.
             if is_new || !state.fabric.is_active(fid) {
                 state.fabric.assert_assumption(fid);
             }
@@ -1157,13 +1157,21 @@ impl StreamingPipeline {
         // cascade touches only already-dead candidates. Justifications stay
         // in the fabric (provenance preserved).
         let mut seen = BTreeSet::new();
-        let mut evicted = 0usize;
+        let mut evictees = Vec::new();
         for fid in out.frame_facts {
-            if seen.insert(fid) && self.state.fabric.is_active(fid) {
-                self.state.fabric.retract(fid);
-                evicted += 1;
+            if seen.insert(fid) {
+                evictees.push(fid);
             }
         }
+        // Bounded memory: one scoped cascade for the whole chunk (PERF-1,
+        // bead hearsay-four-gmp) instead of a per-fact retract cascade —
+        // same deliberate-retraction marks, same final active set, one
+        // subgraph-scoped invariant check.
+        let evicted = evictees
+            .iter()
+            .filter(|fid| self.state.fabric.is_active(**fid))
+            .count();
+        self.state.fabric.retract_all(evictees);
         self.evicted_facts += evicted;
         self.audit.push(format!(
             "chunk {idx}: committed {:?} (frames {}, evicted {evicted} audio facts)",

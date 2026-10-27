@@ -51,25 +51,36 @@ fn key(message: &str) -> String {
 ///
 /// `context` is an optional free-form label (e.g. `"checkout flow"`).
 pub fn assert_invariant(cond: bool, message: &str, context: Option<&str>) {
-    let ctx = context.unwrap_or("").to_string();
-    {
-        let mut log = INVARIANT_LOG.lock().unwrap();
-        let entry = log.entry(key(message)).or_insert_with(|| InvariantRecord {
-            message: message.to_string(),
-            context: ctx.clone(),
-            hits: 0,
-        });
-        entry.hits += 1;
-        if entry.context.is_empty() && !ctx.is_empty() {
-            entry.context = ctx.clone();
+    // PERF-1 (bead hearsay-four-gmp): the process-global log mutex + map
+    // insert ran on EVERY invariant hit (i.e. every fabric assert/retract).
+    // Logging is presence-tracking for test-build contract checks only, so
+    // it is compiled out of non-test builds: `cfg(test)` covers this
+    // crate's own test harness and `debug_assertions` covers downstream
+    // crates' test binaries (which link this crate as a plain rlib, where
+    // `cfg(test)` is false). `cfg!` folds at compile time, so release
+    // builds pay nothing — not even the context allocation. Violation
+    // panics stay unconditional in every build.
+    if cfg!(test) || cfg!(debug_assertions) {
+        let ctx = context.unwrap_or("").to_string();
+        {
+            let mut log = INVARIANT_LOG.lock().unwrap();
+            let entry = log.entry(key(message)).or_insert_with(|| InvariantRecord {
+                message: message.to_string(),
+                context: ctx.clone(),
+                hits: 0,
+            });
+            entry.hits += 1;
+            if entry.context.is_empty() && !ctx.is_empty() {
+                entry.context = ctx.clone();
+            }
         }
     }
     if !cond {
-        panic!(
-            "INVARIANT VIOLATION [context={}]: {}",
-            if ctx.is_empty() { "<none>" } else { &ctx },
-            message
-        );
+        let ctx = match context {
+            Some(c) if !c.is_empty() => c,
+            _ => "<none>",
+        };
+        panic!("INVARIANT VIOLATION [context={ctx}]: {message}");
     }
 }
 

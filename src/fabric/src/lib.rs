@@ -66,11 +66,20 @@ pub struct Fabric {
     facts: BTreeMap<FactId, FactState>,
     next_id: AtomicU64,
     /// Facts that were *explicitly* retracted (aem.13: a deliberate local
-    /// decision, e.g. drift retiring the old calibration). `reactivate_ready`
+    /// decision, e.g. drift retiring the old calibration). Reactivation
     /// must NOT resurrect these merely because an unrelated assert ran — only
     /// a fresh `assert` targeting them re-activates. Without this, an
     /// ATMS-pure fabric would instantly revive any explicitly retired fact.
     deliberately_retracted: std::collections::BTreeSet<FactId>,
+    /// Reverse premise index (PERF-1, bead hearsay-four-gmp): premise fact
+    /// id -> conclusions whose justification lists mention it. Maintained
+    /// incrementally on every `assert` (edges only ever added for the new
+    /// justification; subsumption-pruned sets may leave stale edges, which
+    /// are harmless — every candidate is re-validated by `support_count`
+    /// before any activation change). Lets activation propagate and
+    /// retraction cascade touch only the affected subgraph instead of
+    /// scanning all facts on every op.
+    dependents: BTreeMap<FactId, BTreeSet<FactId>>,
 }
 
 impl Default for Fabric {
@@ -85,6 +94,7 @@ impl Fabric {
             facts: BTreeMap::new(),
             next_id: AtomicU64::new(1),
             deliberately_retracted: std::collections::BTreeSet::new(),
+            dependents: BTreeMap::new(),
         }
     }
 
@@ -117,62 +127,83 @@ impl Fabric {
         // A fresh direct assertion re-arms a deliberately-retracted fact:
         // reactivation is now permitted again (aem.13 §4).
         self.deliberately_retracted.remove(&conclusion);
-        {
+        let added = {
             let state = self
                 .facts
                 .get_mut(&conclusion)
                 .expect("fact must be interned");
-            // Exact duplicate -> no-op.
-            if state.justifications.contains(&j) {
-                return;
-            }
-            // Dominated by an existing set with a premise-subset of ours ->
-            // the new set is subsumed and can never decide support. Skip it.
-            if state
-                .justifications
-                .iter()
-                .any(|existing| existing.premises.is_subset(&j.premises))
+            // Exact duplicate, or dominated by an existing set with a
+            // premise-subset of ours (subsumed, can never decide support)
+            // -> justification list unchanged.
+            if state.justifications.contains(&j)
+                || state
+                    .justifications
+                    .iter()
+                    .any(|existing| existing.premises.is_subset(&j.premises))
             {
-                return;
+                false
+            } else {
+                // Our set strictly dominates some existing sets -> prune them.
+                state
+                    .justifications
+                    .retain(|existing| !j.premises.is_subset(&existing.premises));
+                state.justifications.push(j.clone());
+                true
             }
-            // Our set strictly dominates some existing sets -> prune them.
-            state
-                .justifications
-                .retain(|existing| !j.premises.is_subset(&existing.premises));
-            state.justifications.push(j.clone());
+        };
+        if added {
+            // Incremental reverse-index maintenance for the new justification.
+            for p in &j.premises {
+                self.dependents.entry(*p).or_default().insert(conclusion);
+            }
+            self.assert_minimal_invariant(conclusion);
         }
-        self.assert_minimal_invariant(conclusion);
 
-        // If the new set is fully active and the conclusion was inactive,
-        // reactivate it (survival semantics).
-        let active = self.is_justification_active(&j);
-        let was_active = self.is_active(conclusion);
-        if active && !was_active {
+        // Re-activation (survival semantics): a fresh `assert` targeting an
+        // inactive conclusion re-arms it whenever ANY justification set
+        // (new or pre-existing) is fully active — then propagation revives
+        // dependents transitively. This covers the duplicate re-assertion of
+        // an evicted assumption (streaming re-arm): the old full-scan
+        // `reactivate_ready` resurrected such facts on the next unrelated
+        // assert; the incremental fabric reactivates them here, at the
+        // assert that re-arms them (assumptions are always active — they
+        // have no premises to fail).
+        if !self.is_active(conclusion) && self.support_count(conclusion) > 0 {
             self.set_active(conclusion, true);
+            self.propagate_activation(conclusion);
         }
-
-        // Reactivation cascade: any inactive fact whose justifications are
-        // now all-active (because a premise came online) reactivates too.
-        self.reactivate_ready();
     }
 
-    /// Reactivate any inactive fact that now has an active justification set.
-    /// Runs after assertions that bring premises online.
+    /// Reactivate the dependent subgraph newly supported by `newly_active`.
+    ///
+    /// Incremental replacement for the old full-fact `reactivate_ready`
+    /// scan (PERF-1): a fact's support can only have changed if one of its
+    /// premises just activated, so walking the reverse premise index from
+    /// each newly activated fact visits exactly the candidates. Transitive
+    /// closure (the old single-pass scan could strand deep chains — a
+    /// dependent of a dependent reactivated in the same pass stayed
+    /// inactive until some later unrelated assert re-scanned).
     ///
     /// Facts that were *deliberately retracted* are skipped: only a fresh
     /// `assert` targeting them may re-activate (aem.13 §4 — reactivation is
     /// explicit, not a side effect of unrelated assertions).
-    fn reactivate_ready(&mut self) {
-        let ready: Vec<FactId> = self
-            .facts
-            .iter()
-            .filter(|(id, s)| {
-                !s.active && s.support_count(self) > 0 && !self.deliberately_retracted.contains(id)
-            })
-            .map(|(id, _)| *id)
-            .collect();
-        for id in ready {
-            self.set_active(id, true);
+    fn propagate_activation(&mut self, newly_active: FactId) {
+        let mut queue = vec![newly_active];
+        while let Some(fid) = queue.pop() {
+            let dependents: Vec<FactId> = self
+                .dependents
+                .get(&fid)
+                .map(|s| s.iter().copied().collect())
+                .unwrap_or_default();
+            for d in dependents {
+                if self.deliberately_retracted.contains(&d) || self.is_active(d) {
+                    continue;
+                }
+                if self.support_count(d) > 0 {
+                    self.set_active(d, true);
+                    queue.push(d);
+                }
+            }
         }
     }
 
@@ -189,53 +220,124 @@ impl Fabric {
     /// survives (invariant `survival_requires_independent_support`).
     ///
     /// The `fact_active_iff_supported` invariant is checked once after the
-    /// ENTIRE cascade. Checking inside the recursive calls spuriously fires
+    /// ENTIRE cascade. Checking inside the cascade spuriously fires
     /// while sibling dependents are still active-but-unsupported mid-walk.
     pub fn retract(&mut self, fact: FactId) {
         // Deliberate retraction: this explicit call must stick until the fact
         // is re-asserted (aem.13 §4). Motivated dependents are NOT marked —
         // they may legitimately revive if an earlier premise comes back.
         self.deliberately_retracted.insert(fact);
-        if !self.retract_inner(fact) {
+        let deactivated = self.cascade_deactivate(fact);
+        if deactivated.is_empty() {
             return;
         }
-        // Global survival invariant (`fact_active_iff_supported`): after any
-        // retraction, every fact still active must retain at least one active
-        // justification set. A fact is never active while unsupported.
-        let violated = self
-            .facts
-            .iter()
-            .any(|(_, s)| s.active && s.support_count(self) == 0);
+        self.check_supported_scoped(&deactivated);
+    }
+
+    /// Retract a set of facts as ONE cascade with ONE scoped invariant
+    /// check (PERF-1: the streaming eviction loop's per-fact `retract`
+    /// cascade). Marks every listed fact deliberately retracted — exactly as
+    /// sequential [`retract`] calls would — then deactivates the combined
+    /// dependent closure once. Deactivation is a monotone fixed point, so
+    /// the final active set equals the sequential outcome; the invariant is
+    /// checked once over the affected subgraph instead of once per fact.
+    pub fn retract_all(&mut self, facts: impl IntoIterator<Item = FactId>) {
+        let mut seeds = Vec::new();
+        for fact in facts {
+            // Mark even already-inactive facts (matches `retract`, which
+            // marks before its active check).
+            self.deliberately_retracted.insert(fact);
+            if self.is_active(fact) {
+                seeds.push(fact);
+            }
+        }
+        if seeds.is_empty() {
+            return;
+        }
+        let mut deactivated = Vec::new();
+        for seed in seeds {
+            deactivated.extend(self.cascade_deactivate(seed));
+        }
+        self.check_supported_scoped(&deactivated);
+    }
+
+    /// Scoped survival check (`fact_active_iff_supported`): after a
+    /// retraction cascade, every still-active fact in the affected subgraph
+    /// must retain at least one active justification set. Only facts
+    /// reachable from the deactivated set through the reverse premise index
+    /// can have lost support (support changes only when a premise
+    /// deactivates, and facts outside the closure have no deactivated
+    /// premise) — so this visits the evicted subgraph, not all facts.
+    fn check_supported_scoped(&self, deactivated: &[FactId]) {
+        let mut seen = BTreeSet::new();
+        let mut queue: Vec<FactId> = deactivated.to_vec();
+        let mut violated = false;
+        while let Some(fid) = queue.pop() {
+            let dependents: Vec<FactId> = self
+                .dependents
+                .get(&fid)
+                .map(|s| s.iter().copied().collect())
+                .unwrap_or_default();
+            for d in dependents {
+                if !seen.insert(d) {
+                    continue;
+                }
+                if self.is_active(d) {
+                    // Still active: its own dependents' support is unchanged
+                    // (this premise stayed live), so the closure need not
+                    // grow through it — but it must itself be supported.
+                    if self.support_count(d) == 0 {
+                        violated = true;
+                        break;
+                    }
+                } else {
+                    // Newly inactive (or already so): its dependents may
+                    // have lost support — keep walking.
+                    queue.push(d);
+                }
+            }
+            if violated {
+                break;
+            }
+        }
         assert_invariant(!violated, "fact_active_iff_supported", Some("fabric"));
     }
 
-    /// Deactivate `fact` and cascade to dependents. Returns `true` if
-    /// anything was deactivated (the public [`retract`] then runs the global
-    /// invariant exactly once). Recursion never re-checks the global
+    /// Deactivate `fact` and cascade through the reverse premise index,
+    /// returning every fact deactivated (including `fact` itself).
+    /// Re-examines dependents on each new deactivation: a dependent kept
+    /// alive by a still-active premise is revisited when that premise falls,
+    /// so the outcome equals the old full-scan cascade's fixed point while
+    /// touching only the affected subgraph. Never re-checks the global
     /// invariant — intermediate states may legitimately contain a dependent
     /// not yet cascaded.
-    fn retract_inner(&mut self, fact: FactId) -> bool {
-        let was_active = self.facts.get(&fact).map(|s| s.active).unwrap_or(false);
-        if !was_active {
-            return false;
+    fn cascade_deactivate(&mut self, fact: FactId) -> Vec<FactId> {
+        if !self.is_active(fact) {
+            return Vec::new();
         }
-        self.set_active(fact, false);
-        // Cascade: any active conclusion that references `fact` as a premise
-        // and has now lost its last active justification set must be retracted.
-        let dependents: Vec<FactId> = self
-            .facts
-            .iter()
-            .filter(|(_, s)| {
-                s.active
-                    && s.justifications.iter().any(|j| j.premises.contains(&fact))
-                    && s.support_count(self) == 0
-            })
-            .map(|(id, _)| *id)
-            .collect();
-        for d in dependents {
-            self.retract_inner(d);
+        let mut deactivated = Vec::new();
+        let mut queue = vec![fact];
+        while let Some(fid) = queue.pop() {
+            if !self.is_active(fid) {
+                continue;
+            }
+            self.set_active(fid, false);
+            deactivated.push(fid);
+            // Cascade: any active conclusion that references `fid` as a
+            // premise and has now lost its last active justification set
+            // must be retracted.
+            let dependents: Vec<FactId> = self
+                .dependents
+                .get(&fid)
+                .map(|s| s.iter().copied().collect())
+                .unwrap_or_default();
+            for d in dependents {
+                if self.is_active(d) && self.support_count(d) == 0 {
+                    queue.push(d);
+                }
+            }
         }
-        true
+        deactivated
     }
 
     pub(crate) fn is_justification_active(&self, j: &Justification) -> bool {
