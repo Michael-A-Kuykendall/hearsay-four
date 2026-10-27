@@ -79,6 +79,53 @@ fn measure_session_buckets_exhaustive_invariant() {
     }
 }
 
+/// D1 enrollment-as-baseline consumption (bead hearsay-four-cz0): the wired
+/// enrollment fact's payload builds the ConditionA/B pair that
+/// `measure_session` scores. Synthetic PCM + StubCapture only.
+#[test]
+fn enrolled_baseline_feeds_measure_session() {
+    use calibration::arena::{baseline_fact_active, enroll_baseline};
+    use calibration::enrollment::{StubCapture, capture_enrollment};
+
+    let enrollment = capture_enrollment(&mut StubCapture::default());
+    let mut fabric = fabric::Fabric::new();
+    let enrolled = enroll_baseline(&mut fabric, &enrollment).expect("enrollment wires");
+    assert!(baseline_fact_active(&fabric, enrolled.fact));
+
+    let a = ConditionA::new(enrolled.baseline.clone());
+    let mut b = ConditionB::new(enrolled.baseline);
+
+    let rows = vec![
+        SessionRow {
+            bucket: 0,
+            idx: 0,
+            start_sec: 1.0,
+            stop_sec: 2.0,
+            text: "word".to_string(),
+        },
+        SessionRow {
+            bucket: 1,
+            idx: 0,
+            start_sec: 2.0,
+            stop_sec: 3.0,
+            text: "two words".to_string(),
+        },
+    ];
+    // 4 s of 16 kHz PCM with a signal that yields finite scores.
+    let pcm: Vec<i16> = (0..(4 * 16_000)).map(|i| ((i as i16) % 7) - 3).collect();
+
+    let stats = measure_session(&a, &mut b, &pcm, 16_000, &rows).expect("measure");
+    assert_eq!(stats.len(), 2, "both buckets measured");
+    for s in &stats {
+        assert!(s.mean_a.is_finite());
+        assert!(s.mean_b.is_finite());
+    }
+    assert!(
+        b.utterance_count() > 0,
+        "B carried the wired baseline forward"
+    );
+}
+
 #[test]
 fn apply_rule_clear_b_separation_passes() {
     let stats = vec![bstat(0, 0.5000, 0.4800, 4), bstat(1, 0.5500, 0.4500, 4)];
