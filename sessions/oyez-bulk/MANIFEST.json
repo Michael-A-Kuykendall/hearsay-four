@@ -1,0 +1,62 @@
+{
+  "attribution": "Audio and transcripts courtesy of Oyez (https://www.oyez.org), used under Creative Commons non-commercial + attribution license. See docs/research/oyez-ingest-evaluation.md section 1.",
+  "bead": "hearsay-four-c1g",
+  "method": "scripts/oyez_bulk_fetch.py crawled api.oyez.org (no auth): per term the first oral_argument_audio segment whose media object carries a transcript object; scripts/oyez_ingest.py (K=8, first-7-floor remainder rule, zero/negative-duration blocks dropped loudly) to session.tsv; corpus mp3-to-wav to audio/run1.wav (gitignored); failfast_run --root scores. N=3 and bucket rule pre-registered in bead notes before fetch/score. Bulk audio lives in gitignored staging only; committed here: session.tsv + transcript.json per case.",
+  "cases": [
+    {
+      "label": "70-112_1971",
+      "name": "Groppi v. Leslie",
+      "term": "1971",
+      "docket": "70-112",
+      "media_id": 15919,
+      "mp3_bytes": 14377748,
+      "duration_sec": 3575.966,
+      "turns": 231,
+      "blocks_fetched": 444,
+      "blocks_dropped": 0,
+      "blocks_scored": 444,
+      "buckets": "K=8 as 7x55+59",
+      "verdict": "PASS",
+      "margin_2nd_half_A_minus_B": 94.72,
+      "speakers": 8
+    },
+    {
+      "label": "10-218_2011",
+      "name": "PPL Montana v. Montana",
+      "term": "2011",
+      "docket": "10-218",
+      "media_id": 21627,
+      "mp3_bytes": 14752099,
+      "duration_sec": 3661.222,
+      "turns": 216,
+      "blocks_fetched": 643,
+      "blocks_dropped": 1,
+      "blocks_scored": 642,
+      "buckets": "K=8 as 7x80+82",
+      "verdict": "PASS",
+      "margin_2nd_half_A_minus_B": 38.72,
+      "speakers": 11,
+      "note": "session.tsv byte-identical to zl3 pilot manifest; margin replicates pilot exactly"
+    },
+    {
+      "label": "24-889_2025",
+      "name": "Hikma Pharmaceuticals USA Inc. v. Amarin Pharma, Inc.",
+      "term": "2025",
+      "docket": "24-889",
+      "media_id": 25951,
+      "mp3_bytes": 14511014,
+      "duration_sec": null,
+      "turns": 203,
+      "blocks_fetched": 504,
+      "blocks_dropped": 1,
+      "blocks_scored": 503,
+      "buckets": "K=8 as 7x62+69",
+      "verdict": "PASS",
+      "margin_2nd_half_A_minus_B": 40.86,
+      "speakers": 12,
+      "note": "dropped block is negative-duration (Roberts 'The case is submitted.' 3618.430-0.000), same pre-registered stop<=start rule as zl3"
+    }
+  ],
+  "carry_forward": "Justices persist 2011->2025 (Roberts, Sotomayor, Alito, Kagan in both manifests); advocates rotate fully across all three cases (no advocate appears in two cases). No justice persists 1971->2011.",
+  "gate": "3/3 failfast_run --root exit 0, every manifest loads via load_session (row counts match scored counts), every case prints bucket stats + PASS verdict, no silent skips (2 drops reported loudly under the pre-registered rule)"
+}

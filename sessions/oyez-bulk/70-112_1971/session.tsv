@@ -1,0 +1,445 @@
+bucket	idx	start_sec	stop_sec	speaker	drift_tags	text
+0	0	0.000	5.907	Warren E. Burger	source:oyez,verified:api	70-112, Groppi against Leslie.
+0	1	5.907	10.243	Warren E. Burger	source:oyez,verified:api	Mr. Coffey you may proceed.
+0	2	10.243	13.586	William M. Coffey	source:oyez,verified:api	Mr. Chief Justice and may it please the Court.
+0	3	13.586	21.844	William M. Coffey	source:oyez,verified:api	This matter is before the Court on a petition for a Writ of Certiorari United States Court of Appeals for the Seventh Circuit.
+0	4	21.844	26.059	William M. Coffey	source:oyez,verified:api	The pertinent facts out of which this matter arose are as follows.
+0	5	26.059	54.544	William M. Coffey	source:oyez,verified:api	On October 1, 1969 the Assembly, one of the two Houses of the State of Wisconsin legislature passed a resolution reciting that two days earlier on September 29th, 1969, the petitioner led a gathering of the people which by its presence on the floor of the Assembly during a meeting prevented the Assembly from conducting its business.
+0	6	54.544	65.691	William M. Coffey	source:oyez,verified:api	The resolution found the petitioner's conduct constituted disorderly conduct in the immediate view of the House and directly tending to interrupt its proceedings.
+0	7	65.691	80.008	William M. Coffey	source:oyez,verified:api	The resolution then cited the petitioner for contempt and ordered that he be imprisoned in the Dane County Jail for a period of six months or for the balance of the legislative session whichever was briefer.
+0	8	80.008	91.066	William M. Coffey	source:oyez,verified:api	Petitioner was given no notice of the charge against him and was given no hearing of any kind, either before the resolution was passed or after the resolution was passed.
+0	9	91.066	98.368	Warren E. Burger	source:oyez,verified:api	Was the petitioner taken in to custody in the house itself where the disorder was --?
+0	10	98.368	99.319	William M. Coffey	source:oyez,verified:api	No your honor.
+0	11	99.319	105.595	William M. Coffey	source:oyez,verified:api	Chief Justice, the disturbance had occurred two days previously and --
+0	12	105.595	111.194	Warren E. Burger	source:oyez,verified:api	What I was asking, was there any effort to take him into custody at the time he was on the floor?
+0	13	111.194	113.938	William M. Coffey	source:oyez,verified:api	None at all.
+0	14	113.938	130.622	William M. Coffey	source:oyez,verified:api	At the time, the resolution was passed, the petitioner was in fact incarcerated in the Dane County Jail under a disorderly conduct charge which had been placed against him arising out of the same conduct dealt with the legislative resolution.
+0	15	130.622	139.481	William M. Coffey	source:oyez,verified:api	The petitioner was served with copy of the resolution and he was then confined in the Dane County Jail pursuant to the authority of the resolution.
+0	16	139.481	155.860	William M. Coffey	source:oyez,verified:api	After this, he was served with the copy of the resolution, he instituted various legal actions contesting the constitutionality of the procedures employed by the legislature in imprisoning him for six months.
+0	17	155.860	162.798	William M. Coffey	source:oyez,verified:api	Writs of Habeas Corpus were denied by the Circuit Court of Dane County and by the Wisconsin Supreme Court.
+0	18	162.798	169.394	William M. Coffey	source:oyez,verified:api	A petition for writ of habeas corpus was filed in the United State District Court for the Western District of Wisconsin.
+0	19	169.394	179.646	William M. Coffey	source:oyez,verified:api	A response was filed and the District Court thereupon released the petitioner on bail, pending the determination of the writ of habeas corpus.
+0	20	179.646	188.077	William M. Coffey	source:oyez,verified:api	Bail had been denied to the petitioner by both the Circuit Court of Dane County and by the Wisconsin Supreme Court.
+0	21	188.077	206.662	William M. Coffey	source:oyez,verified:api	All of the petitions for habeas corpus filed by the petitioner alleged that he had been denied Due Process law and that he had been denied the right to be represented by counsel, the right to a trial or a hearing of any kind, the right to compulsory process.
+0	22	206.662	211.271	William M. Coffey	source:oyez,verified:api	The right to be informed of the nature and cause of the accusation against him.
+0	23	211.271	217.578	William M. Coffey	source:oyez,verified:api	The right to confront his accusers and the right to present his defense, the alleged charges.
+0	24	217.578	241.848	William M. Coffey	source:oyez,verified:api	On April 8th, 1970 the District Court held that the legislative assembly could not summarily impose a jail sentence for a legislative contempt without first providing the petitioner some minimal opportunity to appear and respond to the charge.
+0	25	241.848	249.849	William M. Coffey	source:oyez,verified:api	The Court granted the writ and ordered the petitioner, release under any further restrain or custody pursuant to the resolution.
+0	26	249.849	260.582	William M. Coffey	source:oyez,verified:api	The respondent appealed the decision of the District Court of Seventh Circuit Court of Appeals and on appeal the judgment of the District Court was reversed.
+0	27	260.582	272.743	William M. Coffey	source:oyez,verified:api	Subsequently the Court of Appeals granted petitioner's request for re-hearing on bond and in a 4:3 decision affirmed the earlier decision of the Court of Appeals.
+0	28	272.743	299.741	William M. Coffey	source:oyez,verified:api	The issues presented on the appeal are whether a legislative body can consistent with due process law two days after alleged contemptuous conduct, ex parte impersonate person under its contempt power without giving the person any notice of the charge against him or any opportunity, whatsoever to appear before the legislative body and respond to the charges.
+0	29	299.741	321.551	William M. Coffey	source:oyez,verified:api	The second issue is whether consistent with a due process clause, a person can be found in contempt to the legislative body when the contempt resolutions sets forth mere conclusion and failed to set forth any of the underlying facts and circumstances which constituted the alleged contemptuous behavior.
+0	30	321.551	331.502	William M. Coffey	source:oyez,verified:api	The petitioner respectfully contend that the Wisconsin legislature did not have the power to summarily punish for contempt.
+0	31	331.502	332.120	William M. Coffey	source:oyez,verified:api	The petitioner --
+0	32	332.120	334.087	unknown	source:oyez,verified:api	Back to your second point.
+0	33	334.087	341.192	unknown	source:oyez,verified:api	I noticed in the opinion, the per curiam opinion of the Supreme Court of Wisconsin.
+0	34	341.192	346.896	unknown	source:oyez,verified:api	Getting on 109 (a) of the appendix and the chapter begins on 113 (a) of the appendix.
+0	35	346.896	354.298	unknown	source:oyez,verified:api	The Supreme Court seems to reciting the fact -- reciting a fairly detail statement of facts.
+0	36	354.298	355.480	unknown	source:oyez,verified:api	Where did that come from?
+0	37	355.480	361.844	William M. Coffey	source:oyez,verified:api	Your Honor that was one of the problems that was confronted in the matter and that no record of these proceedings was made.
+0	38	361.844	364.685	unknown	source:oyez,verified:api	Oh, that is what I was attempting to say, I just want to hear where the statement and facts came from --
+0	39	364.685	374.236	William M. Coffey	source:oyez,verified:api	That was a judicial notice taken of accounts in the mass media, newspapers and television accounts of what had occurred.
+0	40	374.236	375.790	unknown	source:oyez,verified:api	Is that indicated anywhere?
+0	41	375.790	377.177	unknown	source:oyez,verified:api	Is that the source of it?
+0	42	377.177	386.283	William M. Coffey	source:oyez,verified:api	That is indicated in the opinion, Your Honor, of the District Court in that.
+0	43	386.283	398.786	William M. Coffey	source:oyez,verified:api	The actual language of the District Court, I do not know, but there had been no hearing of any kind and was indicated that that was judicial notice of those facts and those media sources.
+0	44	398.786	405.228	unknown	source:oyez,verified:api	They do say we take judicial notice and then they go on with a fairly detailed statement of what happened in the State legislature.
+0	45	405.228	415.171	William M. Coffey	source:oyez,verified:api	And with the only available source of those facts or material at that time because there had been no evidentiary hearing either in a Court or in the legislative body.
+0	46	415.171	420.494	William M. Coffey	source:oyez,verified:api	No record made of the proceeding by the legislature was the media.
+0	47	420.494	436.159	unknown	source:oyez,verified:api	Is their any substantial claim that the petitioner did not know with what he was being charged or that these facts are inaccurate in any way?
+0	48	436.159	445.116	William M. Coffey	source:oyez,verified:api	I do not believe Justice that there is any contention that the petitioner was not in fact on the floor of the assembly.
+0	49	445.116	454.616	William M. Coffey	source:oyez,verified:api	I think there maybe some contention as to whether or not the petitioner personally engaged in conduct that was disorderly.
+0	50	454.616	458.192	unknown	source:oyez,verified:api	Because your point is, I suppose that he was not given any opportunity to make any such contention.
+0	51	458.192	464.336	William M. Coffey	source:oyez,verified:api	He was never given such an opportunity to respond in any way to the charge.
+0	52	464.336	470.742	Warren E. Burger	source:oyez,verified:api	The citizens have the privileges of the floor of the legislative houses of the Wisconsin legislature.
+0	53	470.742	473.501	William M. Coffey	source:oyez,verified:api	Not during the session Chief Justice.
+0	54	473.501	483.301	William M. Coffey	source:oyez,verified:api	It was the presence of the body of the people on the floor, the assembly was in violation of a rule of the assembly.
+1	55	483.301	493.237	Warren E. Burger	source:oyez,verified:api	That alone could probably warrant the charge of contempt independent of whether it was in fact disorderly, I suppose.
+1	56	493.237	496.213	Warren E. Burger	source:oyez,verified:api	I said warrant, warrant of charge not the conviction.
+1	57	496.213	514.679	William M. Coffey	source:oyez,verified:api	Yes, that may well is a violation of the rule where we would probably proceed on some basis that as we have been indicated here, we have proceeded throughout these proceedings that the legislature of the state of Wisconsin like all legislatures has a contempt power.
+1	58	514.679	526.081	William M. Coffey	source:oyez,verified:api	The question is what is the scope for that contempt power and what procedures must they follow in exercising the contempt power.
+1	59	526.081	530.724	Warren E. Burger	source:oyez,verified:api	I suppose the disorderly conduct charges never then pursued.
+1	60	530.724	532.505	Warren E. Burger	source:oyez,verified:api	Is that correct?
+1	61	532.505	541.631	William M. Coffey	source:oyez,verified:api	No, Chief Justice and as a matter of fact, the day prior to the passing of this resolution by the assembly.
+1	62	541.631	560.490	William M. Coffey	source:oyez,verified:api	The petitioner had, in fact, then charged with disorderly conduct, he in fact, after the resolution was issued had a jury trial on that charge of disorderly conduct and after the jury had deliberated and was unable to return a verdict.
+1	63	560.490	570.838	William M. Coffey	source:oyez,verified:api	The trial Court granted the defendants motions for dismissal or judgment of acquittal which he had taken under advisement at the conclusion of all the cases.
+1	64	570.838	577.055	William M. Coffey	source:oyez,verified:api	He, in fact, successfully defended the criminal disorderly conduct charge.
+1	65	577.055	584.698	William M. Coffey	source:oyez,verified:api	In regard to the summary contempt powers, Courts have clearly exercised summary contempt policy.
+1	66	584.698	632.325	William M. Coffey	source:oyez,verified:api	However, the decisions of this Court have always limited the exercise to the exercise of that power to those situations where the misconduct is actually observed by the Court and where immediate punishment was necessary to restore order and maintain the dignity and authority of the Court because of the dangers inherent in the summary contempt power which has been described as perhaps nearest akin to despotic power of any power existing under our form of Government, this Court has construed it as an exception to the normal requirements of Due process and has refused to extend it particularly in Johnson versus Mississippi, Mayberry versus Pennsylvania.
+1	67	632.325	645.775	William M. Coffey	source:oyez,verified:api	The summary power has never before in the history of this country prior to October 1, 1969 ever been exercised by a legislative body.
+1	68	645.775	652.040	William M. Coffey	source:oyez,verified:api	A good reason exists for not extending that power to the legislature.
+1	69	652.040	659.808	William M. Coffey	source:oyez,verified:api	First, and I think foremost, Courts differ significantly from legislatures.
+1	70	659.808	683.924	William M. Coffey	source:oyez,verified:api	It is the duty and the business of Courts to determine and decide particular cases free from the exercise of the external influences as Judge Stevens noted in his dissenting opinion on the unbound hearing without reflecting adversely on the importance and dignity of the legislative function.
+1	71	683.924	692.873	William M. Coffey	source:oyez,verified:api	It must be recognized that legislators are more responsive to the temporary moods of the body politics than our judges.
+1	72	692.873	719.693	William M. Coffey	source:oyez,verified:api	And further in this case, in Johnson v. Mississippi, this Court held that a judge who was so enmeshed in matters involved was so enmeshed that matters involving a defendant that it was appropriate for another judge to seat and determine the question of this contempt and indicate noting that the trial before an unbiased judge was essential to due process.
+1	73	719.693	739.497	William M. Coffey	source:oyez,verified:api	In this case given the responsiveness of the body power or legislatures through the pressures or the mood, in particular political mood at the time, I do not think you could view the Wisconsin assembly at this point as an unbiased judge.
+1	74	739.497	755.910	Potter Stewart	source:oyez,verified:api	That argument seems to be going to the proposition that there could not have been any finding of contempt, because certainly a trial by biased judge is deprivation of due process of law in and of itself, is it not?
+1	75	755.910	757.551	William M. Coffey	source:oyez,verified:api	Yes it is.
+1	76	757.551	759.790	Potter Stewart	source:oyez,verified:api	Well, but you are not making that ultimate argument, are you?
+1	77	759.790	767.714	William M. Coffey	source:oyez,verified:api	I am saying that there must be a hearing and I would suggest that it not be before the legislature.
+1	78	767.714	770.005	Potter Stewart	source:oyez,verified:api	It could not be before a different legislature very well.
+1	79	770.005	772.213	Potter Stewart	source:oyez,verified:api	Could it -- there is only one of the state --
+1	80	772.213	787.837	William M. Coffey	source:oyez,verified:api	As in the federal system Justice Stewart, the matters are referred to the United Sates attorney for persecution in the judicial process where the full panoply of the procedural due process rights are observe.
+1	81	787.837	799.871	Potter Stewart	source:oyez,verified:api	I did not understand your argument went that far, at least from reading your brief, I thought that your argument was confined to the proposition that there had to be notice and an opportunity to respond.
+1	82	799.871	808.474	Potter Stewart	source:oyez,verified:api	Secondly that the charge it could not be conclusary, but that you were not questioning the basic right of legislature to find your client in contempt.
+1	83	808.474	809.766	William M. Coffey	source:oyez,verified:api	Well, I think --
+1	84	809.766	811.944	Potter Stewart	source:oyez,verified:api	You have this legislature under these circumstances.
+1	85	811.944	831.536	William M. Coffey	source:oyez,verified:api	I think at this juncture I would say that notice and hearing even before that legislature is minimal, but I would think that there is some considerations to the idea that it should not be before the assembly and that other procedures could be available and the particularly --
+1	86	831.536	844.257	Warren E. Burger	source:oyez,verified:api	When you say available, do you mean by that constitutionally, the state of Wisconsin has to adopt some counterpart of a federal reference to a additional proceedings?
+1	87	844.257	877.294	William M. Coffey	source:oyez,verified:api	I think Justice that if they are -- it has been the position of the respondent that they cannot afford the petitioner due process, because that would overburden the legislative system and may draw the legislature to a halt and I feel that if the legislature is unable to afford due process, then yes, I would think that constitutionally are mandated to adapt some other procedure where by due process will be afforded.
+1	88	877.294	891.310	William J. Brennan, Jr.	source:oyez,verified:api	May I ask Mr. Coffey, I think you answered Justice Stewart of the fact that was citied in the Supreme Court per curiam at page 113 (a).
+1	89	891.310	894.860	William J. Brennan, Jr.	source:oyez,verified:api	You thought were obtained from news media?
+1	90	894.860	895.841	William M. Coffey	source:oyez,verified:api	Yes.
+1	91	895.841	936.386	William J. Brennan, Jr.	source:oyez,verified:api	Well, I notice at page 61 (a), a proceeding apparently brought by the State against Groppi and others, a statement at page 62 (a) that the complaints and the affidavits attached in this case in substance to cite most of the facts that were stated, the balance having them confined by testimony and what precedes at page 61 (a) and 62 (a) seem to be substantial like that which appears in the per curiam of the Supreme Court at 113A, am I wrong about that?
+1	92	936.386	957.272	William M. Coffey	source:oyez,verified:api	Justice Brennan, in an answer to your question, testimony, the pages to which you are refer are the findings of a Circuit Judge in Dane County who had conducted a hearing on the respondents motions for temporary restraining order. And then there was a hearing on the preliminary.
+1	93	957.272	968.775	William M. Coffey	source:oyez,verified:api	This record where this testimony to my knowledge was not available to Wisconsin Supreme Court at the time it rendered its decision.
+1	94	968.775	970.119	William J. Brennan, Jr.	source:oyez,verified:api	Oh! I see.
+1	95	970.119	972.713	William J. Brennan, Jr.	source:oyez,verified:api	Did that happen after the decision?
+1	96	972.713	975.111	William M. Coffey	source:oyez,verified:api	Yes, the Court beliefs --
+1	97	975.111	978.792	William J. Brennan, Jr.	source:oyez,verified:api	The decision is dated October 17, 1969.
+1	98	978.792	980.860	William M. Coffey	source:oyez,verified:api	Correct, and I believe the action of the Wisconsin --
+1	99	980.860	983.800	William J. Brennan, Jr.	source:oyez,verified:api	And the hearing was October 6 of the Circuit Court.
+1	100	983.800	988.348	William M. Coffey	source:oyez,verified:api	Yes, and I believe the action of the Wisconsin Supreme Court in denying --
+1	101	988.348	991.797	William J. Brennan, Jr.	source:oyez,verified:api	Do you have those transcripts here?
+1	102	991.797	994.724	William J. Brennan, Jr.	source:oyez,verified:api	Particularly hearing of October 6?
+1	103	994.724	997.760	William M. Coffey	source:oyez,verified:api	No, they are not part of the record, Justice Brennan.
+1	104	997.760	1010.128	William M. Coffey	source:oyez,verified:api	The action of Wisconsin Supreme Court in denying the petitioner’s writ of habeas corpus was October 10.
+1	105	1010.128	1011.190	William J. Brennan, Jr.	source:oyez,verified:api	October 10?
+1	106	1011.190	1013.705	William M. Coffey	source:oyez,verified:api	Yes.
+1	107	1013.705	1025.722	Harry A. Blackmun	source:oyez,verified:api	Mr. Coffey, in this connection, I think you conceded that there is no issue of fact about how the Groppi being on the assembly floor on the Dane question.
+1	108	1025.722	1042.684	Harry A. Blackmun	source:oyez,verified:api	The Wisconsin Supreme Court stated that the occupation of the assembly by Groppi and the protesters lasted approximately midday to well toward midnight is, do you go that far to concede that part?
+1	109	1042.684	1067.209	William M. Coffey	source:oyez,verified:api	Yes, I would concede that fact and that I know of my knowledge that it occurred Justice Blackmun, but it was never established in any proceeding that I am aware of with the Wisconsin Supreme Court where there was one testimony that was obviously reported in the media.
+2	110	1067.209	1088.928	William M. Coffey	source:oyez,verified:api	Now, in this particular action, the people led in the assembly or people that were present in the assembly were in fact there to object to or make known objections to regard to legislative action in terms of cutting back welfare payment.
+2	111	1088.928	1092.959	Warren E. Burger	source:oyez,verified:api	You do not contempt they have any right to do that of course?
+2	112	1092.959	1094.752	William M. Coffey	source:oyez,verified:api	No, I did not Chief Justice I only --
+2	113	1094.752	1096.545	Warren E. Burger	source:oyez,verified:api	It is only necessary in your case, is it?
+2	114	1096.545	1110.513	William M. Coffey	source:oyez,verified:api	No, it is not and I only bring that up, because I believe that it raises some question as to the ability of the legislature to sit as fair and impartial judge of the contempt.
+2	115	1110.513	1153.908	William M. Coffey	source:oyez,verified:api	Secondly in terms of the legislative contempt, the physical contours of most legislative chambers along with the comings and goings of the people in the legislature during the session, the absence of transcribed records make it reasonable as the District Court found and as Judge Stevens noted in his dissenting opinion that there is the room for error in perception and evaluation of the alleged contemptuous conduct is far greater and in a legislative body then before a court in the restricted area in which a court may make a summary contempt finding.
+2	116	1153.908	1162.104	William M. Coffey	source:oyez,verified:api	Additionally, a review of the action taken by the legislature is almost impossible.
+2	117	1162.104	1165.648	William M. Coffey	source:oyez,verified:api	It is extremely difficult if not almost impossible.
+2	118	1165.648	1166.727	William M. Coffey	source:oyez,verified:api	In the instant case --
+2	119	1166.727	1172.498	Warren E. Burger	source:oyez,verified:api	No review is provided of the legislative determination of that kind.
+2	120	1172.498	1173.733	Warren E. Burger	source:oyez,verified:api	Is there?
+2	121	1173.733	1200.292	William M. Coffey	source:oyez,verified:api	There was none in this case Chief Justice Burger and that was one of the problems, is that when the petitioner filed his petition for a writ of habeas corpus in the Wisconsin Supreme court, there was authority, and all cases prior to that time in Wisconsin which indicated that, in fact, the Court would not review a finding of a legislature.
+2	122	1200.292	1229.590	Warren E. Burger	source:oyez,verified:api	Well, if we take just that part of your arguments about the contours of the room and the other factors about the functioning of a legislative body, then it would not have been feasible on your theory that you have tried Justice Samuel Chase for impeachment by the Senate 180 years ago, 170 years ago or to try President Johnson for impeachment 100 years ago.
+2	123	1229.590	1233.415	William M. Coffey	source:oyez,verified:api	No, the trial for impeachment, I do not see any difficult--
+2	124	1233.415	1234.744	Warren E. Burger	source:oyez,verified:api	The Contour of the room are the same.
+2	125	1234.744	1235.146	Warren E. Burger	source:oyez,verified:api	Are they not?
+2	126	1235.146	1239.988	William M. Coffey	source:oyez,verified:api	But the people are there taking part, and they were having a trial.
+2	127	1239.988	1255.214	William M. Coffey	source:oyez,verified:api	What I am suggesting is that the contours of the legislative body make it difficult to perceive a heavy uniform perception and evaluation of conduct that it is going on in that large an area.
+2	128	1255.214	1258.186	Warren E. Burger	source:oyez,verified:api	You are speaking now of the body.
+2	129	1258.186	1268.591	Warren E. Burger	source:oyez,verified:api	The members of the legislative body in a sense as the witnesses who observed the event, not of the trial of the man for contempt before the body.
+2	130	1268.591	1269.748	Warren E. Burger	source:oyez,verified:api	That is correct or I misunderstood you?
+2	131	1269.748	1270.437	William M. Coffey	source:oyez,verified:api	That is correct.
+2	132	1270.437	1278.879	Warren E. Burger	source:oyez,verified:api	The posture but would you make the same argument with reference to the un-feasibility of conducting on the trial before the body?
+2	133	1278.879	1283.409	William M. Coffey	source:oyez,verified:api	No, I would not clearly believe that a trial could be conducted.
+2	134	1283.409	1294.651	William M. Coffey	source:oyez,verified:api	I would hate to see that portion under the legislative machinery and that obviously it would cause a great disruption of the normal legislative process.
+2	135	1294.651	1300.329	William M. Coffey	source:oyez,verified:api	If they would have a full blown trial, but I clearly think the chamber with the special place to have the trial.
+2	136	1300.329	1315.304	Warren E. Burger	source:oyez,verified:api	Then it follows from your argument, I take it that the only remedy of the state of Wisconsin has against someone occupying legislature for ten or twelve hours is to charge or just sort of a conduct as there was here.
+2	137	1315.304	1335.458	William M. Coffey	source:oyez,verified:api	Or to -- yes they could bring charges under the ordinary criminal code, unlawful assembly and all other sorts of criminal offenses, but additionally I believe that they could certify one as the Federal Government US Attorney for contempt or they could in fact have a hearing.
+2	138	1335.458	1338.749	William M. Coffey	source:oyez,verified:api	They could have in fact had a hearing in District Court.
+2	139	1338.749	1354.654	William M. Coffey	source:oyez,verified:api	All the District Court said that was constitutionally mandated was a minimal opportunity to appear in the response, in all of the cases cited in the respondent's brief of a legislative contempt.
+2	140	1354.654	1357.690	William M. Coffey	source:oyez,verified:api	That is in fact the procedure that was followed.
+2	141	1357.690	1372.747	William M. Coffey	source:oyez,verified:api	The contemnor was just brought in before the bar of the house or the Senate and advised that the house or the legislative body viewed certain of his conduct as contemptuous.
+2	142	1372.747	1378.157	William M. Coffey	source:oyez,verified:api	What if anything did he have to say as to why he should not be held in contempt?
+2	143	1378.157	1383.842	William M. Coffey	source:oyez,verified:api	And, that is what the District Court said was constitutionally mandated.
+2	144	1383.842	1388.383	William M. Coffey	source:oyez,verified:api	The District Court did not conceive a full blown trial.
+2	145	1388.383	1403.411	William M. Coffey	source:oyez,verified:api	I feel that the petitioner is entitled to that at a minimum and that he may well be entitled to more procedural Due Process than just that minimum or minimal due process.
+2	146	1403.411	1415.518	Harry A. Blackmun	source:oyez,verified:api	Mr. Coffey before you sit down or conclude your argument, would you work in for my benefit your comments as to the suggestion of the mootness of the case?
+2	147	1415.518	1415.951	William M. Coffey	source:oyez,verified:api	Yes.
+2	148	1415.951	1417.482	Harry A. Blackmun	source:oyez,verified:api	Somewhere along the lines.
+2	149	1417.482	1458.165	William M. Coffey	source:oyez,verified:api	Mr. Justice Blackmun in terms of mootness, the resolution in addition to holding the petitioner in contempt, there was also a second part of the resolution which under pursuant to the Section 1327 of the statutes of the state of Wisconsin referred the matter to the District Attorney of Dane County. Section 1327, that the statute to the State of Wisconsin sub-paragraph 2, provides that any person who is adjudged guilty.
+2	150	1458.165	1465.145	William M. Coffey	source:oyez,verified:api	I am sorry this on page 24 (a) of the petition for a petition for writ.
+2	151	1465.145	1470.065	William M. Coffey	source:oyez,verified:api	I am sorry it is not in the appendix.
+2	152	1470.065	1494.301	William M. Coffey	source:oyez,verified:api	The statute provides that any person that is adjudged guilty of any contempt of the legislature or either house thereof shall be deemed guilty also by misdemeanor and after the adjournment of such a legislature maybe prosecuted therefore in Dane County and maybe fined not more than $200.00 or imprisoned not more than one year in the County Jail.
+2	153	1494.301	1506.334	William M. Coffey	source:oyez,verified:api	The legislative assembly that held the petitioner in contempt adjourned Sini Die on either January 6th or January 7th of 1971.
+2	154	1506.334	1516.620	William M. Coffey	source:oyez,verified:api	The prosecution contemplated by the resolution of the assembly has not been to this date commenced, but there is the thread of this prosecution.
+2	155	1516.620	1545.253	William M. Coffey	source:oyez,verified:api	I would indicate that I think in terms of collateral estoppel or double jeopardy, there maybe some defenses to that prosecution, but there is the thread of that prosecution which I believe would bring this matter under the doctrine of this Court in Sibron versus New York and Carafas v. LaVallee, and I would suggest that the matter is not moot.
+2	156	1545.253	1546.920	William M. Coffey	source:oyez,verified:api	Thank you.
+2	157	1546.920	1550.574	Warren E. Burger	source:oyez,verified:api	Thank you Mr. Coffey.
+2	158	1550.574	1552.272	Warren E. Burger	source:oyez,verified:api	Mr. Tinglum.
+2	159	1552.272	1554.859	Sverre O. Tinglum	source:oyez,verified:api	Mr. Chief Justice and May it please the court.
+2	160	1554.859	1558.918	Sverre O. Tinglum	source:oyez,verified:api	My name is Sverre O. Tinglum, Assistant Attorney General from Wisconsin.
+2	161	1558.918	1565.474	Sverre O. Tinglum	source:oyez,verified:api	I am representing the respondent here today.
+2	162	1565.474	1603.920	Sverre O. Tinglum	source:oyez,verified:api	Respondent sees the issue before this Court as an extremely narrow issue and that issue is whether legislative body as a State legislature, House of the State legislature or the Congress of the United States, whether, any such legislative body may exercise its contempt power in a summary fashion, that is in the same manner as the Courts exercised their contempt powers where there has been contemptuous conduct in the immediate presence of the Court tending to obstruct the Court's proceedings.
+2	163	1603.920	1612.222	Sverre O. Tinglum	source:oyez,verified:api	Question is whether the legislature in the case of a direct contempt as contrasted with a constructive contempt.
+2	164	1612.222	1627.519	Sverre O. Tinglum	source:oyez,verified:api	Whether it may in a words of the Terry case cited in our brief proceed upon its own knowledge of the facts and punish the offender without further proof and without issue or trial in any form.
+3	165	1627.519	1645.301	Sverre O. Tinglum	source:oyez,verified:api	The District Judge who first considered these issues acknowledged that the conduct described in the assembly’s resolution, if it had been committed in open Court would justify summary contempt procedure in Court.
+3	166	1645.301	1657.677	Sverre O. Tinglum	source:oyez,verified:api	And then the District Judge said “Alright, now he have to look to see if the legislature has the same power to proceed summarily as any Court would”.
+3	167	1657.677	1665.175	Sverre O. Tinglum	source:oyez,verified:api	The District Judge held that the legislature did not have such a power.
+3	168	1665.175	1670.713	Sverre O. Tinglum	source:oyez,verified:api	The Court of Appeals for the Seventh Circuit held that it did reversing the District Judge.
+3	169	1670.713	1672.409	Thurgood Marshall	source:oyez,verified:api	What is the problem?
+3	170	1672.409	1686.356	Thurgood Marshall	source:oyez,verified:api	How do you answer my problem which is for the same people there the second day as to thereafter the day that it happened?
+3	171	1686.356	1687.216	Sverre O. Tinglum	source:oyez,verified:api	I am not sure, I understand --
+3	172	1687.216	1687.782	Thurgood Marshall	source:oyez,verified:api	You do not.
+3	173	1687.782	1689.522	Thurgood Marshall	source:oyez,verified:api	Do you?
+3	174	1689.522	1691.570	Thurgood Marshall	source:oyez,verified:api	You talk about the body.
+3	175	1691.570	1693.456	Sverre O. Tinglum	source:oyez,verified:api	Oh! I am sorry.
+3	176	1693.456	1695.895	Sverre O. Tinglum	source:oyez,verified:api	I understand your question now Mr. Justice Marshall.
+3	177	1695.895	1701.099	Thurgood Marshall	source:oyez,verified:api	If a Judge had one Judge, but did you tell me if legislative is there?
+3	178	1701.099	1702.004	Sverre O. Tinglum	source:oyez,verified:api	This was --
+3	179	1702.004	1703.896	Thurgood Marshall	source:oyez,verified:api	How many House members are there?
+3	180	1703.896	1705.501	Sverre O. Tinglum	source:oyez,verified:api	There are a hundred.
+3	181	1705.501	1713.032	Thurgood Marshall	source:oyez,verified:api	Well, do I assume that it is no different from other legislature, you never had a hundred on two days in a row.
+3	182	1713.032	1717.029	Sverre O. Tinglum	source:oyez,verified:api	There is a presumption of a regularity of the legislative proceedings.
+3	183	1717.029	1719.188	Thurgood Marshall	source:oyez,verified:api	That all hundred are there?
+3	184	1719.188	1725.722	Sverre O. Tinglum	source:oyez,verified:api	That there were sufficient numbers there and that those who voted witnessed the content, the condemnations conduct.
+3	185	1725.722	1727.993	Thurgood Marshall	source:oyez,verified:api	Where they have assumed.
+3	186	1727.993	1731.490	Sverre O. Tinglum	source:oyez,verified:api	This is a presumption that has been acknowledged by this Court.
+3	187	1731.490	1734.453	Thurgood Marshall	source:oyez,verified:api	Well, how many was there the day the act occurred?
+3	188	1734.453	1735.889	Sverre O. Tinglum	source:oyez,verified:api	I have no idea.
+3	189	1735.889	1738.701	Thurgood Marshall	source:oyez,verified:api	Why should not I know?
+3	190	1738.701	1745.498	Sverre O. Tinglum	source:oyez,verified:api	Only if the question had been raised as a factual a question in this habeas corpus proceeding.
+3	191	1745.498	1756.377	Sverre O. Tinglum	source:oyez,verified:api	The District Court made an assumption that that was a question of fact and he decided that question of fact against the respondent.
+3	192	1756.377	1761.513	Sverre O. Tinglum	source:oyez,verified:api	And as a part of our appeal to the Seventh Circuit we pointed to the after the Seventh Circuit Court of appeals.
+3	193	1761.513	1772.549	Thurgood Marshall	source:oyez,verified:api	I assumed that someone that second day only knew what happened by hearsay and that they were not present the day it happened, but they did both?
+3	194	1772.549	1774.474	Sverre O. Tinglum	source:oyez,verified:api	I do not think that assumption can be made.
+3	195	1774.474	1779.020	Sverre O. Tinglum	source:oyez,verified:api	That would be presuming an irregularity in legislative procedure.
+3	196	1779.020	1783.297	Thurgood Marshall	source:oyez,verified:api	Considered regularity mean that there are hundred people there everyday?
+3	197	1783.297	1783.929	Sverre O. Tinglum	source:oyez,verified:api	No.
+3	198	1783.929	1785.306	Thurgood Marshall	source:oyez,verified:api	You do not assume that.
+3	199	1785.306	1785.702	Sverre O. Tinglum	source:oyez,verified:api	No.
+3	200	1785.702	1788.342	Thurgood Marshall	source:oyez,verified:api	Please do not ask me to assume it.
+3	201	1788.342	1792.381	Sverre O. Tinglum	source:oyez,verified:api	All I am saying is that there is presumption of regularity of legislative proceedings.
+3	202	1792.381	1794.456	Thurgood Marshall	source:oyez,verified:api	Well, that is not what is before me now.
+3	203	1794.456	1802.894	Thurgood Marshall	source:oyez,verified:api	It is not the regularities of the legislative proceeding, it is a regularity of a contempt action which puts a man in Jail.
+3	204	1802.894	1804.266	Sverre O. Tinglum	source:oyez,verified:api	Yes sir.
+3	205	1804.266	1809.136	Thurgood Marshall	source:oyez,verified:api	Well that regularity, I can assume things in to that?
+3	206	1809.136	1810.807	Sverre O. Tinglum	source:oyez,verified:api	I think until the question is raised.
+3	207	1810.807	1813.996	Sverre O. Tinglum	source:oyez,verified:api	It must be presumed.
+3	208	1813.996	1815.033	Thurgood Marshall	source:oyez,verified:api	Raised by whom?
+3	209	1815.033	1816.208	Sverre O. Tinglum	source:oyez,verified:api	Raised by the --
+3	210	1816.208	1819.087	Thurgood Marshall	source:oyez,verified:api	Are you trying to uphold this or not?
+3	211	1819.087	1820.475	Sverre O. Tinglum	source:oyez,verified:api	Yes, Sir.
+3	212	1820.475	1822.312	Thurgood Marshall	source:oyez,verified:api	Well, I am asking the question?
+3	213	1822.312	1832.144	Thurgood Marshall	source:oyez,verified:api	Is there anything in the record to show that people who voted on this knew and were present when the action occurred?
+3	214	1832.144	1836.158	Sverre O. Tinglum	source:oyez,verified:api	No.
+3	215	1836.158	1844.443	Potter Stewart	source:oyez,verified:api	There is a presumption I suppose only that there was a quarrel on each day or something of that kind.
+3	216	1844.443	1853.244	Sverre O. Tinglum	source:oyez,verified:api	I think there is such a presumption and I think there is a further presumption that has been acknowledged by this Court as a presumption of the regularity of proceedings.
+3	217	1853.244	1853.472	Potter Stewart	source:oyez,verified:api	Well.
+3	218	1853.472	1854.291	Sverre O. Tinglum	source:oyez,verified:api	Which would include --
+3	219	1854.291	1867.601	Potter Stewart	source:oyez,verified:api	But as my brother Marshall says that the presumption of regularity certainly does not embrace the presumption that every single one of the 100 legislators within a hall on each of the 2 days that has nothing to do with the presumption of regularity.
+4	220	1867.601	1869.607	Potter Stewart	source:oyez,verified:api	What it is quarrel in Wisconsin?
+4	221	1869.607	1870.509	Sverre O. Tinglum	source:oyez,verified:api	Majority.
+4	222	1870.509	1880.207	Potter Stewart	source:oyez,verified:api	So 51 could have been there on one day and 51 the next day and this means that of the two days, it would only possibly have been one person who was there both days.
+4	223	1880.207	1884.925	Sverre O. Tinglum	source:oyez,verified:api	That is possible.
+4	224	1884.925	1915.732	Sverre O. Tinglum	source:oyez,verified:api	This is as we pointed out to a Court Appeals was a “not a non-issue of fact,” that the District Court assumed to determine without giving the State an opportunity to prove in an evidentiary hearing, that in fact the legislators who did vote for the contempt resolution were in fact present on the day that the contempt took place and were in fact those who voted for the contempt resolution?
+4	225	1915.732	1935.259	Potter Stewart	source:oyez,verified:api	Well, I thought the whole point of the petitioner's second preposition was that until there was a detailed statement of what the alleged content consisted of that people voting on the contempt would have known what it was and the implication of that is that there were not there.
+4	226	1935.259	1937.813	Potter Stewart	source:oyez,verified:api	They did not see it with their own eyes two days earlier.
+4	227	1937.813	1941.697	Sverre O. Tinglum	source:oyez,verified:api	I do not understand that to be petitioner's argument that maybe what he is driving at--
+4	228	1941.697	1945.328	Potter Stewart	source:oyez,verified:api	That is by implication what his argument has to depend upon?
+4	229	1945.328	1959.618	Sverre O. Tinglum	source:oyez,verified:api	I interpreted petitioner’s argument to be that the resolution failed to State sufficient probable cause as this Court has interpreted probable cause and this appears in Judge Kiley (ph) dissent in the Court of Appeals.
+4	230	1959.618	1976.506	Potter Stewart	source:oyez,verified:api	It sets forth mere conclusion and fails to set forth any underlying facts and circumstances which constitute the alleged contemptuous behavior and I assume that the implication of that whole argument is that there where people who voted on this who did not see this with their own eyes.
+4	231	1976.506	1981.420	Potter Stewart	source:oyez,verified:api	Otherwise the argument does not --.
+4	232	1981.420	1981.714	Sverre O. Tinglum	source:oyez,verified:api	I have never—
+4	233	1981.714	1984.473	Potter Stewart	source:oyez,verified:api	I thought that point did raise the factual issue.
+4	234	1984.473	1988.585	Sverre O. Tinglum	source:oyez,verified:api	I have never understood that to be petitioner’s argument.
+4	235	1988.585	1993.440	Sverre O. Tinglum	source:oyez,verified:api	There was no such an allegation in the original petition in the District Court.
+4	236	1993.440	2012.400	Sverre O. Tinglum	source:oyez,verified:api	This sort of recitation of fact as to who voted and who saw has never appeared to my knowledge in any resolution of contempt passed by any legislative body at anytime and it has never been required by any Court at anytime.
+4	237	2012.400	2015.678	Sverre O. Tinglum	source:oyez,verified:api	This I see as a non issue I take it to be conceded.
+4	238	2015.678	2025.768	Sverre O. Tinglum	source:oyez,verified:api	I believe it to be conceded by the petitioner that a legislative body such as State House of the State Legislature has the power to punish.
+4	239	2025.768	2031.227	Sverre O. Tinglum	source:oyez,verified:api	It is house having authority to commit for contempt.
+4	240	2031.227	2047.599	Sverre O. Tinglum	source:oyez,verified:api	For example, precedent for that is the cases cited in both briefs, I take it to be a non issue that there have been very grave and serious abuses of the parliamentary powers of contempt in past.
+4	241	2047.599	2056.524	Sverre O. Tinglum	source:oyez,verified:api	The amicus brief dwells at some length on this and I am certain that if there had been search made even more grievous abuses could have been cited than were cited in the briefs.
+4	242	2056.524	2068.980	Sverre O. Tinglum	source:oyez,verified:api	However I do not see that as an issue in this case because what is happened in the past, this Court has said that simple abuses of the power are no reason for denying its existence.
+4	243	2068.980	2090.779	Sverre O. Tinglum	source:oyez,verified:api	Another thing that is conceded and is not at issue in this case, is that the contempt power and particularly the summary contempt power is an extremely delicate power to be used sparingly as this Court has said and is to be exercised with the greatest sense of responsibility, this is conceded.
+4	244	2090.779	2098.542	Sverre O. Tinglum	source:oyez,verified:api	There is an other non issue in this case and that is the constitutionality of Wisconsin’s legislative Contempt Statute.
+4	245	2098.542	2105.416	Sverre O. Tinglum	source:oyez,verified:api	That is the statute that was referred to by counsel, Section 1326.
+4	246	2105.416	2111.187	Sverre O. Tinglum	source:oyez,verified:api	The issue of the constitutionality of that statute was litigated in a companion case to this one.
+4	247	2111.187	2123.475	Sverre O. Tinglum	source:oyez,verified:api	The Freylik case and their a three Judge District Court ruled that the statute constitutional that it was not big over broad, that it did not call for involuntary servitude and other issues.
+4	248	2123.475	2130.769	Sverre O. Tinglum	source:oyez,verified:api	There was no appeal from that decision by the Three Judge District Court.
+4	249	2130.769	2162.342	Sverre O. Tinglum	source:oyez,verified:api	This case incidentally is a spin off from that case. This case started as the federal civil rights action for Declaratory Judgment and then when the Federal District Judge ruled that the portion of that action, the request for an injunction actually was a request for habeas corpus relief then this case Groppi versus Leslie became a spin off of Groppi versus Frelly and proceeded as a habeas case.
+4	250	2162.342	2173.898	Sverre O. Tinglum	source:oyez,verified:api	It is also conceded and I see it to be a non issue in this case that a legislative body has other courses, it may fallow in the event of a direct disorderly contempt of its proceedings.
+4	251	2173.898	2176.971	Sverre O. Tinglum	source:oyez,verified:api	It may refer the matter to the Courts.
+4	252	2176.971	2198.587	Sverre O. Tinglum	source:oyez,verified:api	In the Watkins case, this Court observed that Congress has rarely exercised its contempt powers but had preferred at that time to refer matters of contempt to the United State Attorney for prosecution.
+4	253	2198.587	2200.061	Sverre O. Tinglum	source:oyez,verified:api	There is no issue about this.
+4	254	2200.061	2200.853	Sverre O. Tinglum	source:oyez,verified:api	The legislative --
+4	255	2200.853	2205.159	William J. Brennan, Jr.	source:oyez,verified:api	(Inaudible) to expressly authorize --
+4	256	2205.159	2207.773	Sverre O. Tinglum	source:oyez,verified:api	Yes, it had.
+4	257	2207.773	2210.492	William J. Brennan, Jr.	source:oyez,verified:api	That is not the 13.72?
+4	258	2210.492	2212.240	Sverre O. Tinglum	source:oyez,verified:api	Yes, 13 that is what I am referring to.
+4	259	2212.240	2219.263	William J. Brennan, Jr.	source:oyez,verified:api	Well, this applied only in the case of one, actually a judge guilty by the house?
+4	260	2219.263	2221.434	Sverre O. Tinglum	source:oyez,verified:api	Yes, I am sorry Mr. Justice Brennan.
+4	261	2221.434	2223.950	Sverre O. Tinglum	source:oyez,verified:api	What I was think of was the disorderly conduct statute.
+4	262	2223.950	2236.014	Sverre O. Tinglum	source:oyez,verified:api	Yes, disorderly conduct occurring anywhere within the State maybe prosecuted and the legislative -- the assembly could have treated this simply as a case of disorderly conduct.
+4	263	2236.014	2237.007	William J. Brennan, Jr.	source:oyez,verified:api	Under the general statute?
+4	264	2237.007	2237.852	Sverre O. Tinglum	source:oyez,verified:api	Yes, under general statute.
+4	265	2237.852	2241.020	William J. Brennan, Jr.	source:oyez,verified:api	But federal statute is expressed is it not?
+4	266	2241.020	2241.235	Sverre O. Tinglum	source:oyez,verified:api	Yes.
+4	267	2241.235	2247.484	William J. Brennan, Jr.	source:oyez,verified:api	It authorizes reference expressly in the case that contempts found by the house.
+4	268	2247.484	2252.214	William J. Brennan, Jr.	source:oyez,verified:api	That is required to make a federal statue first is it not?
+4	269	2252.214	2259.920	Sverre O. Tinglum	source:oyez,verified:api	It is, and what I should say is Wisconsin has no parallel to that statute.
+4	270	2259.920	2265.952	Thurgood Marshall	source:oyez,verified:api	Was it -- the disorderly conduct at this time on same about same business?
+4	271	2265.952	2266.333	Sverre O. Tinglum	source:oyez,verified:api	No.
+4	272	2266.333	2267.761	Thurgood Marshall	source:oyez,verified:api	Or is that a different affair?
+4	273	2267.761	2273.337	Sverre O. Tinglum	source:oyez,verified:api	That the arrest was made, as I remember was made at the later time.
+4	274	2273.337	2275.352	Warren E. Burger	source:oyez,verified:api	For conduct occurring where?
+5	275	2275.352	2278.009	Sverre O. Tinglum	source:oyez,verified:api	On the assembly floor.
+5	276	2278.009	2280.257	Warren E. Burger	source:oyez,verified:api	That it was the same conduct?
+5	277	2280.257	2283.167	Sverre O. Tinglum	source:oyez,verified:api	Yes, the same conduct.
+5	278	2283.167	2285.989	Warren E. Burger	source:oyez,verified:api	Your response I think was a little confusing.
+5	279	2285.989	2286.401	Sverre O. Tinglum	source:oyez,verified:api	I am sorry.
+5	280	2286.401	2288.286	Warren E. Burger	source:oyez,verified:api	Just to make sure we have it clear.
+5	281	2288.286	2299.900	Warren E. Burger	source:oyez,verified:api	It was at time of contempt citation, he was in custody on a disorderly conduct charge for the same conduct that the legislature was deeming with.
+5	282	2299.900	2301.198	Sverre O. Tinglum	source:oyez,verified:api	Exactly the same.
+5	283	2301.198	2306.164	Warren E. Burger	source:oyez,verified:api	And that is the case that ended in a mistrial and it was followed by dismissal?
+5	284	2306.164	2308.582	Sverre O. Tinglum	source:oyez,verified:api	That is correct.
+5	285	2308.582	2311.934	Sverre O. Tinglum	source:oyez,verified:api	I am sorry, I did not intent to mislead.
+5	286	2311.934	2319.565	Sverre O. Tinglum	source:oyez,verified:api	It is exactly the same conduct that was tried in the disorderly conduct case under the general statute.
+5	287	2319.565	2322.693	Potter Stewart	source:oyez,verified:api	It was just under a charge he had been not convict?
+5	288	2322.693	2324.407	Sverre O. Tinglum	source:oyez,verified:api	That is correct.
+5	289	2324.407	2327.483	Sverre O. Tinglum	source:oyez,verified:api	He was never convicted of disorderly conduct in the Court.
+5	290	2327.483	2334.971	Sverre O. Tinglum	source:oyez,verified:api	There as Mr. Chief Justice Burger point it out there never was a -- there was a mistrial and never any new trial.
+5	291	2334.971	2339.731	Potter Stewart	source:oyez,verified:api	There the charge still hanging over him now, would it?
+5	292	2339.731	2344.734	Sverre O. Tinglum	source:oyez,verified:api	Conceivably there could be a charge under section 13.27 of the statutes.
+5	293	2344.734	2347.431	Potter Stewart	source:oyez,verified:api	There was a mistrial but it was charge ever dismissed?
+5	294	2347.431	2347.887	Potter Stewart	source:oyez,verified:api	Yes, it was dismissed.
+5	295	2347.887	2350.794	Sverre O. Tinglum	source:oyez,verified:api	It was dismissed.
+5	296	2350.794	2362.532	unknown	source:oyez,verified:api	Well 13.27 requires a prior resolution to the convicting and contempt with the legislature?
+5	297	2362.532	2364.883	Sverre O. Tinglum	source:oyez,verified:api	Yes, Sir.
+5	298	2364.883	2367.487	unknown	source:oyez,verified:api	For this case it was –
+5	299	2367.487	2371.010	Sverre O. Tinglum	source:oyez,verified:api	The State has never contented that it is moot.
+5	300	2371.010	2383.026	Sverre O. Tinglum	source:oyez,verified:api	I would feel that as long as the possibility exists, that someone could prefer charges under section 1327.
+5	301	2383.026	2396.276	Sverre O. Tinglum	source:oyez,verified:api	I would feel that under Grafus versus Low Valley that the there was sufficient interest left here in the petitioner and a sufficient hazard involved at least theoretically.
+5	302	2396.276	2400.776	unknown	source:oyez,verified:api	Is the facts limitations applicable to that 1327 type?
+5	303	2400.776	2402.682	Sverre O. Tinglum	source:oyez,verified:api	I know of none.
+5	304	2402.682	2409.495	unknown	source:oyez,verified:api	But certainly there would be extremely almost insurmountable double jeopardy problems too?
+5	305	2409.495	2413.012	Sverre O. Tinglum	source:oyez,verified:api	Absolutely.
+5	306	2413.012	2414.132	Sverre O. Tinglum	source:oyez,verified:api	That is my opinion.
+5	307	2414.132	2416.642	Sverre O. Tinglum	source:oyez,verified:api	It is not an issue here but that would be my opinion.
+5	308	2416.642	2423.311	unknown	source:oyez,verified:api	Well if that so, why do you not urge this?
+5	309	2423.311	2438.551	William J. Brennan, Jr.	source:oyez,verified:api	If we sustain that a resolution that you want us to do -- and that there was a problem of double jeopardy, nothing else could happen anyway.
+5	310	2438.551	2441.794	Sverre O. Tinglum	source:oyez,verified:api	That is correct.
+5	311	2441.794	2453.696	William J. Brennan, Jr.	source:oyez,verified:api	So, sort of an empty argument is it not?
+5	312	2453.696	2474.636	Sverre O. Tinglum	source:oyez,verified:api	As I understand Carafas versus LaVallee and the principles in that case, if there is a theoretical possibility that a previous judgment if allowed to stand could work to someone’s disadvantage in the future, then the issue is not moot.
+5	313	2474.636	2478.022	Sverre O. Tinglum	source:oyez,verified:api	So we certainly have not urged.
+5	314	2478.022	2482.770	unknown	source:oyez,verified:api	It was because its advantage is it could not be tried.
+5	315	2482.770	2490.036	Sverre O. Tinglum	source:oyez,verified:api	But that issue is not before the Court at this time and all I can say is that in my personal opinion, yes.
+5	316	2490.036	2490.496	Sverre O. Tinglum	source:oyez,verified:api	There would be –-
+5	317	2490.496	2495.568	unknown	source:oyez,verified:api	New argument on that ground.
+5	318	2495.568	2503.594	Sverre O. Tinglum	source:oyez,verified:api	I do not believe under the cases that have been decided by this Court that I cannot argue on -- I am not urging that.
+5	319	2503.594	2505.794	unknown	source:oyez,verified:api	In other word you are not arguing would --?
+5	320	2505.794	2506.576	Sverre O. Tinglum	source:oyez,verified:api	I am not.
+5	321	2506.576	2511.335	unknown	source:oyez,verified:api	This is why I raised the question with Mr. Coffey a little while ago.
+5	322	2511.335	2513.178	unknown	source:oyez,verified:api	I want to be sure about your position.
+5	323	2513.178	2514.790	unknown	source:oyez,verified:api	You are not arguing this?
+5	324	2514.790	2521.486	Sverre O. Tinglum	source:oyez,verified:api	That is correct.
+5	325	2521.486	2534.765	Sverre O. Tinglum	source:oyez,verified:api	It is also a non issue in this case that the assembly could have taken different courses of action as Congress has the power to take different courses of action in contempt cases.
+5	326	2534.765	2543.389	Sverre O. Tinglum	source:oyez,verified:api	The question before this Court is whether the constitution requires that the legislative body must take some different course of action.
+5	327	2543.389	2560.893	Sverre O. Tinglum	source:oyez,verified:api	Whether it must refrain and ignore the contempt altogether or whether it must rely on general criminal statutes or whether it must somehow refer the matter to the executive and rely upon the executive or upon the judiciary to vindicate its authority.
+5	328	2560.893	2574.990	Sverre O. Tinglum	source:oyez,verified:api	It is also a non issue in this case that if this had been a case of indirect or constructive contempt, obviously the procedure followed by the assembly would have been invalid.
+5	329	2574.990	2602.980	Sverre O. Tinglum	source:oyez,verified:api	Good many of the case cited in both of the briefs, in petitioner's brief or respondent's brief refer to cases of indirect constructive contempt where the legislative bodies have brought the contemnor before the bar of the house or of the Senate and there have heard evidence of what occurred outside the Legislative (Inaudible).
+6	330	2602.980	2606.130	Sverre O. Tinglum	source:oyez,verified:api	These are constructive contempt cases.
+6	331	2606.130	2612.229	Sverre O. Tinglum	source:oyez,verified:api	This is not, this is direct contempt case involving the disorderly conduct.
+6	332	2612.229	2617.272	Thurgood Marshall	source:oyez,verified:api	Is anything in the record to show why the resolution was not passed the same day?
+6	333	2617.272	2619.954	Sverre O. Tinglum	source:oyez,verified:api	None.
+6	334	2619.954	2630.763	unknown	source:oyez,verified:api	Well, there is an indication in the opinion of the Supreme Court of the State based on judicial notice that the legislature could not act that day.
+6	335	2630.763	2632.082	unknown	source:oyez,verified:api	There was so much disruption.
+6	336	2632.082	2633.060	Sverre O. Tinglum	source:oyez,verified:api	Yes.
+6	337	2633.060	2643.114	Warren E. Burger	source:oyez,verified:api	12 Noon until approximately midnight, the legislature was in effect ousted of its own chamber. Is that not the case on this record?
+6	338	2643.114	2645.261	Sverre O. Tinglum	source:oyez,verified:api	That appears in the record.
+6	339	2645.261	2649.722	Sverre O. Tinglum	source:oyez,verified:api	There has been no evidentiary hearing so that it has not been developed in that fashion.
+6	340	2649.722	2652.384	Thurgood Marshall	source:oyez,verified:api	What happened the next day?
+6	341	2652.384	2655.867	Sverre O. Tinglum	source:oyez,verified:api	I would have to go outside the record to tell you Mr. Justice Marshall.
+6	342	2655.867	2662.791	Thurgood Marshall	source:oyez,verified:api	I do not want to go outside the record, I just want to know as anything in the record to show why it took two days?
+6	343	2662.791	2666.642	Thurgood Marshall	source:oyez,verified:api	We now have one day explained but there is no explanation for the next day?
+6	344	2666.642	2667.504	Sverre O. Tinglum	source:oyez,verified:api	Nothing.
+6	345	2667.504	2675.530	Thurgood Marshall	source:oyez,verified:api	Is there anything in the record to show what was brought before the house or is it just the resolution?
+6	346	2675.530	2675.674	Sverre O. Tinglum	source:oyez,verified:api	There is --
+6	347	2675.674	2677.437	Thurgood Marshall	source:oyez,verified:api	or is it discussion?
+6	348	2677.437	2685.999	Sverre O. Tinglum	source:oyez,verified:api	There is nothing in the record to show the debate that is not recited in the resolution.
+6	349	2685.999	2691.899	unknown	source:oyez,verified:api	Was it two days, September 29th and October 1st over a weekend?
+6	350	2691.899	2701.718	Sverre O. Tinglum	source:oyez,verified:api	September 29th was a Monday, that was the day on which the legislature was to convene in special session.
+6	351	2701.718	2704.087	unknown	source:oyez,verified:api	So it was right at the start of session?
+6	352	2704.087	2707.013	Sverre O. Tinglum	source:oyez,verified:api	It was right at the start of the session.
+6	353	2707.013	2717.187	Sverre O. Tinglum	source:oyez,verified:api	As a matter fact, I cannot say that it was at the start of the session because the session did not start on the day that it was to have started.
+6	354	2717.187	2724.540	Sverre O. Tinglum	source:oyez,verified:api	I have talked about the none issues and the issue as I see it again is a very narrow one.
+6	355	2724.540	2737.077	Sverre O. Tinglum	source:oyez,verified:api	Does the constitution command that a legislative body exercise its contempt power different from the manner in which a Court is entitled to exercise the same power.
+6	356	2737.077	2747.269	Sverre O. Tinglum	source:oyez,verified:api	There are no cases in point, at least neither of the parties to this action have been able to find a case precisely in point.
+6	357	2747.269	2758.230	Sverre O. Tinglum	source:oyez,verified:api	Most cases discussing legislative contempt incidents of the legislative contempt are cases of constructive or indirect contempt.
+6	358	2758.230	2768.131	Sverre O. Tinglum	source:oyez,verified:api	Whereas as I said previously the contemnor is brought before the bar because the house has not seen the conduct with its own eyes.
+6	359	2768.131	2782.733	Sverre O. Tinglum	source:oyez,verified:api	In some of the precedents, some of the cases discussing legislative contempts, it is apparent that a summary procedure was in fact followed but there has never been any discussion of that in any of the cases that have a reason.
+6	360	2782.733	2791.259	unknown	source:oyez,verified:api	Would Wisconsin's position be the same if a lapse of time instead of two day, it is two months?
+6	361	2791.259	2796.410	Sverre O. Tinglum	source:oyez,verified:api	I think yes.
+6	362	2796.410	2798.798	Sverre O. Tinglum	source:oyez,verified:api	Wisconsin’s case would be much weaker.
+6	363	2798.798	2803.880	unknown	source:oyez,verified:api	Why would it be weaker on the issue at the appendix?
+6	364	2803.880	2809.973	Sverre O. Tinglum	source:oyez,verified:api	Because without anything in the record to explain the delay.
+6	365	2809.973	2817.992	Sverre O. Tinglum	source:oyez,verified:api	I think there would be, It would just be that much more difficult to explain a delay of that magnitude.
+6	366	2817.992	2821.673	unknown	source:oyez,verified:api	I did not understand what Wisconsin's position was instead of --
+6	367	2821.673	2827.121	Sverre O. Tinglum	source:oyez,verified:api	We do not -- not as far as the two days are concerned.
+6	368	2827.121	2834.913	unknown	source:oyez,verified:api	I do not understand why if you do not have to explain this two days, you would have explain it two months.
+6	369	2834.913	2857.324	Sverre O. Tinglum	source:oyez,verified:api	I believe in the first place that there have been instances, decisions by this Court, for example in the Terry case, ex parte Terry, In Re Morrey (ph) which is a second circuit case, that there have been delays unexplained in the record.
+6	370	2857.324	2862.730	Sverre O. Tinglum	source:oyez,verified:api	And this Court has said that short delays do not have to be explained.
+6	371	2862.730	2866.865	Sverre O. Tinglum	source:oyez,verified:api	For example, in the Terry case I believe there was delay of one day.
+6	372	2866.865	2875.851	Sverre O. Tinglum	source:oyez,verified:api	The disorderly conduct occurred in open Court on one day and the contempt citation did not come out for the next day.
+6	373	2875.851	2878.383	Sverre O. Tinglum	source:oyez,verified:api	Court said this delay is frivolous.
+6	374	2878.383	2888.676	Warren E. Burger	source:oyez,verified:api	There has been some reference to the procedure followed by Judge Medina in the contempt cases that occurred during prolonged trial in New York, years ago.
+6	375	2888.676	2917.855	Warren E. Burger	source:oyez,verified:api	Now, suppose hypothetically that the legislature decided deliberately to postpone the action on the contempt until the last day of the session or last week of the session in order to let tempers cool and get a more objective view, would that be a perfectly valid reason for waiting 30 days or 60 days or 90 days and who is to complain about that kind of a delay for that reason?
+6	376	2917.855	2924.009	Sverre O. Tinglum	source:oyez,verified:api	Well, if you delay to that extent.
+6	377	2924.009	2929.881	Sverre O. Tinglum	source:oyez,verified:api	That would seem to undermine the assembly’s position that it needed protection.
+6	378	2929.881	2935.009	Sverre O. Tinglum	source:oyez,verified:api	That it had the authority to remove this source of disturbance.
+6	379	2935.009	2937.339	Warren E. Burger	source:oyez,verified:api	That is only one of the reasons for the contempt powers.
+6	380	2937.339	2938.123	Warren E. Burger	source:oyez,verified:api	is it not?
+6	381	2938.123	2938.495	Sverre O. Tinglum	source:oyez,verified:api	Yes.
+6	382	2938.495	2943.886	Warren E. Burger	source:oyez,verified:api	It is not the whole basis for giving legislative body contempt power?
+6	383	2943.886	2946.371	Sverre O. Tinglum	source:oyez,verified:api	It is not.
+6	384	2946.371	2953.627	Sverre O. Tinglum	source:oyez,verified:api	There is self reservation and there is what has been called by the Courts of indication of the body’s authority--
+7	385	2953.627	2959.072	Warren E. Burger	source:oyez,verified:api	Taking example of someone as a deterrent to similar future conduct by others?
+7	386	2959.072	2971.742	Sverre O. Tinglum	source:oyez,verified:api	I think the juror has never been mentioned in any case that I have seen but I think as matter of logic and common sense, yes deterrence plays very large part in this.
+7	387	2971.742	2992.780	Sverre O. Tinglum	source:oyez,verified:api	There was a case, where the United State Senate proceeded summarily and ex parte Nugent cited in the respondent's brief where the debate and the deliberations leading up to the contempt resolution and the contempt resolution itself were conducted in secret.
+7	388	2992.780	3021.215	Sverre O. Tinglum	source:oyez,verified:api	There again, and the Circuit Court for the District of Columbia at that time held that this was a proper procedure but the precise point that we have here, that is whether or not the legislature has any less power than the Courts around the nation to proceed in a proper case in summary fashion has never been expressly discussed and decided by any Court.
+7	389	3021.215	3027.517	Sverre O. Tinglum	source:oyez,verified:api	The closest decision that I know that it comes to it is Marshall versus Gordon.
+7	390	3027.517	3049.577	Sverre O. Tinglum	source:oyez,verified:api	There, there is some dictum that suggests that the power -- that the Courts have to exercise summary contempt powers proceeds from the same source and that both the legislators and the Courts have identical summary contempt powers.
+7	391	3049.577	3071.288	Sverre O. Tinglum	source:oyez,verified:api	The District Judge said “alright there are no cases, there is nothing to guide this Court, I am going to look to see if there are any reasons in logic or in the factual circumstances of the two bodies” that is the Court and legislature to warrant a different treatment before the law.
+7	392	3071.288	3088.853	Sverre O. Tinglum	source:oyez,verified:api	And the District Judge said,” well, there are so many people observing disorderly conduct in the legislative chamber, that you can have a good deal of confusion as to just what took place whereas in the Court, you have only one Judge looking and it is easier if you would not have that confusion”.
+7	393	3088.853	3097.164	Sverre O. Tinglum	source:oyez,verified:api	The District Judge said also, there is a second point, that there is no transcript of the proceeding in a legislative chamber whereas there is in Court.
+7	394	3097.164	3105.686	Sverre O. Tinglum	source:oyez,verified:api	And on those two points, the District Court held that the legislature did not have summary contempt powers.
+7	395	3105.686	3120.603	Sverre O. Tinglum	source:oyez,verified:api	The Seventh Circuit Court of Appeals disagreed and I think rightly so because if it is true that one pair of eyes is better than several pairs of eyes, then of course one juror better than many jurors.
+7	396	3120.603	3132.187	Sverre O. Tinglum	source:oyez,verified:api	Appellate Courts, for example, would not be able to observe properly, according to the District Judge's theory, would not be able to observe a direct contempt.
+7	397	3132.187	3157.456	Sverre O. Tinglum	source:oyez,verified:api	The differences that are pointed out in the respondent's brief between Courts and legislatures are such that the legislature should have summary contempt powers at least equal to those possessed by the Courts, because there are probably upward to 5000 Judges in this country who posses summary contempt powers.
+7	398	3157.456	3161.435	Sverre O. Tinglum	source:oyez,verified:api	There are only 50 legislatures.
+7	399	3161.435	3167.928	Sverre O. Tinglum	source:oyez,verified:api	When you stop a legislature, there is no other body that can pick up the ball and run with it and do the work of that that legislature.
+7	400	3167.928	3170.161	Sverre O. Tinglum	source:oyez,verified:api	It stops.
+7	401	3170.161	3180.191	Sverre O. Tinglum	source:oyez,verified:api	And a continual week by week disturbance in the legislature would forever stop that legislature.
+7	402	3180.191	3186.467	Sverre O. Tinglum	source:oyez,verified:api	Further more, a legislative body when it is proceeding to act upon a contempt, acts publicly.
+7	403	3186.467	3188.381	Sverre O. Tinglum	source:oyez,verified:api	There is publicity, there is deliberation.
+7	404	3188.381	3196.033	Sverre O. Tinglum	source:oyez,verified:api	Usually, in the two party political system you can expect debate before action is taken.
+7	405	3196.033	3206.064	Sverre O. Tinglum	source:oyez,verified:api	There are certainly similarities between legislatures and courts that again call for similar treatment, similar powers of self reservation.
+7	406	3206.064	3212.679	Sverre O. Tinglum	source:oyez,verified:api	They have been cited. Cases have been cited going back to parliamentary times in England, Colonial times in this country.
+7	407	3212.679	3226.291	Sverre O. Tinglum	source:oyez,verified:api	Anderson versus Dunn, up to Marshall versus Gordon, Jurney v. MacCracken, where this court has said the legislature is just as vulnerable as any Court to attack in disruption.
+7	408	3226.291	3252.018	Sverre O. Tinglum	source:oyez,verified:api	It has also been acknowledged by this Court many times that it is essential to preserve the independence of the legislative body and you cannot force the legislature to rely upon the -- sometimes hostile Judiciary or an unfriendly executive taking those words from United States versus Johnson.
+7	409	3252.018	3262.510	Sverre O. Tinglum	source:oyez,verified:api	There is certainly a need on the part of legislature as great as in the Courts to continue functioning and to continue the dialog that takes place in a legislature.
+7	410	3262.510	3281.338	Sverre O. Tinglum	source:oyez,verified:api	There are no differences that warrant a denial of this power to legislature and the similarities between the two forums, to call for and demonstrate that both bodies must have equal powers to protect themselves from attack.
+7	411	3281.338	3299.315	Sverre O. Tinglum	source:oyez,verified:api	The contempt power is certainly very – it is a radical power, it is drastic, it is subject to great abuse and it is very properly limited and back in 1848, the Wisconsin legislature did very severely limit the contempt power of the Houses of Legislature.
+7	412	3299.315	3321.068	Sverre O. Tinglum	source:oyez,verified:api	It described a very-very narrow area in which the legislature could act upon a direct contempt. Only where there has been disorderly conduct on the floor of the House, in the immediate view of the House in which directly tends to disrupt, can the legislature act summarily.
+7	413	3321.068	3322.334	Sverre O. Tinglum	source:oyez,verified:api	Thank you.
+7	414	3322.334	3324.877	Warren E. Burger	source:oyez,verified:api	Thank you.
+7	415	3324.877	3327.886	Warren E. Burger	source:oyez,verified:api	You have four minutes left Mr. Coffey.
+7	416	3327.886	3341.305	William M. Coffey	source:oyez,verified:api	Mr. Chief Justice, the inquiry, the respondent has preceded that the summary contempt power is very great power subject to abuse.
+7	417	3341.305	3351.897	William M. Coffey	source:oyez,verified:api	In the instance case, there is no way that the petitioner has ever been able to get a review, the factual basis on which the legislature asked.
+7	418	3351.897	3361.946	William M. Coffey	source:oyez,verified:api	The Wisconsin Supreme Court in denying the petition to writ habeas corpus suggested that some type of judicial review was available.
+7	419	3361.946	3376.156	William M. Coffey	source:oyez,verified:api	We filed a motion of petition for rehearing in the Wisconsin Supreme Court, and requested -- indicated that their opinion indicated such a judicial review was available.
+7	420	3376.156	3397.227	William M. Coffey	source:oyez,verified:api	All of the authority that we had found indicated to contrary, would the Court please advise the petitioner, what kind of hearing was available to him and grant him that hearing, but even assuming that he could have gotten the hearing at that time, I think we must recognize that hearing comes too late.
+7	421	3397.227	3413.792	William M. Coffey	source:oyez,verified:api	The petitioner was already in jail pursuant to the contempt resolution and at that point he had been denied bail and I do not believe that he should have his right to a hearing on the factual basis of the contempt after he is already in jail.
+7	422	3413.792	3419.398	William M. Coffey	source:oyez,verified:api	I think, the hearing should precede the right of anyone to place him in custody.
+7	423	3419.398	3433.912	William M. Coffey	source:oyez,verified:api	I suggest that as the District Court held that at a very minimum, the petitioner was entitled to be given notice of the charges against him and be given an opportunity to respond to them.
+7	424	3433.912	3434.304	William M. Coffey	source:oyez,verified:api	Thank you.
+7	425	3434.304	3449.270	Warren E. Burger	source:oyez,verified:api	Mr. Coffey do you suggest that judicial review of a legislative contempt determination would be available, for example on the weight of the evidence or just on procedural regularity?
+7	426	3449.270	3459.548	William M. Coffey	source:oyez,verified:api	I would suggest Mr. Chief Justice that it has to be available on both or there would be no basis on which to check the arbitrary exercised power by the legislature.
+7	427	3459.548	3478.806	Warren E. Burger	source:oyez,verified:api	What you are suggesting on is that the judicial branch would have the power to re-determine the fact as distinguished from passing merely on procedural regularity of the contempt process?
+7	428	3478.806	3481.864	William M. Coffey	source:oyez,verified:api	I think that is essential Mr. Chief Justice.
+7	429	3481.864	3494.964	William M. Coffey	source:oyez,verified:api	Or there is no check on completely arbitrary incarceration of people that these please the legislative body and there has to be a check on that kind of party.
+7	430	3494.964	3495.144	Warren E. Burger	source:oyez,verified:api	Very well.
+7	431	3495.144	3502.176	unknown	source:oyez,verified:api	Is that not what the Supreme Court of Wisconsin said is available, on page 23 (a) of the appendix?
+7	432	3502.176	3502.443	William M. Coffey	source:oyez,verified:api	The Wisconsin –
+7	433	3502.443	3524.716	unknown	source:oyez,verified:api	The Wisconsin seems to say that is what is available and that the review of procedure is not available, and as the only issues presented that dealt primarily with procedure, not with issue of his innocence or with the merits of any defense implying that had they have you presented problems on the merits, they would review it.
+7	434	3524.716	3545.290	William M. Coffey	source:oyez,verified:api	They did suggest that which is contrary as the District Court opinion noted was contrary to the existing case, warned Wisconsin at the time and when the petitioner asked for that hearing the motion for rehearing was denied without hearing and without comment.
+7	435	3545.290	3553.604	Warren E. Burger	source:oyez,verified:api	Is it not contrary to the general line of authority in both the English and the early American cases also, the review of the merits?
+7	436	3553.604	3555.604	William M. Coffey	source:oyez,verified:api	Yes it is Mr. Chief Justice.
+7	437	3555.604	3563.523	Warren E. Burger	source:oyez,verified:api	So this was probably reasonably false in the category dicta by the Court in the Wisconsin case, does it not?
+7	438	3563.523	3568.274	William M. Coffey	source:oyez,verified:api	Either that or an overruling of other authority without expressly doing.
+7	439	3568.274	3571.038	Warren E. Burger	source:oyez,verified:api	And where it was not necessary to reach the point?
+7	440	3571.038	3572.017	William M. Coffey	source:oyez,verified:api	No.
+7	441	3572.017	3574.010	Warren E. Burger	source:oyez,verified:api	Thank you Mr. Coffey.
+7	442	3574.010	3574.627	Warren E. Burger	source:oyez,verified:api	Thank you gentleman.
+7	443	3574.627	3575.966	Warren E. Burger	source:oyez,verified:api	The case is submitted.

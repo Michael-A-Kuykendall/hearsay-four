@@ -1,0 +1,504 @@
+bucket	idx	start_sec	stop_sec	speaker	drift_tags	text
+0	0	0.190	6.580	John G. Roberts, Jr.	source:oyez,verified:api	We'll hear argument next in Case 24-889, Hikma Pharmaceuticals versus Amarin Pharma.
+0	1	6.580	7.695	John G. Roberts, Jr.	source:oyez,verified:api	Mr. Klein.
+0	2	7.695	25.610	Charles B. Klein	source:oyez,verified:api	Thank you, Mr. Chief Justice, and may it please the Court:  Under Section 271(b) of the Patent Act, selling a product suited for both infringing and substantial non -infringing uses is lawful unless the seller actively induces the infringing use.
+0	3	25.610	47.410	Charles B. Klein	source:oyez,verified:api	Congress later passed Hatch-Waxman Section viii to ensure that one infringing use will not foreclose selling a  generic drug for a second non-infringing use. So public statements entirely consistent with selling skinny-label generic drug products under Section viii cannot actively induce infringement.
+0	4	47.410	61.015	Charles B. Klein	source:oyez,verified:api	"Under our approach and the one advanced by the United States, ""actively induce infringement"" when dealing with statements requires a clear message that necessarily promotes infringement."
+0	5	61.015	66.165	Charles B. Klein	source:oyez,verified:api	The Court applied this  standard in Grokster and more recently in Cox.
+0	6	66.165	80.660	Charles B. Klein	source:oyez,verified:api	Active inducement cannot depend on whether doctors might read infringing instructions into product descriptions that, on their face, are entirely consistent with non-infringing use.
+0	7	80.660	89.770	Charles B. Klein	source:oyez,verified:api	Amarin argues that generic drug companies must constantly discourage  infringement with disclaimers that are explicit.
+0	8	89.770	92.930	Charles B. Klein	source:oyez,verified:api	But that turns the statute on its head.
+0	9	92.930	111.095	Charles B. Klein	source:oyez,verified:api	"Agreeing with Amarin, the Federal Circuit basically swapped the statutory term ""active"" for its antonym, ""passive.""  And under  the decision below, patent lawsuits filed after skinny -label product launches will routinely survive a pleading challenge."
+0	10	111.095	114.170	Charles B. Klein	source:oyez,verified:api	This shuts the Section viii pathway down.
+0	11	114.170	123.875	Charles B. Klein	source:oyez,verified:api	Generic companies won't choose that pathway if, at best, it means  paying millions in legal fees and, at worst, a massive damages award.
+0	12	123.875	132.505	Charles B. Klein	source:oyez,verified:api	Reversal is needed to harmonize Section viii with Section 271(b) and to encourage legitimate competition that reduces drug prices.
+0	13	132.505	134.405	Charles B. Klein	source:oyez,verified:api	I welcome the Court's questions.
+0	14	134.405	148.960	Clarence Thomas	source:oyez,verified:api	Wouldn't it have been safe to just simply say that -- that the generic drug was -- was only approved for the SH indication and nothing more?
+0	15	148.960	157.245	Charles B. Klein	source:oyez,verified:api	Your Honor, Hikma did say that when it launched its product in the November press release, and it did say that on the accused website.
+0	16	157.245	159.310	Charles B. Klein	source:oyez,verified:api	But the law does not  require that.
+0	17	159.310	169.370	Charles B. Klein	source:oyez,verified:api	In Grokster and Cox, the Court made clear that failure to take affirmative steps to prevent infringement is -- is not what the standard  --
+0	18	169.370	195.405	Clarence Thomas	source:oyez,verified:api	But what if you  -- what if Respondent had engaged in a certain degree of self-adulation and said that this is a great product for this, that, or the other, and you merely quoted it?  Wouldn't that almost be baiting people into inducement -- or inducing people into using the product more  broadly than the unpatented use?
+0	19	195.405	206.470	Charles B. Klein	source:oyez,verified:api	The hypothetical is  -- is a little vague, but if -- if Hikma or a generic  were to send a clear message that --
+0	20	206.470	209.490	Clarence Thomas	source:oyez,verified:api	Well, not using your language but using their language.
+0	21	209.490	216.320	Clarence Thomas	source:oyez,verified:api	They have patented uses that they think are great, but you could  --why didn't you -- you simply quote them.
+0	22	216.320	219.710	Clarence Thomas	source:oyez,verified:api	Wouldn't that be a way to induce?
+0	23	219.710	222.730	Charles B. Klein	source:oyez,verified:api	If  --if Hikma quoted Amarin --
+0	24	222.730	222.970	Clarence Thomas	source:oyez,verified:api	Yeah.
+0	25	222.970	225.970	Charles B. Klein	source:oyez,verified:api	--with regard to its cardiovascular use  --
+0	26	225.970	226.460	Clarence Thomas	source:oyez,verified:api	Yeah.
+0	27	226.460	233.395	Charles B. Klein	source:oyez,verified:api	--that could plausibly state a claim if -- if it's a clear message that necessarily promotes infringement.
+0	28	233.395	256.125	Charles B. Klein	source:oyez,verified:api	"The -- the Grokster Court addressed a similar type of situation when distinguishing  the Sony case and -- and  --and distinguished statements like ""record favorite shows on your  Betamax"" and said that does not encourage conduct that necessarily infringes, and, therefore, that's not actively induced infringement."
+0	29	256.125	260.860	Charles B. Klein	source:oyez,verified:api	And if you don't actively induce infringement, you fall under Section 271(c) --
+0	30	260.860	287.735	Clarence Thomas	source:oyez,verified:api	I  --I think what I'm asking you is, is the only way to actively induce infringement is overstating or your own statements sound as though the patented use is covered by your product, as opposed to simply  quoting the Respondent's website or statements about its product, which is patented?
+0	31	287.735	292.300	Charles B. Klein	source:oyez,verified:api	I  -- I'm not saying there is any kind of magic words standard.
+0	32	292.300	308.465	Charles B. Klein	source:oyez,verified:api	And if  -- if the generic basically adopts by reference statements by the  -- the --the brand that would -- that would encourage the infringing  use, then that could plausibly state a claim.
+0	33	308.465	320.925	Sonia Sotomayor	source:oyez,verified:api	Do you need any of the special rules that you're claiming we have to announce to win this case?  Does this pass Twombly and Iqbal?
+0	34	320.925	323.175	Charles B. Klein	source:oyez,verified:api	It does, and -- and our --
+0	35	323.175	325.440	Sonia Sotomayor	source:oyez,verified:api	It passes Twombly and Iqbal?
+0	36	325.440	326.570	Charles B. Klein	source:oyez,verified:api	Our case, yeah.
+0	37	326.570	327.445	Sonia Sotomayor	source:oyez,verified:api	Yeah, meaning --
+0	38	327.445	328.380	Charles B. Klein	source:oyez,verified:api	Easily.
+0	39	328.380	330.180	Sonia Sotomayor	source:oyez,verified:api	-- the complaint here  --
+0	40	330.180	331.100	Charles B. Klein	source:oyez,verified:api	The complaint  --
+0	41	331.100	333.350	Sonia Sotomayor	source:oyez,verified:api	-- is adequate under Twombly and Iqbal?
+0	42	333.350	334.430	Charles B. Klein	source:oyez,verified:api	Oh, I'm sorry.
+0	43	334.430	336.750	Charles B. Klein	source:oyez,verified:api	I'm sorry. I thought you  --I -- I misunderstood the question.
+0	44	336.750	345.545	Charles B. Klein	source:oyez,verified:api	The -- no, the --the complaint does not pass the standard for plausibility under Twombly and Iqbal.
+0	45	345.545	346.430	Charles B. Klein	source:oyez,verified:api	Our argument --
+0	46	346.430	347.180	Sonia Sotomayor	source:oyez,verified:api	That -- that  -- that's the point --
+0	47	347.180	347.500	Charles B. Klein	source:oyez,verified:api	Yes, yes.
+0	48	347.500	362.755	Sonia Sotomayor	source:oyez,verified:api	-- which is you're asking us to announce rules that  -- that -- almost impossible in this area because determining whether or not there's active inducement is always contextual.
+0	49	362.755	372.800	Sonia Sotomayor	source:oyez,verified:api	I think Grokster said that one of the factors it used was that the name that the  infringer was using was suggestive of the infringement.
+0	50	372.800	377.230	Sonia Sotomayor	source:oyez,verified:api	So that wasn't an express  statement of any way to infringe.
+0	51	377.230	378.755	Sonia Sotomayor	source:oyez,verified:api	It was a suggestion.
+0	52	378.755	385.280	Sonia Sotomayor	source:oyez,verified:api	But, in context with other things, it reached active inducement.
+0	53	385.280	395.240	Sonia Sotomayor	source:oyez,verified:api	I'm asking a very simple question. You don't need all of the things you've been  arguing about to win under Twombly and Iqbal, correct?
+0	54	395.240	396.570	Charles B. Klein	source:oyez,verified:api	That is correct.
+0	55	396.570	399.915	Charles B. Klein	source:oyez,verified:api	The statements here, as the government called them, were anodyne.
+0	56	399.915	401.340	Charles B. Klein	source:oyez,verified:api	They  -- they --they were unoffensive.
+0	57	401.340	404.370	Charles B. Klein	source:oyez,verified:api	They were totally consistent --
+0	58	404.370	428.165	Sonia Sotomayor	source:oyez,verified:api	Now I do know that we make life hard because we say we're not  going to take on error correction, so you had to make up a rule of some sort, but it seems like everything you say, like somehow you need express statements as opposed to what we have said, you need active inducement.
+0	59	428.165	434.580	Sonia Sotomayor	source:oyez,verified:api	You want to change the words, but do we need to change any of our standards for you to win?
+0	60	434.580	441.760	Charles B. Klein	source:oyez,verified:api	No, Your Honor, because there are obvious alternative explanations in view of the anodyne statements.
+0	61	441.760	448.630	Charles B. Klein	source:oyez,verified:api	Every single accused statement has an  --has an explanation that is entirely consistent with non-infringement.
+1	62	448.630	449.440	Sonia Sotomayor	source:oyez,verified:api	All right.
+1	63	449.440	450.130	Sonia Sotomayor	source:oyez,verified:api	Thank you, counsel.
+1	64	450.130	475.430	Ketanji Brown Jackson	source:oyez,verified:api	Can I ask you a similarly straightforward question?  With respect to Amarin's allegations concerning the  label, I had understood that by statute, generics have to have a label that essentially, in all relevant circumstances, mirrors the brand label, except for just admitting the patented indication.
+1	65	475.430	476.610	Ketanji Brown Jackson	source:oyez,verified:api	Is that correct?
+1	66	476.610	478.150	Charles B. Klein	source:oyez,verified:api	That is correct.
+1	67	478.150	479.950	Charles B. Klein	source:oyez,verified:api	It's called the sameness requirement.
+1	68	479.950	481.230	Charles B. Klein	source:oyez,verified:api	That's by statute.
+1	69	481.230	481.550	Charles B. Klein	source:oyez,verified:api	Now --
+1	70	481.550	500.590	Ketanji Brown Jackson	source:oyez,verified:api	So it's  -- so even if Amarin is right that it thinks that -- that Hikma could have or should have excluded a certain study or included the -- some other information, if those aren't on the original label, Hikma can't do that?
+1	71	500.590	512.760	Charles B. Klein	source:oyez,verified:api	Hikma cannot change the label, but I want to be clear about something because Amarin supplied to the FDA the sections that Amarin thought pertained to its patent.
+1	72	512.760	527.820	Charles B. Klein	source:oyez,verified:api	And then the way the FDA, the -- the skinny -label process works is the FDA compares what Amarin says is patented in the label to the proposed skinny label, and it's a ministerial role.
+1	73	527.820	535.705	Charles B. Klein	source:oyez,verified:api	If  -- if the generic carved out everything that the brand said is patented, then the skinny label can be approved.
+1	74	535.705	539.790	Charles B. Klein	source:oyez,verified:api	And the generic can't add new disclaimers or -- or new language.
+1	75	539.790	549.680	Ketanji Brown Jackson	source:oyez,verified:api	Or anything else. And it can't be accused of inducing infringement by refusing to put things on the label that the brand didn't have, right?
+1	76	549.680	552.330	Charles B. Klein	source:oyez,verified:api	That's true because of the statutory scheme.
+1	77	552.330	564.900	Charles B. Klein	source:oyez,verified:api	That's true because Grokster  and Cox says there's -- they're --the statute doesn't require active discouragement of  infringement and for all of those reasons.
+1	78	564.900	580.905	Charles B. Klein	source:oyez,verified:api	I -- I also want to point out how Grokster warned against trenching on regular commerce, and that is exactly the situation  here because the regular commerce we're talking about here is commerce that's encouraged by Congress.
+1	79	580.905	604.005	Charles B. Klein	source:oyez,verified:api	It's -- it's Section viii skinny -label products. And as a practical matter, under the decision below, you can get FDA approval of your skinny product label, but as soon as you put that product into commerce and you say anything about that product, anything, you call  it a generic version, even if you have disclaimers, you can be sued.
+1	80	604.005	607.685	Charles B. Klein	source:oyez,verified:api	And that lawsuit will survive a pleading challenge.
+1	81	607.685	622.130	Charles B. Klein	source:oyez,verified:api	And that sends a  --a terrible message to the generic industry. Hatch-Waxman was designed to resolve patent disputes before a product launch for the  -- for the reason that it's the  --it's an economic reason.
+1	82	622.130	628.050	Charles B. Klein	source:oyez,verified:api	Once a generic launches its product, its profits will be much, much lower than the brand's profits.
+1	83	628.050	633.785	Charles B. Klein	source:oyez,verified:api	And so, if the generic gets  hit for a lost profits damages award, it's devastating.
+1	84	633.785	642.480	Charles B. Klein	source:oyez,verified:api	This happened in the GSK case with Teva, and Teva got hit for hundreds of millions of dollars that dwarfed its actual profits.
+1	85	642.480	650.715	Charles B. Klein	source:oyez,verified:api	And that is what the decision below is encouraging, and that's why we -- we are urging the Court to reverse.
+1	86	650.715	680.115	John G. Roberts, Jr.	source:oyez,verified:api	Anything else? Anything else?  No? Thank you, counsel. Mr. Stewart.
+1	87	680.115	685.035	Malcolm L. Stewart	source:oyez,verified:api	Thank you, Mr. Chief Justice, and may it please the Court:  I'd like to begin with two very brief observations.
+1	88	685.035	699.725	Malcolm L. Stewart	source:oyez,verified:api	The first point is that although  the Federal Circuit appropriately said that the label itself was not sufficient to get Amarin past 12(b)(6) in this case, we think the court of appeals erred in giving any weight at all to the label.
+1	89	699.725	714.935	Malcolm L. Stewart	source:oyez,verified:api	The contents of a Hatch-Waxman skinny label are largely dictated by federal law, and  to treat the generic manufacturers' compliance with those requirements as any evidence of intentional inducement to infringe would be wrong.
+1	90	714.935	737.630	Malcolm L. Stewart	source:oyez,verified:api	The second thing is, when Respondents explain in their brief why they sued Hikma but haven't sued any of the other generic manufacturers of icosapent ethyl, their explanation is all of those other manufacturers  included in press releases express disclaimers to the effect that their product is not authorized for use to treat the CV indication.
+1	91	737.630	748.690	Malcolm L. Stewart	source:oyez,verified:api	But it's a bedrock principle of inducement law that active inducement to infringe is required. The question is not whether the defendant has adequately warned people away from infringement.
+1	92	748.690	750.680	Malcolm L. Stewart	source:oyez,verified:api	I welcome the Court's questions.
+1	93	750.680	756.585	Clarence Thomas	source:oyez,verified:api	What would Respondent have to have alleged to survive a motion to dismiss?
+1	94	756.585	758.240	Malcolm L. Stewart	source:oyez,verified:api	I think they would have had to --
+1	95	758.240	760.985	Clarence Thomas	source:oyez,verified:api	In your world, not the Fed Circuit's world.
+1	96	760.985	776.080	Malcolm L. Stewart	source:oyez,verified:api	In -- in our world, the Respondent would have had to  --to identify statements or actions that had the clear purpose of induce  -- of causing others to infringe as something that the -- the brand wanted to bring about.
+1	97	776.080	798.800	Malcolm L. Stewart	source:oyez,verified:api	The Court in Grokster said it was with reference to copyright, but it was drawing on copyright  --on patent law principles. The Court said one who distributes a device with the object of promoting its use to infringe copyright, as shown by clear expression or other affirmative steps taken to foster infringement, is liable for the resulting acts of infringement by third parties.
+1	98	798.800	806.330	Malcolm L. Stewart	source:oyez,verified:api	And so they would have needed to  point to statements or actions that clearly revealed a purpose to induce infringement.
+1	99	806.330	825.860	Clarence Thomas	source:oyez,verified:api	What role  -- what impact is it that occurs in states that  encourage the use of the generics for the patented use?  What does that have on the  problem that the Respondent is having?
+1	100	825.860	833.440	Malcolm L. Stewart	source:oyez,verified:api	I mean, I -- I think one of the principles that emerges from this Court's cases and from Cox most recently --
+1	101	833.440	834.540	Clarence Thomas	source:oyez,verified:api	No, I don't mean on this.
+1	102	834.540	845.005	Clarence Thomas	source:oyez,verified:api	I mean with the problems of the -- of the unpatented, the generic being used for uses  that are still patented by Respondent.
+1	103	845.005	859.850	Malcolm L. Stewart	source:oyez,verified:api	I mean, the preliminary point I would make is the perceived difficulty  or the actual difficulty of going after the direct infringer or getting the direct infringement to start -- to -- to stop is not a justification for watering down inducement principles.
+1	104	859.850	865.160	Malcolm L. Stewart	source:oyez,verified:api	Now there are other things that Respondents could try to do and some of them they have tried to do.
+1	105	865.160	877.150	Malcolm L. Stewart	source:oyez,verified:api	They sued Health Net in this case, and they separately alleged that the health insurer, through its reimbursement  policies, was encouraging pharmacies to fill the drug fully.
+1	106	877.150	879.335	Clarence Thomas	source:oyez,verified:api	But aren't some states doing that too?
+1	107	879.335	882.560	Malcolm L. Stewart	source:oyez,verified:api	I mean, states certainly have these generic substitution laws.
+1	108	882.560	894.720	Malcolm L. Stewart	source:oyez,verified:api	And I'm  not sure to what extent states are regulating the health insurers, but, certainly, Amarin and  similarly situated companies could urge state legislatures to take measures to prevent this from happening.
+1	109	894.720	912.195	Malcolm L. Stewart	source:oyez,verified:api	The other thing they could do, I understand they don't want to sue the doctors,  but they could attempt informational campaigns to doctors and tell the doctors our product is the only one that is authorized to be used for the CV indication.
+1	110	912.195	937.570	Malcolm L. Stewart	source:oyez,verified:api	It would be infringement of  patent to administer icosapent ethyl for the purpose of reducing cardiovascular risk. And the doctor really is in the best position of any other -- any single actor to  say for what purpose am I prescribing the drug and at least in theory could figure out is there a patent on one method of use and adjust prescribing practices accordingly.
+1	111	937.570	953.130	John G. Roberts, Jr.	source:oyez,verified:api	I understood that the test that you articulated is that the  -- what was required is that the generic person clearly reveal a purpose of infringement, is that --
+1	112	953.130	959.295	Malcolm L. Stewart	source:oyez,verified:api	Act  -- acts or messages that reveal a clear intent to encourage infringement.
+1	113	959.295	962.285	John G. Roberts, Jr.	source:oyez,verified:api	That's a pretty broad safe harbor.
+1	114	962.285	968.890	John G. Roberts, Jr.	source:oyez,verified:api	I mean, you really  just have to have, you know, a seminar on your first day of work and say whatever you do, don't -- don't do that.
+1	115	968.890	975.075	John G. Roberts, Jr.	source:oyez,verified:api	It's pretty easy  -- it  -- it's a pretty high threshold -- or low threshold.
+1	116	975.075	981.720	Malcolm L. Stewart	source:oyez,verified:api	I -- I mean, it is supposed to be a -- a difficult standard for the pleader to satisfy, but I think that's for design.
+1	117	981.720	997.790	Malcolm L. Stewart	source:oyez,verified:api	That is, the Court has said in various contexts that when a product is capable of both infringing and non-infringing use --uses, it's important that a patent on one method of use not become a de facto monopoly on the product as a whole.
+1	118	997.790	1014.100	Malcolm L. Stewart	source:oyez,verified:api	And so it's supposed to be feasible for people in Hikma's position to market their product for the unpatented use without running  afoul of liability for third parties who choose to use the product in infringing ways.
+1	119	1014.100	1022.755	Malcolm L. Stewart	source:oyez,verified:api	Unless  they have affirmatively encouraged that to be done, the mere knowledge that it will be done  or the expectation that some people will infringe is not enough.
+1	120	1022.755	1028.220	Ketanji Brown Jackson	source:oyez,verified:api	And the risk of liability and what it could do to a generic, I would think, would be pretty significant.
+1	121	1028.220	1036.510	Malcolm L. Stewart	source:oyez,verified:api	It's very substantial in part because the generic is charging a lot -- typically, a lot less for the drug than the brand-name manufacturer is.
+1	122	1036.510	1048.550	Malcolm L. Stewart	source:oyez,verified:api	And so, if the generic has to pay lost profits to the -- the brand name, the profits that the brand name  would have earned on a particular volume of sales would -- would be much more than the generic has actually earned.
+1	123	1048.550	1050.370	Ketanji Brown Jackson	source:oyez,verified:api	And the product is substantially similar.
+2	124	1050.370	1051.700	Ketanji Brown Jackson	source:oyez,verified:api	I mean, that's why it's a generic.
+2	125	1051.700	1057.080	Ketanji Brown Jackson	source:oyez,verified:api	So, in other words, there's no  defense that, well, we really have a different product here.
+2	126	1057.080	1077.295	Ketanji Brown Jackson	source:oyez,verified:api	We  -- it's --it's the generic of the drug, and so, if they're also liable absent active inducement for people taking their generic and using it in an infringing  way, you would think that could happen a fair  amount, and it would really be a risk to the bottom line of this generic company.
+2	127	1077.295	1077.810	Malcolm L. Stewart	source:oyez,verified:api	Yes.
+2	128	1077.810	1093.950	Malcolm L. Stewart	source:oyez,verified:api	I mean, there -- there is an intimation -- more than an intimation in the Respondents' brief that Hikma was doing something wrong by describing its drug in press releases as a generic version or a generic equivalent of Vascepa.
+2	129	1093.950	1097.335	Malcolm L. Stewart	source:oyez,verified:api	But, in fact, that's a normal thing to say.
+2	130	1097.335	1115.000	Malcolm L. Stewart	source:oyez,verified:api	It really refers to two different things. One of them is, under the abbreviated new drug application process, the generic comes on the  market not by conducting independent studies of safety and efficacy but by showing that it is equivalent to a drug that's already been found safe and efficacious.
+2	131	1115.000	1123.290	Malcolm L. Stewart	source:oyez,verified:api	And so, when Hikma says we're the generic version of Vascepa, they just mean Vascepa is what's called the reference listed drug.
+2	132	1123.290	1127.955	Malcolm L. Stewart	source:oyez,verified:api	It is the drug as to which we  established equivalence in order to get approval.
+2	133	1127.955	1152.050	Malcolm L. Stewart	source:oyez,verified:api	The second thing is that the patents in these cases refer to methods of reducing cardiovascular -- risk of cardiovascular events or cardiovascular death, and the method they describe is the use of what the patent refers to as ethyl icosapent in various ways, a series  of steps with certain types of patients.
+2	134	1152.050	1164.240	Malcolm L. Stewart	source:oyez,verified:api	And everybody agrees, if Hikma's drug is used to reduce the risk of cardiovascular death or events through the performance of those steps, infringement will occur.
+2	135	1164.240	1168.480	Malcolm L. Stewart	source:oyez,verified:api	The  reason that's so is that Hikma's drug is ethyl icosapent.
+2	136	1168.480	1171.490	Malcolm L. Stewart	source:oyez,verified:api	It's the same stuff.
+2	137	1171.490	1176.655	Malcolm L. Stewart	source:oyez,verified:api	And it's the same stuff for infringement purposes, but it's  also the same stuff for describing the product.
+2	138	1176.655	1184.550	Brett M. Kavanaugh	source:oyez,verified:api	Can you explain the United States' concerns about the broader market implications of the decision?
+2	139	1184.550	1190.130	Malcolm L. Stewart	source:oyez,verified:api	I mean, I think we would divide the -- the --what the Federal Circuit relied on into three categories.
+2	140	1190.130	1209.690	Malcolm L. Stewart	source:oyez,verified:api	The one we were most concerned with was the skinny label because all of the things that Amarin is complaining about are things that were on the brand name's label, and the rule is the generic is supposed to use the same label as the brand unless there's a good patent-specific reason to take things off.
+2	141	1209.690	1231.040	Malcolm L. Stewart	source:oyez,verified:api	And so the Federal Circuit, I think, thought it was being limited by saying the label by itself is not enough to get past  12(b)(6), but the flavor of its opinion was this is almost enough, and if you have some pretty ethereal stuff at the  --in addition, that will be enough to get you over the hump. And we think it shouldn't have attached any weight to the label.
+2	142	1231.040	1233.120	Malcolm L. Stewart	source:oyez,verified:api	Hikma just did what it was supposed to do.
+2	143	1233.120	1239.460	Malcolm L. Stewart	source:oyez,verified:api	And then the second thing is the description of the  --Hikma's generic product as the generic version --
+2	144	1239.460	1248.860	Brett M. Kavanaugh	source:oyez,verified:api	I understand that, but the interest -- the implications of the decision in the marketplace at large, I understood -- do you want to speak to that or  not speak to that?
+2	145	1248.860	1249.350	Malcolm L. Stewart	source:oyez,verified:api	Yes.
+2	146	1249.350	1263.600	Malcolm L. Stewart	source:oyez,verified:api	I mean, I -- I think the FDA's view is it is too soon to tell  exactly what the effects of the Federal Circuit's decision would be on the willingness of other generic manufacturers to enter the marketplace.
+2	147	1263.600	1278.225	Malcolm L. Stewart	source:oyez,verified:api	And, in part, I assume that  generics are waiting on this Court's decision in this case, but we certainly think that if the Federal Circuit's analysis were affirmed, that it would create a substantial disincentive to entering the generic market.
+2	148	1278.225	1278.960	Samuel A. Alito, Jr.	source:oyez,verified:api	What if --
+2	149	1278.960	1281.100	Elena Kagan	source:oyez,verified:api	Your point  --no, go ahead.
+2	150	1281.100	1293.730	Samuel A. Alito, Jr.	source:oyez,verified:api	What if Hikma -- Hikma had  -- had not just said its drug is generic Vascepa but went on to say that Vascepa is approved to treat cardiovascular risks?
+2	151	1293.730	1310.490	Malcolm L. Stewart	source:oyez,verified:api	I think if it had said those two things in the  --in the same breath that you would have a pretty strong case of active inducement, that it would not take much work to connect the dots that this is something Vascepa has been approved for and ours is the same stuff.
+2	152	1310.490	1322.755	Samuel A. Alito, Jr.	source:oyez,verified:api	What if it had said studies have shown that icosapent ethyl, the active ingredient in our drug, reduces cardiovascular risks?
+2	153	1322.755	1339.880	Malcolm L. Stewart	source:oyez,verified:api	I think that would be problematic as -- as well, although probably closer to the line, but one thing I would say about the label is, when Hikma prepared its skinny label in conformity with the rules, kind of the most obvious thing it took off of Amarin's label was the indication at the beginning.
+2	154	1339.880	1366.105	Malcolm L. Stewart	source:oyez,verified:api	But a second thing that it took off of Amarin's label was, in the clinical studies section of Amarin's label, Amarin summarized the results of what they call the REDUCE-IT study, which was designed to test the efficacy of the product for reducing cardiovascular risks, and the study concluded that Vascepa was efficacious for this purpose.
+2	155	1366.105	1366.490	Malcolm L. Stewart	source:oyez,verified:api	And  --
+2	156	1366.490	1368.140	John G. Roberts, Jr.	source:oyez,verified:api	I  -- I see your red light is on.
+2	157	1368.140	1368.370	Malcolm L. Stewart	source:oyez,verified:api	Okay.
+2	158	1368.370	1368.990	John G. Roberts, Jr.	source:oyez,verified:api	Justice Thomas?
+2	159	1368.990	1369.225	Clarence Thomas	source:oyez,verified:api	No.
+2	160	1369.225	1372.330	John G. Roberts, Jr.	source:oyez,verified:api	Justice Alito? Justice Sotomayor?
+2	161	1372.330	1378.405	Sonia Sotomayor	source:oyez,verified:api	I asked the same question of you that I asked of Petitioners' counsel.
+2	162	1378.405	1396.185	Sonia Sotomayor	source:oyez,verified:api	Do we need your new definition that  you gave the Chief or saying again that following the label alone, exactly what the Federal Circuit said, is not enough?  Do we  need any special rules --
+2	163	1396.185	1397.080	Malcolm L. Stewart	source:oyez,verified:api	I don't  --
+2	164	1397.080	1400.780	Sonia Sotomayor	source:oyez,verified:api	-- for Petitioner to win?
+2	165	1400.780	1403.190	Malcolm L. Stewart	source:oyez,verified:api	I -- I don't think you need special rules.
+2	166	1403.190	1408.270	Malcolm L. Stewart	source:oyez,verified:api	I  -- you are interpreting Section 271(b), which is not specific to Hatch-Waxman.
+2	167	1408.270	1410.690	Malcolm L. Stewart	source:oyez,verified:api	It's just the general inducement provision.
+2	168	1410.690	1413.430	Malcolm L. Stewart	source:oyez,verified:api	And we think application of the  general rules is sufficient.
+2	169	1413.430	1414.430	Sonia Sotomayor	source:oyez,verified:api	Is enough?  Okay.
+2	170	1414.430	1414.795	Malcolm L. Stewart	source:oyez,verified:api	Yes.
+2	171	1414.795	1433.015	Sonia Sotomayor	source:oyez,verified:api	And then, finally, there's a whole lot of discussion about congressional policy, both in your brief and in Petitioners' brief, that they wanted to encourage this, and we should rule that what active infringement means in patent law is very narrow because of that.
+2	172	1433.015	1441.850	Sonia Sotomayor	source:oyez,verified:api	I always have problems when we use policy reasons to set a standard.
+2	173	1441.850	1442.865	Malcolm L. Stewart	source:oyez,verified:api	Right.
+2	174	1442.865	1444.475	Sonia Sotomayor	source:oyez,verified:api	That's not our job.
+2	175	1444.475	1447.960	Sonia Sotomayor	source:oyez,verified:api	If they're infringing a patent, they're infringing a patent.
+2	176	1447.960	1450.060	Sonia Sotomayor	source:oyez,verified:api	If they're not infringing a patent, they're not.
+2	177	1450.060	1454.280	Sonia Sotomayor	source:oyez,verified:api	But why should we change our rules, narrow them or expand them  --
+2	178	1454.280	1455.250	Malcolm L. Stewart	source:oyez,verified:api	I don't  --
+2	179	1455.250	1456.325	Sonia Sotomayor	source:oyez,verified:api	-- to avoid either result?
+2	180	1456.325	1460.180	Malcolm L. Stewart	source:oyez,verified:api	I -- I basically agree. I don't think it's a main -- matter of changing the rules.
+2	181	1460.180	1464.770	Malcolm L. Stewart	source:oyez,verified:api	We have described the Hatch-Waxman scheme at some length because it's pretty complicated.
+2	182	1464.770	1481.900	Malcolm L. Stewart	source:oyez,verified:api	But, in the end, Hatch-Waxman embodies the same basic principles as the Patent Act generally; namely, if you sell  something that can be used either in an infringing or a non-infringing way, then you still won't be held liable for others'  infringement unless you've actively encouraged them to infringe.
+2	183	1481.900	1484.975	Sonia Sotomayor	source:oyez,verified:api	That's the bottom line, correct?  Thank you.
+2	184	1484.975	1485.940	John G. Roberts, Jr.	source:oyez,verified:api	Justice Kagan?
+2	185	1485.940	1497.815	Elena Kagan	source:oyez,verified:api	Mr. Stewart, your point about not looking to the skinny label in  a suit like this, I guess the reasonableness of that depends on how much patent review the FDA  is doing when it approves the skinny label.
+3	186	1497.815	1499.980	Elena Kagan	source:oyez,verified:api	So what's the answer to that question?
+3	187	1499.980	1502.490	Malcolm L. Stewart	source:oyez,verified:api	I mean, I think the -- the Court discussed this in Caraco.
+3	188	1502.490	1513.500	Malcolm L. Stewart	source:oyez,verified:api	The FDA has disclaimed patent expertise, and so it  doesn't purport to read patents and determine what conduct would infringe them.
+3	189	1513.500	1519.930	Malcolm L. Stewart	source:oyez,verified:api	But Respondents suggest that the result is we take the generics' word for what is and isn't infringing.
+3	190	1519.930	1521.680	Malcolm L. Stewart	source:oyez,verified:api	And I think that that's not correct.
+3	191	1521.680	1538.690	Malcolm L. Stewart	source:oyez,verified:api	As the Court explained in Caraco, the brand-name manufacturer will provide for the Orange Book what's called a use code, which will describe what it believes its patents cover, and the FDA considers itself bound by the use code.
+3	192	1538.690	1546.565	Malcolm L. Stewart	source:oyez,verified:api	And so, if the brand name is saying this wide range of uses would be patented, the FDA won't look behind that.
+3	193	1546.565	1558.975	Malcolm L. Stewart	source:oyez,verified:api	There is a counterclaim mechanism by which the  -- the generic can obtain judicial review of that determination  --of the brand's behavior in a suit between the two private parties.
+3	194	1558.975	1565.650	Malcolm L. Stewart	source:oyez,verified:api	But the  -- kind of the bottom line is, here, there was really no dispute about what  was patented.
+3	195	1565.650	1598.725	Malcolm L. Stewart	source:oyez,verified:api	If there had been a dispute, FDA would have deferred to the brand's own  description of what its patent covered, and then the question would just be, has the generic carved out enough of the label to  excise references to the patented use?  And what I was saying before about the clinical studies, although Amarin's label had a description of the REDUCE-IT study that was about efficacy of the drug for treating cardiovascular -- or preventing cardiovascular events, Hikma omitted that from its own label. So it didn't just omit the indication.
+3	196	1598.725	1606.870	Malcolm L. Stewart	source:oyez,verified:api	It  omitted another part of the label that referred to the efficacy of the drug for that purpose because the purpose was still patented.
+3	197	1606.870	1607.495	Elena Kagan	source:oyez,verified:api	Thank you.
+3	198	1607.495	1612.830	John G. Roberts, Jr.	source:oyez,verified:api	Justice Gorsuch, anything further?  Justice Kavanaugh? Justice Barrett? Justice Jackson?
+3	199	1612.830	1632.755	Ketanji Brown Jackson	source:oyez,verified:api	Can I just ask you, what  --what is the relevance of the state laws that you cite permitting or requiring substitution of generics for brand-name drugs in this context?  I would think those would be relevant to an Amarin lawsuit maybe against a third party, but I don't know why they matter here.
+3	200	1632.755	1636.215	Malcolm L. Stewart	source:oyez,verified:api	I -- I mean, I think the Court can decide the case without referring to them.
+3	201	1636.215	1640.595	Malcolm L. Stewart	source:oyez,verified:api	The -- we had two basic reasons for including some discussion.
+3	202	1640.595	1648.240	Malcolm L. Stewart	source:oyez,verified:api	The  --the first was we didn't want the Court to decide the case based on a misimpression of the facts or the way the world works.
+3	203	1648.240	1661.710	Malcolm L. Stewart	source:oyez,verified:api	And I think portions of the court of appeals opinion are written as though, in -- in each case, the doctor who's writing the prescription determines which version of the drug will be dispensed and that will carry the day.
+3	204	1661.710	1665.390	Malcolm L. Stewart	source:oyez,verified:api	And we wanted to explain, in the real world, it's more complicated than that.
+3	205	1665.390	1677.825	Malcolm L. Stewart	source:oyez,verified:api	And -- and kind of conceivably in some future case, that could matter given the way it was pleaded because you'd have to show, in light of these laws, how is it plausible that what we said  would cause somebody to infringe.
+3	206	1677.825	1678.435	Ketanji Brown Jackson	source:oyez,verified:api	I see.
+3	207	1678.435	1679.405	John G. Roberts, Jr.	source:oyez,verified:api	Thank you, counsel.
+3	208	1679.405	1684.455	Malcolm L. Stewart	source:oyez,verified:api	Thank you.
+3	209	1684.455	1691.865	John G. Roberts, Jr.	source:oyez,verified:api	Mr. Huston.
+3	210	1691.865	1699.590	Michael R. Huston	source:oyez,verified:api	Mr. Chief Justice, and may it please the Court:  The implications of this Court's ruling in this case will go far beyond the pharmaceutical industry.
+3	211	1699.590	1702.800	Michael R. Huston	source:oyez,verified:api	This is not really a Hatch-Waxman case at all.
+3	212	1702.800	1716.380	Michael R. Huston	source:oyez,verified:api	It's not really a skinny -label case. Hikma got the full benefit of the Hatch-Waxman compromise when it was permitted to sell its product for FDA -- with an FDA approved skinny label as a treatment for severe hypertriglyceridemia.
+3	213	1716.380	1726.940	Michael R. Huston	source:oyez,verified:api	But, in exchange, Hikma  was required to promise not to promote its product for any still patented use of Amarin's branded drug.
+3	214	1726.940	1731.870	Michael R. Huston	source:oyez,verified:api	That limitation on generic marketing of their products is absolutely vital.
+3	215	1731.870	1750.655	Michael R. Huston	source:oyez,verified:api	It is the only thing that makes it economically  rational for a branded company like Amarin to spend the $300 million that Amarin spent in the REDUCE -IT trial to discover that an existing drug, Vascepa, actually had life-changing implications to treat cardiovascular risk.
+3	216	1750.655	1755.695	Michael R. Huston	source:oyez,verified:api	And  that rule of induced infringement liability is not unique to pharmaceuticals.
+3	217	1755.695	1761.405	Michael R. Huston	source:oyez,verified:api	This Court's interpretation in this case will be of Section 271(b) of the Patent Act.
+3	218	1761.405	1767.595	Michael R. Huston	source:oyez,verified:api	That is the statute that protects all  patented innovations in this country of whatever kind.
+3	219	1767.595	1771.330	Michael R. Huston	source:oyez,verified:api	The standard for induced infringement liability is settled.
+3	220	1771.330	1777.965	Michael R. Huston	source:oyez,verified:api	In most cases, the key dispute is going to be whether the defendant had the requisite intent to infringe.
+3	221	1777.965	1785.680	Michael R. Huston	source:oyez,verified:api	But Hikma has not contested its intent as this case comes to the Court because the case is at the pleading stage.
+3	222	1785.680	1793.160	Michael R. Huston	source:oyez,verified:api	Nor has Hikma disputed that there was substantial direct infringement of Amarin's patents using Hikma's product.
+3	223	1793.160	1801.950	Michael R. Huston	source:oyez,verified:api	So the only  element that's in dispute here today is whether it is plausible that Hikma took active steps to  encourage that infringement.
+3	224	1801.950	1803.335	Michael R. Huston	source:oyez,verified:api	It is plausible.
+3	225	1803.335	1819.755	Michael R. Huston	source:oyez,verified:api	"There are seven other generic manufacturers of icosapent ethyl on the market, but Hikma alone was the one who described its product as AB rated for ""hypertriglyceridemia,"" even though that product is not approved for that distinct medical condition."
+3	226	1819.755	1828.510	Michael R. Huston	source:oyez,verified:api	Hikma alone repeatedly used Amarin's brand name, Vascepa, just at the moment when  that name was synonymous in the market with treating cardiovascular risk.
+3	227	1828.510	1833.350	Michael R. Huston	source:oyez,verified:api	Those statements  and more by Hikma that other generics did not use state a plausible claim.
+3	228	1833.350	1834.940	Michael R. Huston	source:oyez,verified:api	I welcome the Court's questions.
+3	229	1834.940	1839.360	Clarence Thomas	source:oyez,verified:api	Was there anything inaccurate about that statement?
+3	230	1839.360	1841.280	Michael R. Huston	source:oyez,verified:api	Yes, there absolutely was, Your Honor.
+3	231	1841.280	1843.800	Michael R. Huston	source:oyez,verified:api	And I want to just say for -- it was inaccurate.
+3	232	1843.800	1848.510	Michael R. Huston	source:oyez,verified:api	I also don't think, frankly, it matters whether it was inaccurate. A statement can be absolutely true.
+3	233	1848.510	1861.370	Michael R. Huston	source:oyez,verified:api	Imagine a statement that Hikma said you can use and should use our product to accomplish exactly  the same medical purposes as Vascepa, including cardiovascular risk, the kind of example that I  think Justice Alito gave to my friend, Mr. Stewart.
+3	234	1861.370	1865.755	Michael R. Huston	source:oyez,verified:api	And I heard Mr. Stewart say that would state a claim for induce  --a strong claim for induced agreement.
+3	235	1865.755	1866.410	Michael R. Huston	source:oyez,verified:api	I agree with that.
+3	236	1866.410	1870.630	Michael R. Huston	source:oyez,verified:api	So truth is not a defense to liability in an induced infringement situation.
+3	237	1870.630	1873.030	Clarence Thomas	source:oyez,verified:api	So what if they simply quote you?
+3	238	1873.030	1897.100	Michael R. Huston	source:oyez,verified:api	I think they can't  -- they cannot do that, Your Honor, because the whole point of the compromise is that Hikma is allowed to market its product but only for the unpatented use, only as a treatment for severe hypertriglyceridemia. If Hikma comes on and quotes Amarin's marketing of its product to treat for the patented purpose, that's the most classic case of induced infringement.
+3	239	1897.100	1900.970	Michael R. Huston	source:oyez,verified:api	That's like the  literal textbook definition of induced infringement.
+3	240	1900.970	1912.370	Michael R. Huston	source:oyez,verified:api	I -- I also do think it's important to say, though, that the -- the key statement on which we rely here, the statement on Hikma's  website where it described what its drug is for, was not accurate.
+3	241	1912.370	1915.935	Michael R. Huston	source:oyez,verified:api	Hikma said its product was for treating hypertriglyceridemia.
+3	242	1915.935	1928.850	Michael R. Huston	source:oyez,verified:api	That's misleading, if not false, because Hikma's  product was approved by FDA only to treat severe hypertriglyceridemia, and that's a  distinct medical condition that presents distinct medical risks.
+3	243	1928.850	1945.170	Neil Gorsuch	source:oyez,verified:api	Well, if that's your best piece, and I think it probably is, that website, what do you do with -- there was a further disclaimer on the website saying that the product was  -- Hikma's generic version is indicated for fewer than all approved indications of the reference listed drug?
+3	244	1945.170	1945.910	Michael R. Huston	source:oyez,verified:api	Sure, Your Honor.
+3	245	1945.910	1949.050	Michael R. Huston	source:oyez,verified:api	So two points about that disclaimer, which is at JA 195.
+3	246	1949.050	1964.840	Michael R. Huston	source:oyez,verified:api	First, as you can see even on the blown-up version in the Joint Appendix, it really appears in quite tiny print, but even if the -- even if somebody read it, even if  they saw the disclaimer, just as Your Honor read, all it says is Hikma's product is approved for fewer than all uses of Vascepa.
+3	247	1964.840	1979.180	Michael R. Huston	source:oyez,verified:api	It doesn't disclaim that Hikma's product can and should be used to treat the most famous use of Vascepa, the billion -dollar use, which is saving patients' lives by treating cardiovascular risk.
+4	248	1979.180	2005.500	Michael R. Huston	source:oyez,verified:api	So there's nothing  -- the disclaimer is, I think, at best, carefully worded, it's  sort of written by a clever lawyer to try to minimize Hikma's liability while still sending the fundamental message that is coming across by all the collection of Hikma's statements that says doctors can and should prescribe  Hikma's product anytime they would prescribe Vascepa, including to treat cardiovascular risk, in a way that infringes Amarin's patents.
+4	249	2005.500	2006.620	Michael R. Huston	source:oyez,verified:api	So I --
+4	250	2006.620	2007.305	Amy Coney Barrett	source:oyez,verified:api	Oh, go ahead.
+4	251	2007.305	2030.660	Michael R. Huston	source:oyez,verified:api	I just think having rang the bell, Your Honor, having repeated  --when Hikma has come on to the market repeatedly and  said we are generic Vascepa, generic Vascepa, generic Vascepa, a billion dollars in sales, our product is for hypertriglyceridemia, having made all of those offensive statements that are calculated that have the intent to induce  infringing sales, that tiny little sort of cleverly worded disclaimer I don't think is sufficient to pull that back.
+4	252	2030.660	2043.480	Amy Coney Barrett	source:oyez,verified:api	Mr. Huston, I just wondered, if you -- you started in your opening  talking about the impact of this case that would be more broad, that it would extend beyond just the pharmaceutical industry.
+4	253	2043.480	2048.335	Amy Coney Barrett	source:oyez,verified:api	It seems to me this is a pretty fact-bound case about the plausibility standard.
+4	254	2048.335	2052.680	Amy Coney Barrett	source:oyez,verified:api	I don't know that we have to -- to reach any kind of greater issue.
+4	255	2052.680	2058.170	Amy Coney Barrett	source:oyez,verified:api	So do you see  the case that way?  Is this just kind of applying Twiqbal to this particular complaint?
+4	256	2058.170	2059.760	Michael R. Huston	source:oyez,verified:api	I do see the case that way, Your Honor.
+4	257	2059.760	2072.935	Michael R. Huston	source:oyez,verified:api	We  --we -- that's what we argued in our brief in opposition. And I think that it's not this Court's typical practice to grant a case that asks merely whether the facts as pleaded under the  -- you know, a settled legal standard states a claim.
+4	258	2072.935	2091.675	Michael R. Huston	source:oyez,verified:api	All that said, you know, of course, we  -- we -- we  --we continue to think, and I  -- I do want to think -- I do think it's very important to say, it is important, as I think the  --was the premise of Justice Sotomayor's questions, that the Court not adopt a new  induced infringement standard with words like express promotion is required.
+4	259	2091.675	2097.700	Michael R. Huston	source:oyez,verified:api	I -- I -- I can't -- I just can't understate the extent to which that would be a transformation of the scope of patent law.
+4	260	2097.700	2121.660	Michael R. Huston	source:oyez,verified:api	So,  if the Court is going to simply apply Twombly and Iqbal to the facts of this case, and I -- I do think that's the right approach to the case, then I continue to think that the key question in the case is in  --in --as in most cases of induced infringement, what was the message that the doctors who read these Hikma statements took away?  And that's typically a fact question.
+4	261	2121.660	2129.945	Amy Coney Barrett	source:oyez,verified:api	I -- I agree that's the key question, it is a fact question, and, you know, Justice Alito observed the other day, I'm not sure why this case is here except four of my colleagues wanted it to be.
+4	262	2129.945	2143.970	Amy Coney Barrett	source:oyez,verified:api	But, if it is a fact-bound question, what I'm asking is, if the case is as you just described it, what's the broader impact?  You know, in  --in your  -- are you talking about broader impact solely if we reached some new rule?
+4	263	2143.970	2144.235	Michael R. Huston	source:oyez,verified:api	Yeah.
+4	264	2144.235	2145.870	Michael R. Huston	source:oyez,verified:api	No, I  --I'm totally  --
+4	265	2145.870	2146.000	Amy Coney Barrett	source:oyez,verified:api	Okay.
+4	266	2146.000	2148.090	Michael R. Huston	source:oyez,verified:api	Let me -- I appreciate the opportunity to clarify.
+4	267	2148.090	2168.750	Michael R. Huston	source:oyez,verified:api	If the Court says that even though this case is at the pleading stage, even though it's only a plausibility pleading standard, these allegations of intentional -- intentional statements by Hikma where intent is undisputed,  that that doesn't even state a claim for relief, I do think that's going to have serious implications.
+4	268	2168.750	2197.710	Michael R. Huston	source:oyez,verified:api	It's going to make it much, much  harder to plead induced patent infringement. And I think that's going to have implications both in the patent space more generally but even in the pharmaceutical space  because, as I mentioned, if -- if -- if a -- if a branded drug like Amarin cannot get any kind of protection for a new -- this newly discovered use of its existing drug, it would  just be economically irrational to make that kind of investment that discovers a lifesaving cure.
+4	269	2197.710	2208.805	Michael R. Huston	source:oyez,verified:api	And I think that's what we are really fighting for in this case, is the opportunity to say:  We spent five years, we spent $300  million, and we discovered something that is literally saving people's lives.
+4	270	2208.805	2214.240	Michael R. Huston	source:oyez,verified:api	Hikma wants  to come and, having spent no money basically at all, try to capture all of those gains.
+4	271	2214.240	2216.300	Michael R. Huston	source:oyez,verified:api	The patent law doesn't allow them to do that.
+4	272	2216.300	2219.875	Michael R. Huston	source:oyez,verified:api	They are allowed to sell their product for the unpatented use.
+4	273	2219.875	2228.795	Michael R. Huston	source:oyez,verified:api	"But, when we have discovered this game-changing ""new use,"" Hikma can't come in and try to capture those -- those -- those sales."
+4	274	2228.795	2235.050	Michael R. Huston	source:oyez,verified:api	That's what it did with its repeated statements by calling itself generic Vascepa over and over again by mis --
+4	275	2235.050	2235.500	Elena Kagan	source:oyez,verified:api	Would  -- would --
+4	276	2235.500	2235.610	Brett M. Kavanaugh	source:oyez,verified:api	What --
+4	277	2235.610	2247.630	Elena Kagan	source:oyez,verified:api	-- would you contest, Mr. Huston, that these press releases were really issued for investors, that they had nothing to do with  -- this was not the way the company marketed itself to doctors?
+4	278	2247.630	2254.650	Michael R. Huston	source:oyez,verified:api	I  --I would contest that, Your Honor, especially because we're at  the pleading stage, where all inferences that  are fair have to be taken in our favor.
+4	279	2254.650	2269.370	Michael R. Huston	source:oyez,verified:api	"I think Hikma's claim that these were directed at investors is really just grounded in the fact that there's a ""Contact Us"" section of the press release that allows you to get in touch with the investor relations team, in  addition to other kinds of, you know, phone numbers provided."
+4	280	2269.370	2274.445	Michael R. Huston	source:oyez,verified:api	So they're not consciously  directed at investors, not expressly directed at investors.
+4	281	2274.445	2276.040	Michael R. Huston	source:oyez,verified:api	And I think two other points about that.
+4	282	2276.040	2279.295	Michael R. Huston	source:oyez,verified:api	First, Hikma spread these messages far and wide.
+4	283	2279.295	2279.830	Michael R. Huston	source:oyez,verified:api	It wanted  --
+4	284	2279.830	2287.160	Elena Kagan	source:oyez,verified:api	I mean, is there any evidence at all that Hikma directed these to -- to the medical community, that Hikma gave these press releases to doctors?
+4	285	2287.160	2295.800	Michael R. Huston	source:oyez,verified:api	So I think the answer is yes in the sense that these  -- this is advertising, Your Honor, which is, as Grokster said, a classic form of induced infringement since common law.
+4	286	2295.800	2307.575	Michael R. Huston	source:oyez,verified:api	Hikma, the -- our allegations are  --we don't have evidence; we're at the pleading stage  -- but the allegations we have are that Hikma took these press releases and intentionally attempted to  make them get distributed as far and widely as possible.
+4	287	2307.575	2309.700	Michael R. Huston	source:oyez,verified:api	It did want doctors to see these things.
+4	288	2309.700	2325.140	Michael R. Huston	source:oyez,verified:api	And evidence has come in in other cases where doctors have testified that they do pay attention to press releases and that they do pay attention to the announcements of when generics are coming online, and those kinds of announcements do affect doctors' prescription decisions.
+4	289	2325.140	2334.530	Michael R. Huston	source:oyez,verified:api	So that's all evidence that, you know, we're going to put on -- you know, that -- those -- we're going to use the Federal Circuit's established standards for pleading induced  -- or for proving induced infringement claims.
+4	290	2334.530	2336.600	Michael R. Huston	source:oyez,verified:api	It only has to be plausible at this stage.
+4	291	2336.600	2346.620	Michael R. Huston	source:oyez,verified:api	And I don't think it's a fair inference  --I don't think you can say the only fair inference from Hikma's statements is that they were directed solely at investors and were  not going to reach doctors.
+4	292	2346.620	2364.020	Brett M. Kavanaugh	source:oyez,verified:api	But I guess, to your initial statement when you started out  saying this is not a Hatch-Waxman case at all, I think you said that, and to why this case is here, because I'm glad it's here, the federal  --Congressman Waxman filed an amicus brief.
+4	293	2364.020	2401.150	Brett M. Kavanaugh	source:oyez,verified:api	"And I don't want to put too much faith in a former Congressman's brief about his own statute, but it says, ""the Federal Circuit's  decision threatens to decimate the compromise at the heart of the Hatch-Waxman Act, which, in turn, threatens to undermine the generic  pharmaceutical industry if this kind of complaint's good enough.""  And it points out, you know, ""generics have saved 3.4 trillion over the past 10 years, but the Federal Circuit's decision here leaves generic drug companies in the dark about what might expose them to liability.""  All of which is to say I think the question is, you know, if this is good enough, then that's going to have some serious implications market-wide."
+4	294	2401.150	2406.050	Michael R. Huston	source:oyez,verified:api	So, Justice Kavanaugh, maybe two or maybe three points if I might in response to that.
+4	295	2406.050	2417.180	Michael R. Huston	source:oyez,verified:api	"First, when we say ""if it's good enough,"" all we mean is good enough to get out of the starting gate, to get into discovery, where we're going to have the opportunity  -- we're going to be held to the burden to prove everything that we allege."
+4	296	2417.180	2417.870	Michael R. Huston	source:oyez,verified:api	That's the first point.
+4	297	2417.870	2439.695	Michael R. Huston	source:oyez,verified:api	The second point about Hatch-Waxman is that the reason it's named Hatch-Waxman, of course, is that it was a fundamental  compromise, and on the other side of that compromise was about protecting the need to  encourage branded drugs to take existing products and invest massive resources to discover how those drugs can be used for new cures.
+4	298	2439.695	2452.240	Michael R. Huston	source:oyez,verified:api	The dark green briefs are replete with examples of situations where that has happened. It can only happen, it's only economically rational to occur, if they can get patent protection for that subsequent use.
+4	299	2452.240	2452.300	Brett M. Kavanaugh	source:oyez,verified:api	Yeah.
+4	300	2452.300	2452.990	Michael R. Huston	source:oyez,verified:api	And then I think the last  --
+4	301	2452.990	2454.660	Brett M. Kavanaugh	source:oyez,verified:api	I don't dispute that there's a compromise.
+4	302	2454.660	2460.440	Brett M. Kavanaugh	source:oyez,verified:api	I was just making  the point that, you know, I take it seriously  when someone says this is upsetting the compromise.
+4	303	2460.440	2474.275	Michael R. Huston	source:oyez,verified:api	Well, I think the -- the  -- the last reason why the Court can have confidence that that is not going to come to pass, Your Honor, is the example of the many other generics who sell the very same product  that Hikma does, and we haven't sued any of them.
+4	304	2474.275	2483.640	Michael R. Huston	source:oyez,verified:api	And you can look at what they say on their press release to know that generics have a ready roadmap to avoid induced infringement liability.
+4	305	2483.640	2504.260	Michael R. Huston	source:oyez,verified:api	"All they have to do is accurately describe the limited purpose for which their drug is approved. So, for example, Camber, one of the other generic manufacturers, it says, ""Camber's press release is indicated as an adjunct to  diet to reduce triglyceride levels in adult patients with severe hypertriglyceridemia.""  It  doesn't talk about generic Vascepa."
+4	306	2504.260	2510.400	Michael R. Huston	source:oyez,verified:api	It doesn't talk about the volume of sales of Vascepa and  say this is a billion-dollar revolutionary drug.
+4	307	2510.400	2516.865	Michael R. Huston	source:oyez,verified:api	It doesn't say that it is in a  therapeutic category of hypertriglyceridemia. And, again, that's a different medical condition.
+4	308	2516.865	2523.720	Michael R. Huston	source:oyez,verified:api	So Camber, Zydus, Dr. Ready's, they all  -- none of them do the things that Hikma did.
+4	309	2523.720	2524.270	Ketanji Brown Jackson	source:oyez,verified:api	Well, counsel  --
+5	310	2524.270	2525.080	Samuel A. Alito, Jr.	source:oyez,verified:api	Are you just saying  --
+5	311	2525.080	2525.220	Ketanji Brown Jackson	source:oyez,verified:api	-- can I --
+5	312	2525.220	2529.860	Samuel A. Alito, Jr.	source:oyez,verified:api	-- just -- are you just saying generic Vascepa would be enough?
+5	313	2529.860	2535.760	Michael R. Huston	source:oyez,verified:api	I do not think, Your Honor, that merely saying one time generic  Vascepa is enough to state a claim for liability.
+5	314	2535.760	2537.290	Michael R. Huston	source:oyez,verified:api	And that's not our allegation.
+5	315	2537.290	2552.535	Michael R. Huston	source:oyez,verified:api	Our allegation is that Hikma said it over and over  and over again and that they did it at just the key moment where there was a market -- a market -- key market association between  Vascepa and treating cardiovascular risk.
+5	316	2552.535	2554.210	Michael R. Huston	source:oyez,verified:api	That was the context.
+5	317	2554.210	2558.000	Michael R. Huston	source:oyez,verified:api	Grokster says, of course, that induced infringement is a context-dependent analysis.
+5	318	2558.000	2562.360	Michael R. Huston	source:oyez,verified:api	That was the context into which Hikma launched these statements over and over and over again.
+5	319	2562.360	2563.540	Michael R. Huston	source:oyez,verified:api	But I take the point.
+5	320	2563.540	2568.490	Michael R. Huston	source:oyez,verified:api	I'm certainly not here to say that a company that one time says generic Vascepa is going to be held liable.
+5	321	2568.490	2571.895	Michael R. Huston	source:oyez,verified:api	As the Federal Circuit held, Hikma did much, much more.
+5	322	2571.895	2575.020	Michael R. Huston	source:oyez,verified:api	It made statements that no other generic manufacturer --
+5	323	2575.020	2584.190	Ketanji Brown Jackson	source:oyez,verified:api	But, counsel, I guess it  -- it seems to me you -- you do emphasize that we're talking about plausibility and this is early in the case and we're at the motion -to-dismiss stage.
+5	324	2584.190	2589.685	Ketanji Brown Jackson	source:oyez,verified:api	But that does highlight what has to be plausible, what is the focus of this.
+5	325	2589.685	2609.005	Ketanji Brown Jackson	source:oyez,verified:api	And the government here, the SG, says what we're looking for is an intent on the part  of this manufacturer to be inducing people or to have doctors be using this drug for the patented purpose.
+5	326	2609.005	2625.895	Ketanji Brown Jackson	source:oyez,verified:api	Your standard, as far as I can tell, is more just what message would the doctors have taken away from the marketing materials. And, as Justice Kagan pointed out, at least  some of these marketing materials, I think, were directed to investors.
+5	327	2625.895	2647.680	Ketanji Brown Jackson	source:oyez,verified:api	So the  --if the intention of the generic is to mention Vascepa and the size of  the market, et cetera, et cetera, for the purpose of getting investment, not for the  purpose of inducing doctor infringement, what do we do with that in terms of understanding whether active inducement liability lies?
+5	328	2647.680	2649.390	Michael R. Huston	source:oyez,verified:api	A couple points about that, Justice Jackson.
+5	329	2649.390	2659.050	Michael R. Huston	source:oyez,verified:api	I think the first is  that, of course, at this stage of the case, your own  --you can't just take Hikma's assertion that, oh, we put out that press release for the purpose of talking to our investors.
+5	330	2659.050	2662.830	Ketanji Brown Jackson	source:oyez,verified:api	No, but it's your burden if we are supposed to be looking for intent.
+5	331	2662.830	2667.795	Ketanji Brown Jackson	source:oyez,verified:api	And I guess that's why I think we do have to kind of focus on what the legal standard is here.
+5	332	2667.795	2678.835	Ketanji Brown Jackson	source:oyez,verified:api	If  -- if --if we are looking for intent to induce infringement, then  I would think it's your burden to actually have statements and evidence that go to that.
+5	333	2678.835	2693.970	Ketanji Brown Jackson	source:oyez,verified:api	And if we look at those statements and we say, yes, we see them, but, really, those statements that you point to are indicative of  an intent to encourage investors, then why have you stated enough of a claim in this circumstance?
+5	334	2693.970	2707.950	Michael R. Huston	source:oyez,verified:api	I understand the question, Your Honor, but I  -- I --I want to stress the Federal Circuit found that it was undisputed -- that's their word -- that in -- Hikma did not contest the requisite intent. That's at Pet. App. 15a.
+5	335	2707.950	2721.620	Michael R. Huston	source:oyez,verified:api	Hikma's motion to dismiss in this case did not say, unlike most other skinny-label cases where intent, along the lines of Your  Honor's question, would very much be the focus and where I'm sure Hikma at trial will attempt to  -- to prove exactly the kinds of things that Your Honor --
+5	336	2721.620	2723.140	Ketanji Brown Jackson	source:oyez,verified:api	But is -- is the Federal Circuit right about that?
+5	337	2723.140	2723.290	Michael R. Huston	source:oyez,verified:api	Yes --
+5	338	2723.290	2724.985	Ketanji Brown Jackson	source:oyez,verified:api	I don't know that we can disaggregate.
+5	339	2724.985	2735.370	Ketanji Brown Jackson	source:oyez,verified:api	I mean, they've  -- they -- they might have  -- Hikma might have said, we're not really focused on our intent to induce  something or our intent to have people buy more of this product.
+5	340	2735.370	2752.560	Ketanji Brown Jackson	source:oyez,verified:api	But, if the active inducement element of this is what we're all focused on and active  inducement requires an intent to induce doctors  to use this product, then I don't know that their concession about intent really covers this particular circumstance.
+5	341	2752.560	2758.590	Michael R. Huston	source:oyez,verified:api	So, Your Honor, I mean, the Court has always talked about those as distinct elements of induced infringement. There are three elements.
+5	342	2758.590	2760.140	Michael R. Huston	source:oyez,verified:api	There has to be  direct infringement.
+5	343	2760.140	2761.560	Michael R. Huston	source:oyez,verified:api	Somebody has to do the infringing.
+5	344	2761.560	2767.460	Michael R. Huston	source:oyez,verified:api	And then the inducer has to both have the intent that that happen and take active steps.
+5	345	2767.460	2784.980	Ketanji Brown Jackson	source:oyez,verified:api	I understand, but the United States today said the active inducement -- active steps prong of this is statements and acts that are  --that demonstrate an intent to induce the doctors.
+5	346	2784.980	2788.685	Ketanji Brown Jackson	source:oyez,verified:api	So they brought intent into the very element we're talking about here.
+5	347	2788.685	2794.010	Michael R. Huston	source:oyez,verified:api	There's no way to reconcile that conception of the -- of the standard with this Court's case after case after case --
+5	348	2794.010	2794.740	Ketanji Brown Jackson	source:oyez,verified:api	So they're wrong about that?
+5	349	2794.740	2795.175	Michael R. Huston	source:oyez,verified:api	They're wrong  --
+5	350	2795.175	2795.720	Ketanji Brown Jackson	source:oyez,verified:api	All right.
+5	351	2795.720	2797.230	Michael R. Huston	source:oyez,verified:api	They're just distinct elements  --
+5	352	2797.230	2797.580	Neil Gorsuch	source:oyez,verified:api	Well, how  --
+5	353	2797.580	2799.910	Michael R. Huston	source:oyez,verified:api	--and the intent element isn't part of this case at this stage.
+5	354	2799.910	2800.710	Neil Gorsuch	source:oyez,verified:api	I -- I'm sorry to interrupt.
+5	355	2800.710	2801.435	Neil Gorsuch	source:oyez,verified:api	Go ahead and finish.
+5	356	2801.435	2807.150	Michael R. Huston	source:oyez,verified:api	I'm just  -- I just want to say that, I mean, the Court has always talked about them as distinct elements.
+5	357	2807.150	2810.980	Michael R. Huston	source:oyez,verified:api	The Federal Circuit found that Hikma had not contested the intent element.
+5	358	2810.980	2822.460	Michael R. Huston	source:oyez,verified:api	I think -- actually, I thought it was common ground between all of the parties that we're only here talking about what constitutes active steps. These are active steps in the sense that Hikma put out statements.
+5	359	2822.460	2834.470	Michael R. Huston	source:oyez,verified:api	And then I think the only question we're left with is the one Justice Barrett  flagged, which is how is a listener going to understand those statements?  That's a fact question that's typically not suitable for resolution on summary judgment.
+5	360	2834.470	2835.625	Michael R. Huston	source:oyez,verified:api	That's the  crux of our case.
+5	361	2835.625	2837.230	Michael R. Huston	source:oyez,verified:api	Justice?  I'm sorry.
+5	362	2837.230	2842.860	Neil Gorsuch	source:oyez,verified:api	I'm not even sure I want to ask my question anymore, Mr. Huston.
+5	363	2842.860	2843.210	Neil Gorsuch	source:oyez,verified:api	(Laughter.)
+5	364	2843.210	2844.390	Neil Gorsuch	source:oyez,verified:api	Let me come at it this way.
+5	365	2844.390	2859.680	Neil Gorsuch	source:oyez,verified:api	I understand your  --your -- your point about this case being a little different,  but, you know, Twombly/Iqbal talking about whether you have an antitrust conspiracy versus maybe what is entirely rational independent conduct, right?
+5	366	2859.680	2859.880	Michael R. Huston	source:oyez,verified:api	Yes.
+5	367	2859.880	2861.170	Neil Gorsuch	source:oyez,verified:api	The Baby Bells, right?
+5	368	2861.170	2861.660	Michael R. Huston	source:oyez,verified:api	Yes.
+5	369	2861.660	2863.550	Neil Gorsuch	source:oyez,verified:api	Are not to compete in one another's territory.
+5	370	2863.550	2863.955	Michael R. Huston	source:oyez,verified:api	Yes.
+5	371	2863.955	2865.905	Neil Gorsuch	source:oyez,verified:api	It seems like a whole different world.
+6	372	2865.905	2910.865	Neil Gorsuch	source:oyez,verified:api	At any rate, there, the question was, hey, everybody knows that they're not going  into each other's territory, but it could be explained by two possible intents, and it was the burden of the plaintiff to rule out, plausibly rule out, the non-problematic intent. And I  --I think what Justice Jackson is getting at is, why isn't this case just like that?  Why isn't that the question?  I understand your point that, well, they didn't  contest it, but it is your burden on -- on a motion -to-dismiss stage to -- to rule out that lawful intent, hey, this is puffery for investors, and this can be plausibly explained by  -- by that rather than infringement.
+6	373	2910.865	2912.360	Michael R. Huston	source:oyez,verified:api	I think I would say two things, Your Honor.
+6	374	2912.360	2928.380	Michael R. Huston	source:oyez,verified:api	The first is that it  -- it's  --it's very hard for me sitting here in the Supreme Court of the United States to put myself in what arguments we would have made if Hikma in a motion to dismiss had said we want to contest our unlawful intent the same way the defendant in Twombly contested its intent.
+6	375	2928.380	2929.030	Michael R. Huston	source:oyez,verified:api	You're absolutely right.
+6	376	2929.030	2930.895	Michael R. Huston	source:oyez,verified:api	Twombly was an intent case.
+6	377	2930.895	2933.100	Michael R. Huston	source:oyez,verified:api	That was where all the action in the case was.
+6	378	2933.100	2938.970	Michael R. Huston	source:oyez,verified:api	Did the defendants have an unlawful intent?  Hikma did not contest its unlawful intent at this stage.
+6	379	2938.970	2939.120	Neil Gorsuch	source:oyez,verified:api	Okay.
+6	380	2939.120	2939.300	Neil Gorsuch	source:oyez,verified:api	I got you.
+6	381	2939.300	2966.260	Michael R. Huston	source:oyez,verified:api	So I just think it's a different  --but, I mean, the other  -- the other point I would make is, though -- even that kind of intuition, even a -- if you -- if you think, okay, there's a -- there's an  alternative explanation for the press releases, which is what  --that they were aimed at investors, that cannot explain Hikma's website, where it's described its  --it describes its product as a treatment for hypertriglyceridemia, the infringing use,  instead of, as all the other generic companies do, as a treatment --
+6	382	2966.260	2966.440	Neil Gorsuch	source:oyez,verified:api	Got you.
+6	383	2966.440	2967.380	Michael R. Huston	source:oyez,verified:api	--for severe hypertriglyceridemia use.
+6	384	2967.380	2967.900	Neil Gorsuch	source:oyez,verified:api	I got you.
+6	385	2967.900	2984.440	Michael R. Huston	source:oyez,verified:api	So here again, I think you're -- you can't -- even that conception of the case cannot carve out all of the allegations we have made, all of which add up  together to support Hikma's unlawful intent and their active steps that have the effect of inducing infringement.
+6	386	2984.440	2989.690	Michael R. Huston	source:oyez,verified:api	And that is  fundamentally what we're going to be held to the burden to prove, as in all other cases of induced infringement.
+6	387	2989.690	3008.000	Michael R. Huston	source:oyez,verified:api	We're going to show that the infringing sales of our product happened faster and to a greater degree than would have occurred had Hikma not made these statements. And so, again, I -- I understand the Court's concern about the idea that, you know, and I think my friends have attempted to say this is going to devastate the generics market.
+6	388	3008.000	3009.935	Michael R. Huston	source:oyez,verified:api	Nobody wants to devastate the generics market.
+6	389	3009.935	3012.100	Michael R. Huston	source:oyez,verified:api	But  it's just factually not true.
+6	390	3012.100	3028.130	Michael R. Huston	source:oyez,verified:api	And the surest reason you can know it's not true is because there's seven other generics in this market selling this product who know how to market their product lawfully. And all that Hikma needed to do was follow that path and they wouldn't be here, just like the other generics aren't here.
+6	391	3028.130	3037.255	Elena Kagan	source:oyez,verified:api	Mr. Huston, my sense of your papers in this Court as compared maybe to your papers below is that you've really dialed down your reliance on the skinny label.
+6	392	3037.255	3055.520	Elena Kagan	source:oyez,verified:api	So could you tell me why that is if I'm right about that, and -- and more to the  point maybe, what is your view of the relevance of the skinny label?  Would you go -- would you accept Mr. Stewart's proposition that that label has no relevance?  And, if not, why not?
+6	393	3055.520	3055.830	Michael R. Huston	source:oyez,verified:api	Sure.
+6	394	3055.830	3072.485	Michael R. Huston	source:oyez,verified:api	So, Justice Kagan, I would not accept Mr. Stewart's proposition that that has no relevance, and I think the -- I think the reason for that is that this Court is not accustomed in pleading cases and in Section 271(b) cases to saying there's a  category of evidence that's sort of fundamentally off the table.
+6	395	3072.485	3078.185	Michael R. Huston	source:oyez,verified:api	That to me sounds  like the creation of a safe harbor, and I think that's a legislative task fundamentally.
+6	396	3078.185	3092.180	Michael R. Huston	source:oyez,verified:api	Now, to be sure, Hikma has  -- you know, I  -- I don't think Hikma could be held liable -- or, you know, I -- I -- I -- I think that there is a protection in the statute in Hatch-Waxman for -- for Hikma to prepare a skinny label.
+6	397	3092.180	3097.430	Michael R. Huston	source:oyez,verified:api	That's why, as the Federal Circuit said, the skinny label is not the heart of our  case by any means.
+6	398	3097.430	3098.910	Michael R. Huston	source:oyez,verified:api	It is one piece of evidence.
+6	399	3098.910	3100.660	Elena Kagan	source:oyez,verified:api	Well, why should it be one piece of evidence?
+6	400	3100.660	3100.995	Michael R. Huston	source:oyez,verified:api	Sure.
+6	401	3100.995	3112.090	Michael R. Huston	source:oyez,verified:api	Because, again, I don't think that the Court has generally said there's sort of evidence that's off the table. But the way I think about the label in this case, because keep in mind the label comes factually later in time.
+6	402	3112.090	3125.560	Michael R. Huston	source:oyez,verified:api	So it's really at the moment that Vascepa is all -- getting all of this amazing press attention that doctors are prescribing it en masse to -- for -- to  --for the first time really effectively treat patients with severe cardiovascular risk.
+6	403	3125.560	3133.985	Michael R. Huston	source:oyez,verified:api	It's into that market  that Hikma launches all of its offensive statements about generic Vascepa, billion dollars in sales, hypertriglyceridemia and the like.
+6	404	3133.985	3136.010	Michael R. Huston	source:oyez,verified:api	Then it comes out with its label.
+6	405	3136.010	3144.945	Michael R. Huston	source:oyez,verified:api	And the way I think about the label is the label  was an opportunity for Hikma to try to -- to sort of mitigate the damage from its unlawful statements and it didn't take it.
+6	406	3144.945	3150.940	Michael R. Huston	source:oyez,verified:api	And in that sense, I think the Hikma  --the Hikma label maybe -- you know, probably, arguably, exacerbated our harm.
+6	407	3150.940	3152.970	Michael R. Huston	source:oyez,verified:api	But that's the way I think about the label.
+6	408	3152.970	3161.610	Michael R. Huston	source:oyez,verified:api	It's  --it is definitely not the  -- the key contention that we rely on because, again, it's not the thing that distinguishes Hikma from all the other generic manufacturers.
+6	409	3161.610	3171.260	Michael R. Huston	source:oyez,verified:api	They were  -- it was -- those generics made all of these statements that Hikma did not make, and I think that's why they're here -- that's why they're not here and Hikma is.
+6	410	3171.260	3182.560	Michael R. Huston	source:oyez,verified:api	The label just was an opportunity missed by Hikma  to try to control the extent of the infringement after they had already rang the bell.
+6	411	3182.560	3196.040	Michael R. Huston	source:oyez,verified:api	I think I just want to spend one moment if I might talking about where the Court would go from here if it found that this is a Twombly/Iqbal case and that the allegations in the current complaint did not suffice to state  a claim for relief.
+6	412	3196.040	3204.955	Michael R. Huston	source:oyez,verified:api	I think, as we described in our brief, the Court's far and away most common practice in that situation would be to vacate the Federal Circuit's opinion and remand.
+6	413	3204.955	3211.310	Michael R. Huston	source:oyez,verified:api	It would  not be to enter the form of judgment in this Court that Hikma requests, which would be to  sort of declare the case over.
+6	414	3211.310	3232.775	Michael R. Huston	source:oyez,verified:api	And I think that disposition, again, I  -- you know, obviously, we  --we hope that you will agree that the  -- the -- the -- the complaint here does state a claim, but in the event the Court didn't, it would be especially  important for the Court to allow the case to proceed back on remand because, since the Federal Circuit remanded the case and since Hikma did not stay the mandate, extensive discovery has occurred.
+6	415	3232.775	3244.640	Michael R. Huston	source:oyez,verified:api	Millions of documents  have been exchanged, 12 depositions have -- have  --have come -- have been taken, and that has revealed substantial new evidence of Hikma's intent to infringe and the effect.
+6	416	3244.640	3245.960	Amy Coney Barrett	source:oyez,verified:api	So are you saying you'd amend your complaint?
+6	417	3245.960	3248.970	Michael R. Huston	source:oyez,verified:api	Absolutely, Your Honor. We would  -- we very much want the opportunity to amend.
+6	418	3248.970	3262.970	Michael R. Huston	source:oyez,verified:api	That would normally be the course  under the Federal Rules of Civil Procedure, and all I'm trying to say is I think the case for our opportunity to amend is even stronger here given that there -- you know, there's been a material change in the case since the Federal Circuit's opinion.
+6	419	3262.970	3265.540	Michael R. Huston	source:oyez,verified:api	We've uncovered all of this new evidence.
+6	420	3265.540	3268.545	Brett M. Kavanaugh	source:oyez,verified:api	Well, Judge Andrews granted a motion to dismiss, right?
+6	421	3268.545	3270.670	Michael R. Huston	source:oyez,verified:api	Yes, Your Honor.
+6	422	3270.670	3272.640	Brett M. Kavanaugh	source:oyez,verified:api	Okay.
+6	423	3272.640	3275.750	Michael R. Huston	source:oyez,verified:api	But -- and we successfully appealed that judgment, so --
+6	424	3275.750	3276.190	Brett M. Kavanaugh	source:oyez,verified:api	I understand.
+6	425	3276.190	3278.225	Brett M. Kavanaugh	source:oyez,verified:api	I'm just talking about what happened in the district court.
+6	426	3278.225	3278.640	Michael R. Huston	source:oyez,verified:api	That's right.
+6	427	3278.640	3286.260	Michael R. Huston	source:oyez,verified:api	And so, again, the case has the same posture as all the cases cited on, I think, page 51 of our brief. A district court judge grants a motion to dismiss.
+6	428	3286.260	3289.030	Michael R. Huston	source:oyez,verified:api	We elect to appeal that judgment.
+6	429	3289.030	3290.460	Michael R. Huston	source:oyez,verified:api	We successfully appeal it.
+6	430	3290.460	3292.050	Michael R. Huston	source:oyez,verified:api	The Federal Circuit  reverses.
+6	431	3292.050	3295.200	Michael R. Huston	source:oyez,verified:api	There is no stay of the mandate by my friends on the other side.
+6	432	3295.200	3296.870	Michael R. Huston	source:oyez,verified:api	The case returns to district court.
+6	433	3296.870	3298.715	Michael R. Huston	source:oyez,verified:api	Judge Andrews opens discovery.
+7	434	3298.715	3302.720	Michael R. Huston	source:oyez,verified:api	And we take substantial discovery, and discovery does its job.
+7	435	3302.720	3309.770	Michael R. Huston	source:oyez,verified:api	It reveals that  exactly what we allege about Hikma's intent and the effects of their statements is true.
+7	436	3309.770	3317.660	Michael R. Huston	source:oyez,verified:api	And we haven't yet had an opportunity to bring that out, but, you know, obviously, in  -- in this situation, we very much want that opportunity to bring that evidence.
+7	437	3317.660	3324.650	Michael R. Huston	source:oyez,verified:api	And what I  don't think is supported is Hikma's sort of very unusual ask that this Court would simply  declare case over and --
+7	438	3324.650	3335.120	Neil Gorsuch	source:oyez,verified:api	Well, we wouldn't  -- we wouldn't enter judgment, but we would reverse and remand for further proceedings, consistent, and I would take it the Federal Circuit, that when  --that would then send it back to the district court.
+7	439	3335.120	3342.700	Neil Gorsuch	source:oyez,verified:api	The district court would say, okay, the  --the motion to dismiss is granted, as I said many years ago now  --
+7	440	3342.700	3343.210	Michael R. Huston	source:oyez,verified:api	Well  --
+7	441	3343.210	3346.330	Neil Gorsuch	source:oyez,verified:api	-- and -- and you could  --you could then file a motion for leave to amend.
+7	442	3346.330	3347.210	Neil Gorsuch	source:oyez,verified:api	Is  -- is that about right?
+7	443	3347.210	3350.670	Michael R. Huston	source:oyez,verified:api	I  --I think that -- I think -- I think that's about right, Your  Honor, with a slight tweak.
+7	444	3350.670	3359.455	Michael R. Huston	source:oyez,verified:api	I think, actually, what would happen probably is the Federal  Circuit would remand and we would then go to the district court and he would say, you know, there's  -- I'm supposed to have further proceedings consistent with the Supreme Court's opinion.
+7	445	3359.455	3364.320	Michael R. Huston	source:oyez,verified:api	What should those proceedings be? Our proceeding -- our requested proceeding is going to be an amended complaint.
+7	446	3364.320	3364.740	Neil Gorsuch	source:oyez,verified:api	Yeah, yeah, of course.
+7	447	3364.740	3365.170	Neil Gorsuch	source:oyez,verified:api	You'd move, yeah.
+7	448	3365.170	3367.660	Michael R. Huston	source:oyez,verified:api	And that's what Hikma -- all I'm saying is I think Hikma is trying to tell you  --
+7	449	3367.660	3368.070	Neil Gorsuch	source:oyez,verified:api	Yeah, no, right.
+7	450	3368.070	3369.080	Michael R. Huston	source:oyez,verified:api	-- we shouldn't have that right.
+7	451	3369.080	3370.540	Michael R. Huston	source:oyez,verified:api	And I just don't think anything in the law supports that.
+7	452	3370.540	3373.430	Neil Gorsuch	source:oyez,verified:api	I just want to make sure the way I described it is how you'd foresee it.
+7	453	3373.430	3375.680	Brett M. Kavanaugh	source:oyez,verified:api	You agreed with Justice Gorsuch, right?
+7	454	3375.680	3381.170	Michael R. Huston	source:oyez,verified:api	I agreed  -- I --I agreed with  --I -- let me -- let me try to be as clear as I can.
+7	455	3381.170	3381.200	Michael R. Huston	source:oyez,verified:api	I  --
+7	456	3381.200	3382.080	Brett M. Kavanaugh	source:oyez,verified:api	I shouldn't have asked it.
+7	457	3382.080	3382.470	Brett M. Kavanaugh	source:oyez,verified:api	I'm sorry.
+7	458	3382.470	3384.515	Amy Coney Barrett	source:oyez,verified:api	I thought you agreed with Justice Gorsuch.
+7	459	3384.515	3388.130	Michael R. Huston	source:oyez,verified:api	I think I mostly agree, and I hope I  -- I hope I don't -- I hope I agree in full.
+7	460	3388.130	3396.860	Michael R. Huston	source:oyez,verified:api	But I -- I think the right way to think  -- I don't -- I don't -- I just want to make sure that there would be an opportunity -- the district court judge would  entertain a motion to amend the complaint.
+7	461	3396.860	3397.220	Brett M. Kavanaugh	source:oyez,verified:api	Right.
+7	462	3397.220	3399.255	Michael R. Huston	source:oyez,verified:api	That's what we want an opportunity to do.
+7	463	3399.255	3402.270	Michael R. Huston	source:oyez,verified:api	That's what Hikma is telling you we should not have the opportunity to do.
+7	464	3402.270	3402.660	Michael R. Huston	source:oyez,verified:api	But, as long as we're --
+7	465	3402.660	3402.720	Neil Gorsuch	source:oyez,verified:api	Yeah.
+7	466	3402.720	3404.280	Neil Gorsuch	source:oyez,verified:api	But this Court doesn't normally weigh in on whether --
+7	467	3404.280	3405.320	Brett M. Kavanaugh	source:oyez,verified:api	We're not going to weigh on in on that.
+7	468	3405.320	3406.300	Brett M. Kavanaugh	source:oyez,verified:api	We would just remand.
+7	469	3406.300	3406.880	Michael R. Huston	source:oyez,verified:api	That is your  --
+7	470	3406.880	3409.810	Brett M. Kavanaugh	source:oyez,verified:api	You can argue to the district court, right, as Justice Gorsuch said?
+7	471	3409.810	3411.210	Michael R. Huston	source:oyez,verified:api	I think that is your typical practice.
+7	472	3411.210	3416.070	Michael R. Huston	source:oyez,verified:api	Again, I'm trying to, you know, oppose the sort of extraordinary requests  that I think my friends on the other side are asking.
+7	473	3416.070	3417.060	Brett M. Kavanaugh	source:oyez,verified:api	I'm sure they'll address it on rebuttal.
+7	474	3417.060	3417.285	Brett M. Kavanaugh	source:oyez,verified:api	Okay.
+7	475	3417.285	3418.475	Neil Gorsuch	source:oyez,verified:api	Thank you.
+7	476	3418.475	3419.910	John G. Roberts, Jr.	source:oyez,verified:api	Anything further?
+7	477	3419.910	3420.570	Clarence Thomas	source:oyez,verified:api	No.
+7	478	3420.570	3421.170	Clarence Thomas	source:oyez,verified:api	No.
+7	479	3421.170	3425.625	John G. Roberts, Jr.	source:oyez,verified:api	Anything further?  Is there anything further down there? No?  Anything further? Okay.
+7	480	3425.625	3426.605	John G. Roberts, Jr.	source:oyez,verified:api	Thank you, counsel.
+7	481	3426.605	3427.655	Michael R. Huston	source:oyez,verified:api	Thank you.
+7	482	3427.655	3429.990	John G. Roberts, Jr.	source:oyez,verified:api	Rebuttal, Mr. Klein.
+7	483	3429.990	3441.955	Charles B. Klein	source:oyez,verified:api	Thank you, Your Honor. I want to start by addressing this -- this point with no specifics that somehow new evidence came up in discovery that supports a claim for active inducement.
+7	484	3441.955	3455.405	Charles B. Klein	source:oyez,verified:api	Just to be clear, there is no such evidence, no evidence that  Hikma somehow intended its archived prelaunch litigation-related press releases to induce infringement or its online product catalogue to induce infringement.
+7	485	3455.405	3456.810	Charles B. Klein	source:oyez,verified:api	Zero evidence.
+7	486	3456.810	3464.475	Charles B. Klein	source:oyez,verified:api	The dismissal below also was with prejudice, and it was with prejudice because Amarin conceded to that judgment.
+7	487	3464.475	3489.180	Charles B. Klein	source:oyez,verified:api	And so, if  -- if the Court were to remand, it -- it  -- the only thing left  -- or, if the Court were to reverse and remand, the only thing left would be a Rule 60 motion, and Amarin could file that if  -- if -- if they wish. I do want to address this argument that the conduct element turns on how a physician would understand vague and equivocal statements.
+7	488	3489.180	3495.130	Charles B. Klein	source:oyez,verified:api	That  --that is not the standard when there's an obvious alternative explanation.
+7	489	3495.130	3514.465	Charles B. Klein	source:oyez,verified:api	Twombly and Iqbal make it very  clear, if there's an obvious alternative explanation, a complaint doesn't survive the  pleadings stage just because maybe some physician out there might possibly read an instruction to infringe into an equivocal or vague statement like generic version of Vascepa.
+7	490	3514.465	3520.770	Charles B. Klein	source:oyez,verified:api	And there are obvious alternative explanations for all the accused statements in this case.
+7	491	3520.770	3529.035	Charles B. Klein	source:oyez,verified:api	The -- the press releases that are  accused were all archived as of the launch. They concern litigation victories.
+7	492	3529.035	3536.720	Charles B. Klein	source:oyez,verified:api	And  -- and  --and they  -- the only indication mentioned is Vascepa's non -infringing indication.
+7	493	3536.720	3553.235	Charles B. Klein	source:oyez,verified:api	At the time of launch  -- and this is in the record -- the November 2020 press  release, so this is when the product's first available, makes it clear the product is only accused  -- the --the product is only approved for the non -infringing indication and not approved for any other indication.
+7	494	3553.235	3557.655	Charles B. Klein	source:oyez,verified:api	And it has all the labeling information in the press release itself.
+7	495	3557.655	3567.185	Charles B. Klein	source:oyez,verified:api	That  --there's no way that induces infringement. I do want to talk about the web page because I don't think my friend accurately characterized the web page.
+7	496	3567.185	3589.040	Charles B. Klein	source:oyez,verified:api	The web page  refers to an AB rating for hypertriglyceridemia, which is a lot of jargon,  but the jargon is conceded and explained in the complaint and in the decision below, and it means therapeutically equivalent only as labeled to reduce high triglycerides.
+7	497	3589.040	3590.500	Charles B. Klein	source:oyez,verified:api	That's  what it means.
+7	498	3590.500	3594.425	Charles B. Klein	source:oyez,verified:api	The label is linked to the web page.
+7	499	3594.425	3607.245	Charles B. Klein	source:oyez,verified:api	So there is no plausible way to read that web page as somehow encouraging doctors to go off -label and -- and use the product for a patented method that has been carved out.
+7	500	3607.245	3608.860	Charles B. Klein	source:oyez,verified:api	That is not plausible.
+7	501	3608.860	3617.540	Charles B. Klein	source:oyez,verified:api	The obvious alternative explanation is the plain reading of  -- of the  -- of the web page. I see I'm out of time.
+7	502	3617.540	3618.430	John G. Roberts, Jr.	source:oyez,verified:api	Thank you, counsel.

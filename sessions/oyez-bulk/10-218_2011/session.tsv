@@ -1,0 +1,643 @@
+bucket	idx	start_sec	stop_sec	speaker	drift_tags	text
+0	0	0.000	5.950	John G. Roberts, Jr.	source:oyez,verified:api	We will hear argument next today in Case 10-218, PPL Montana v. Montana.
+0	1	5.950	7.245	John G. Roberts, Jr.	source:oyez,verified:api	Mr. Clement.
+0	2	7.245	9.761	Paul D. Clement	source:oyez,verified:api	Mr. Chief Justice and may it please the Court:
+0	3	9.761	13.882	Paul D. Clement	source:oyez,verified:api	The State's claim to back rent here is truly remarkable.
+0	4	13.882	20.847	Paul D. Clement	source:oyez,verified:api	When these dams were built back in the day, PPL's predecessors, Petitioner's predecessors, secured all the necessary property rights and easements.
+0	5	20.847	31.121	Paul D. Clement	source:oyez,verified:api	As part of that process, particularly for the dams that created reservoirs, there was an elaborate process of getting flood easements and in many cases paying substantial amounts of money.
+0	6	31.121	34.494	Paul D. Clement	source:oyez,verified:api	In that process, nothing was hidden; it was open and notorious.
+0	7	34.494	40.040	Paul D. Clement	source:oyez,verified:api	Indeed, the State assisted by lending the utilities its eminent domain power to deal with holdouts.
+0	8	40.040	52.866	Paul D. Clement	source:oyez,verified:api	But now, 100 years later, the State comes in with a holdout claim of its own and suggests that it's entitled to massive compensation based on the small strip of riverbed that lies underneath these flooded reservoirs and the dams.
+0	9	52.866	60.797	Paul D. Clement	source:oyez,verified:api	The Montana Supreme Court allowed that claim to succeed to the tune of tens of millions of dollars of back rent.
+0	10	60.797	61.955	Paul D. Clement	source:oyez,verified:api	Now it seems that--
+0	11	61.955	73.700	Anthony M. Kennedy	source:oyez,verified:api	Well, is your point that there should be a Federal rule of -- of laches or estoppel, or are you just building up to the fact that this is traditional, well recognized doctrine and there's been -- and there's been a sudden change?
+0	12	73.700	75.447	Paul D. Clement	source:oyez,verified:api	--That's exactly where I was going, Justice Kennedy.
+0	13	75.447	86.039	Paul D. Clement	source:oyez,verified:api	I was suggesting that the Montana Supreme Court could only approve this result, which clearly did unsettle settled expectations, by deviating from well-settled principles of Federal navigability law.
+0	14	86.039	89.536	Paul D. Clement	source:oyez,verified:api	Now, the mistakes were a little bit different for each of the rivers at issue.
+0	15	89.536	102.530	Paul D. Clement	source:oyez,verified:api	As to the Clark Fork and the Upper Missouri, the critical error I believe with the Montana Supreme Court decision was its failure to focus on the river segments that are directly at issue and instead focus on the river as a whole.
+0	16	102.530	108.343	Paul D. Clement	source:oyez,verified:api	With the Madison the errors are different, because with the Madison there is no evidence that any stretch of that river was navigable at statehood.
+0	17	108.343	121.150	Paul D. Clement	source:oyez,verified:api	So there the problem was principally that the court relied on modern day evidence of recreational use to substitute for true historic evidence of commercial navigation at statehood.
+0	18	121.150	129.081	Samuel A. Alito, Jr.	source:oyez,verified:api	On the issue of whether we should look to the segments or to the river as a whole, what authorities can we consult?
+0	19	129.081	147.950	Samuel A. Alito, Jr.	source:oyez,verified:api	You rely heavily on U.S. v. Utah, and that certainly is a relevant precedent; but there is disagreement about what it means and the only authority that I see that U.S. v. Utah cited was The Montello, which seems to cite nothing whatsoever.
+0	20	147.950	151.541	Samuel A. Alito, Jr.	source:oyez,verified:api	So where do we -- is that the end of the trail?
+0	21	151.541	152.789	Samuel A. Alito, Jr.	source:oyez,verified:api	Is there anyplace else we can look?
+0	22	152.789	154.650	Paul D. Clement	source:oyez,verified:api	Well, I -- I mean, it's close to the end of the trail.
+0	23	154.650	158.600	Paul D. Clement	source:oyez,verified:api	I mean, you can go back to The Daniel Ball, but that's not going to help you any more than The Montello.
+0	24	158.600	172.237	Paul D. Clement	source:oyez,verified:api	I think, though, that the critical cases really are Utah -- but I also think there are other cases that this Court has had -- Oklahoma v. Texas would be an example -- where this Court has looked as a discernible segment of a river.
+0	25	172.237	173.485	Paul D. Clement	source:oyez,verified:api	Brewer-Elliott is another one.
+0	26	173.485	182.259	Paul D. Clement	source:oyez,verified:api	And I think the starting point for the Court's analysis in every one of these cases has been to look at the segment of the river that is at issue, that has been put at issue.
+0	27	182.259	194.176	Paul D. Clement	source:oyez,verified:api	Now, if you have a sovereignty battle between the State and the Federal Government, a lot of times it's the segment of the river within the State, or in Brewer-Elliott it was the segment of the river adjacent to an Indian reservation.
+0	28	194.176	207.407	Samuel A. Alito, Jr.	source:oyez,verified:api	All of this, I take it, derives from the rule that preexisted -- preexisted the adoption of the Constitution, that the sovereign owned the navigable rivers within its borders.
+0	29	207.407	213.810	Samuel A. Alito, Jr.	source:oyez,verified:api	Is there some body of common law that addresses this, that would shed some light on whether that means the whole river or it means segments?
+0	30	213.810	217.764	Paul D. Clement	source:oyez,verified:api	There really isn't, Justice Alito, because we get our common law from England.
+0	31	217.764	220.385	Paul D. Clement	source:oyez,verified:api	In England actually the common law was different.
+0	32	220.385	232.348	Paul D. Clement	source:oyez,verified:api	At England, the navigable waters ended at the ebb and flow of the tide, so every internal stream within Great Britain was viewed as non-navigable and the property belonged to the riparians.
+0	33	232.348	240.502	Samuel A. Alito, Jr.	source:oyez,verified:api	So what -- what is the origin of the rule that the original 13 States owned the navigable rivers or parts of the rivers, but not the parts that weren't.
+0	34	240.502	242.892	Samuel A. Alito, Jr.	source:oyez,verified:api	That was some feature of American colonial law?
+0	35	242.892	243.516	Paul D. Clement	source:oyez,verified:api	Sure.
+0	36	243.516	250.235	Paul D. Clement	source:oyez,verified:api	I mean, it was -- it was adopted as part of -- the sort of -- just the idea of creating the sovereign republic of the United States.
+0	37	250.235	250.781	Paul D. Clement	source:oyez,verified:api	We borrowed our common law.
+0	38	250.781	255.808	Paul D. Clement	source:oyez,verified:api	I think initially nobody focused on these navigable segments.
+0	39	255.808	268.742	Paul D. Clement	source:oyez,verified:api	And it's important to recognize that this issue really doesn't even arise in the eastern United States, because until about 1850 this idea that States could own the river beds if they were non-navigable never really occurred to anyone.
+0	40	268.742	278.113	Paul D. Clement	source:oyez,verified:api	So in most of the eastern States as a matter of State law, whether a river is navigable or non-navigable, the riparian owns to the middle of the stream bed.
+0	41	278.113	296.402	Paul D. Clement	source:oyez,verified:api	So after 1851 this Court recognizes -- makes clear to the States that they actually have a choice, and so the States that come into the Union after 1851, many of them, including Montana, adopt the rule that, well, unless these streams -- if these streams are non-navigable, then we take the river stream.
+0	42	296.402	298.136	Paul D. Clement	source:oyez,verified:api	And so that's where the question comes up.
+0	43	298.136	306.037	Paul D. Clement	source:oyez,verified:api	So maybe the reason there isn't a great deal of precedent on this is explained by the fact that this is an issue that largely arises in the western United States.
+0	44	306.037	327.609	Paul D. Clement	source:oyez,verified:api	But that's why I think it's such a mistake to kind of look a gift horse in the mouth, so to speak, and not focus on Utah, because Utah is a situation that seems irreconcilable with the Montana Supreme Court decision and the State's basic theory, because there the special master and this Court recognized a non-navigable segment right in the middle of two navigable portions of stream.
+0	45	327.609	329.606	Sonia Sotomayor	source:oyez,verified:api	"Could you define ""de minimis"" for me?"
+0	46	329.606	333.997	Paul D. Clement	source:oyez,verified:api	Well, I -- I'm -- I'm happy to try, but I think -- I'm not going to give you--
+0	47	333.997	337.869	Sonia Sotomayor	source:oyez,verified:api	If we can't, some guidance or limit that we set for--
+0	48	337.869	343.259	Paul D. Clement	source:oyez,verified:api	"--I've thought about this a lot, Justice Sotomayor, and I'm not here to give you a sound bite that's a bright-line definition of ""de minimis""."
+0	49	343.259	348.632	Paul D. Clement	source:oyez,verified:api	I think de minimis almost by its nature takes its -- its meaning from the context of the inquiry.
+0	50	348.632	351.380	Paul D. Clement	source:oyez,verified:api	But let me -- let me offer at least three guideposts that I think are helpful.
+0	51	351.380	361.500	Paul D. Clement	source:oyez,verified:api	One, as a practical matter I think this Court can look to its own cases dealing with islands in a navigable stream, and those cases are on page 17 of the government's brief.
+0	52	361.500	368.562	Paul D. Clement	source:oyez,verified:api	And this Court's cases say if there is a small island in a navigable stream, under an acre, of negligible value, we basically ignore it.
+0	53	368.562	380.245	Paul D. Clement	source:oyez,verified:api	Later cases, though, came along and dealt with islands that were much larger, and the Court analyzed those separately from the navigable stream, and said the United States actually retains ownership to the larger islands, and they don't go.
+0	54	380.245	381.244	Paul D. Clement	source:oyez,verified:api	So that's one place to look.
+0	55	381.244	386.773	Paul D. Clement	source:oyez,verified:api	The second place to look, I think, is also a practical judgment based on the nature of the lawsuit.
+0	56	386.773	395.113	Paul D. Clement	source:oyez,verified:api	And here the State itself has come in and identified stretches of riverbed that they think are significant enough to generate $50 million in back rent.
+0	57	395.113	402.359	Paul D. Clement	source:oyez,verified:api	And I think they, having identified those riverbed stretches as being worth $50 million, are hard pressed to then turn around and say, oh, but they are de minimis, just ignore them.
+0	58	402.359	407.264	Paul D. Clement	source:oyez,verified:api	The third rule I would point to is that I think topography has something of a role to play here.
+0	59	407.264	431.316	Paul D. Clement	source:oyez,verified:api	If you look at the special master's report in Utah or some of the other cases that have decided the point at which the navigability stops, they pointed to features of the river as defining a discernible segment like a tributary coming in or the geology of the -- of the bed over which the river runs, if it shifts from kind of a silty loam to hard rock in a canyon, that's something that you can point to.
+0	60	431.316	438.031	Sonia Sotomayor	source:oyez,verified:api	--I know you've told me that you think Montello is not pertinent because it involved a different issue.
+0	61	438.031	472.284	Sonia Sotomayor	source:oyez,verified:api	But assuming that it were pertinent, because I'm not quite sure how its discussion doesn't fit the needs here, one of the factors you haven't mentioned in terms of de minimis is the portage and its use with respect to commerce; and by that I mean, it appears to me in Montello, what the Court was saying was the history of use of this river showed that these obstructions didn't stop the flow of commerce.
+0	62	472.284	474.581	Sonia Sotomayor	source:oyez,verified:api	That what people did was -- it appeared some extreme things.
+0	63	474.581	493.120	Sonia Sotomayor	source:oyez,verified:api	They got off -- they got their goods off one boat, walked it a certain distance or drove it by wagon another distance and then put it on another boat or the same boat that they had lessened the load on and moved it over.
+0	64	493.120	500.911	Sonia Sotomayor	source:oyez,verified:api	And so it doesn't talk about the distance of that portage; it talks about the impact on commerce.
+0	65	500.911	501.569	Paul D. Clement	source:oyez,verified:api	Right.
+0	66	501.569	507.863	Sonia Sotomayor	source:oyez,verified:api	So why isn't that a factor in the de minimis issue?
+0	67	507.863	509.423	Paul D. Clement	source:oyez,verified:api	Well, I mean--
+0	68	509.423	511.330	Sonia Sotomayor	source:oyez,verified:api	If there were a history here.
+0	69	511.330	517.328	Paul D. Clement	source:oyez,verified:api	--Sure, but, Justice Sotomayor, I think -- I mean, there are sort of two portages that are floating around in The Montello and I think it's important to distinguish between the two.
+0	70	517.328	522.967	Paul D. Clement	source:oyez,verified:api	There is kind of the classic overland portage between the Fox River and the Wisconsin River.
+0	71	522.967	524.764	Sonia Sotomayor	source:oyez,verified:api	There was a canal in there, wasn't there?
+0	72	524.764	525.606	Paul D. Clement	source:oyez,verified:api	Well, afterwards.
+0	73	525.606	527.779	Paul D. Clement	source:oyez,verified:api	But originally that was an overland portage.
+0	74	527.779	529.401	Paul D. Clement	source:oyez,verified:api	And so that's really not at issue.
+0	75	529.401	533.429	Paul D. Clement	source:oyez,verified:api	But that's kind of you know, -- the classic portage I have in mind is an overland portage.
+0	76	533.429	538.256	Paul D. Clement	source:oyez,verified:api	Now, they are also talking about the extreme efforts, and you could call them portages.
+0	77	538.256	545.143	Paul D. Clement	source:oyez,verified:api	I don't think you need to, but there is also talk about the extreme efforts to enable navigation on the Fox before improvement.
+0	78	545.143	555.968	Paul D. Clement	source:oyez,verified:api	But that's nothing like what's at issue here because those were efforts basically to use the riverbed to -- and they had to do some extraordinary things: an ox to pull the boat; lift them up over some rocks.
+0	79	555.968	559.123	Paul D. Clement	source:oyez,verified:api	But they never really left the bed of the river there.
+1	80	559.123	561.167	Paul D. Clement	source:oyez,verified:api	Where they left the bid of the river was the portage over the Wisconsin.
+1	81	561.167	564.949	Sonia Sotomayor	source:oyez,verified:api	But in The Montello, get they took the cargo off some boats--
+1	82	564.949	566.104	Paul D. Clement	source:oyez,verified:api	Oh, absolutely.
+1	83	566.104	570.884	Sonia Sotomayor	source:oyez,verified:api	--and moved it overland to another spot before they put it back on the boat.
+1	84	570.884	586.689	Paul D. Clement	source:oyez,verified:api	Sure, but my understanding of what was going on there, and maybe I misunderstood it, but I understand what they are talking about there is a portage where you take the cargo out of the boat in order to lighten the draft of the boat so it's not sitting as deeply in the river, and that allows the lighter boat to be carried over the--
+1	85	586.689	593.919	Sonia Sotomayor	source:oyez,verified:api	We can both look at the opinion, but I think there is one spot where the court says that in some areas they had to change boats.
+1	86	593.919	601.136	Paul D. Clement	source:oyez,verified:api	--Well, and that may be, but, I mean, again, I don't think we are talking about anything like the distances that we are talking here, and also--
+1	87	601.136	627.266	Sonia Sotomayor	source:oyez,verified:api	I don't disagree with you, but what I'm asking is, if we had a history of navigation of cargo that went to the beginning of one of these rivers, and I'm not a sailor so my terms -- the cargo is taken off and driven by wagon or some other mode to another spot and picked up again.
+1	88	627.266	632.543	Sonia Sotomayor	source:oyez,verified:api	Is that a different situation than one where that doesn't happen?
+1	89	632.543	645.056	Sonia Sotomayor	source:oyez,verified:api	That because this length of portage is so long that it is both economically and physically impossible to transport cargo in that way.
+1	90	645.056	648.711	Sonia Sotomayor	source:oyez,verified:api	Is that a different case for the question of navigability?
+1	91	648.711	651.724	Paul D. Clement	source:oyez,verified:api	--Well, sure, because these are all matters of degree, and those would be two different cases.
+1	92	651.724	654.099	Paul D. Clement	source:oyez,verified:api	But here's what I would point you to.
+1	93	654.099	672.888	Paul D. Clement	source:oyez,verified:api	Which is, if -- at the point that you have to take the cargo off of the boats, and then you then have to leave the channel, you don't just do a little cut around some de minis amount, but you leave the channel and go overland, at that point, I think, that portage demonstrates the non-navigability of the bypass stretch.
+1	94	672.888	673.995	Paul D. Clement	source:oyez,verified:api	And then I think--
+1	95	673.995	683.115	John G. Roberts, Jr.	source:oyez,verified:api	Even if it demonstrates the non-navigability of the particular stretch, but we would still speak of the transfer of commerce as being along the river.
+1	96	683.115	684.426	Paul D. Clement	source:oyez,verified:api	--Well I don't--
+1	97	684.426	692.907	John G. Roberts, Jr.	source:oyez,verified:api	The sort of the case or analogy I was thinking of is if I say I fly from Washington to Tokyo, and someone says,
+1	98	692.907	700.012	John G. Roberts, Jr.	source:oyez,verified:api	"""No you didn't; you flew to San Francisco, then you walked however many yards from one gate to another, and then you flew to Tokyo. """
+1	99	700.012	701.280	John G. Roberts, Jr.	source:oyez,verified:api	And I'd say,
+1	100	701.280	705.964	John G. Roberts, Jr.	source:oyez,verified:api	"""Well, yes, there is a gap there when I walked -- part of the distance where I wasn't flying. """
+1	101	705.964	708.510	John G. Roberts, Jr.	source:oyez,verified:api	but people would still say you flew from D.C. to Tokyo.
+1	102	708.510	716.273	John G. Roberts, Jr.	source:oyez,verified:api	Now why isn't this just like that, that the commercial path, the commercial waterway people think of as the Missouri.
+1	103	716.273	728.502	John G. Roberts, Jr.	source:oyez,verified:api	And yes, occasionally you have got to get out, and, you know, we can debate how long the portage is, but it doesn't it interrupt the notion that that whole pathway would qualify as a navigable waterway.
+1	104	728.502	730.721	Paul D. Clement	source:oyez,verified:api	--Two things, Mr. Chief Justice.
+1	105	730.721	736.126	Paul D. Clement	source:oyez,verified:api	One is, I want to make clear that we very much dispute factually that there ever was this kind of commercial portage over the Great Falls.
+1	106	736.126	740.715	Paul D. Clement	source:oyez,verified:api	And there is really, you know, there's very little evidence for the record.
+1	107	740.715	747.946	Paul D. Clement	source:oyez,verified:api	The state's own evidence identifies Fort Benton 30 miles below the Great Falls as the head of navigation on the Missouri.
+1	108	747.946	750.870	Paul D. Clement	source:oyez,verified:api	So there is very much a factual issue here.
+1	109	750.870	761.846	Paul D. Clement	source:oyez,verified:api	But to answer the legal question you are asking, first of all, I am not sure I would have the same instinct about common parlance if you had to go from JFK to La Guardia in a cab.
+1	110	761.846	766.284	Paul D. Clement	source:oyez,verified:api	And I'm even less sure that you would have the same notion if you had to drive from San Francisco to LA to switch planes.
+1	111	766.284	770.905	Paul D. Clement	source:oyez,verified:api	And I think the distance here really does matter.
+1	112	770.905	783.216	Paul D. Clement	source:oyez,verified:api	And I would submit the way you think about this, the way I would think about this is that the very need to bypass, especially a substantial bypass where you leave the river channel, is evidence that that part of the channel, that part of the river is nonnavigable.
+1	113	783.216	787.088	Paul D. Clement	source:oyez,verified:api	And then the question that is left is whether that is de minimis.
+1	114	787.088	789.120	Samuel A. Alito, Jr.	source:oyez,verified:api	I don't see why portage is relevant at all.
+1	115	789.120	792.493	Samuel A. Alito, Jr.	source:oyez,verified:api	What is the basis for the rule that I assume it's the sovereign owns the navigable rivers?
+1	116	792.493	798.070	Samuel A. Alito, Jr.	source:oyez,verified:api	I assume it's because they are viewed, they were viewed as highways for transportation and commerce.
+1	117	798.070	809.561	Samuel A. Alito, Jr.	source:oyez,verified:api	And to the extent that there is an obstruction that cannot be traversed by a boat, then there isn't going to be any commerce or transportation along that area.
+1	118	809.561	822.917	Samuel A. Alito, Jr.	source:oyez,verified:api	Now there might be an argument that the sovereign should own the land next to the river so that you could portage around it, but what, what would be the justification for saying the sovereign owns the portion of the river that can't be traversed at all by boat?
+1	119	822.917	823.978	Samuel A. Alito, Jr.	source:oyez,verified:api	I just don't understand it.
+1	120	823.978	832.007	Paul D. Clement	source:oyez,verified:api	Well, I'm with you on that, Justice Alito, and I think logically if you think what's the highway of commerce here, if there was this 18-mile overland portage rout, that would be the highway of commerce.
+1	121	832.007	840.723	Paul D. Clement	source:oyez,verified:api	But the 17-mile bypass stretch of the Missouri and the Great Falls Reach would not be a highway of commerce.
+1	122	840.723	846.844	Paul D. Clement	source:oyez,verified:api	And I think that gets back to the expectations of the property owner that ultimately underlie these title questions.
+1	123	846.844	853.310	Paul D. Clement	source:oyez,verified:api	I mean, if you have boats going by a river in your backyard, I mean, you have, you are on sort of notice that you don't own the riverbed.
+1	124	853.310	865.679	Paul D. Clement	source:oyez,verified:api	But if you are in a part of the river that is so unnavigable that it has to be bypassed and you have never seen a boat in your experience ever, then I think you have very different expectations, and your expectations would be the same as somebody--
+1	125	865.679	865.870	Sonia Sotomayor	source:oyez,verified:api	17 miles is very long.
+1	126	865.870	866.884	Paul D. Clement	source:oyez,verified:api	--It is.
+1	127	866.884	879.004	Sonia Sotomayor	source:oyez,verified:api	I think the Thompson is only 2.8 and that is really close to Montello where it talked about, about two miles for some portage areas.
+1	128	879.004	880.989	Paul D. Clement	source:oyez,verified:api	Well, with respect, can I take both points.
+1	129	880.989	881.909	Paul D. Clement	source:oyez,verified:api	I mean, you are absolutely right.
+1	130	881.909	883.660	Paul D. Clement	source:oyez,verified:api	17 miles have very long.
+1	131	883.660	887.251	Paul D. Clement	source:oyez,verified:api	I mean, for the New Yorkers, you know, the East River is 16 miles long, the whole river.
+1	132	887.251	889.922	Paul D. Clement	source:oyez,verified:api	The Anacostia River is 8 1/2 miles long.
+1	133	889.922	891.654	Paul D. Clement	source:oyez,verified:api	So this bypass stretch--
+1	134	891.654	896.481	Sonia Sotomayor	source:oyez,verified:api	But I'm not a Midwesterner, and rivers of 200 miles are longer than--
+1	135	896.481	898.357	Paul D. Clement	source:oyez,verified:api	--Well, these -- this is still a big stretch.
+1	136	898.357	899.309	Paul D. Clement	source:oyez,verified:api	And I do think that, like you said, longer than some entire rivers.
+1	137	899.309	904.682	Paul D. Clement	source:oyez,verified:api	But the Thompson Falls, I mean, the two miles of the Thompson Falls, I don't know exactly where that number comes from.
+1	138	904.682	908.789	Paul D. Clement	source:oyez,verified:api	Its kind of an artificiality.
+1	139	908.789	915.410	Paul D. Clement	source:oyez,verified:api	I mean, there -- Again, the State's own evidence, look at J.A. 57 says that navigation stops at Thompson Falls.
+1	140	915.410	916.709	Paul D. Clement	source:oyez,verified:api	There wasn't a portage around.
+1	141	916.709	927.810	Paul D. Clement	source:oyez,verified:api	But the other point is I would ask you to look at the 1910 court decree because as I said at the outset, you know, these companies do just put these dams up overnight as, you, kind of, as a lark.
+1	142	927.810	928.734	Paul D. Clement	source:oyez,verified:api	They went through elaborate efforts to secure the property rights.
+1	143	928.734	933.764	Paul D. Clement	source:oyez,verified:api	That's what generated the 1910 court decree about the Clark's Fork River.
+1	144	933.764	942.620	Paul D. Clement	source:oyez,verified:api	The Clark's Fork River court decree in 1910 addresses a stretch of rivers specifically that is just the falls but the six miles of the reservoir that's created.
+1	145	942.620	949.897	Paul D. Clement	source:oyez,verified:api	And the court holds that that entire region and indeed the entire Clark fork in Sanders County is nonnavigable.
+1	146	949.897	952.646	Paul D. Clement	source:oyez,verified:api	So the stretches that are nonnavigable are much longer than two miles.
+1	147	952.646	954.849	Paul D. Clement	source:oyez,verified:api	If I may reserve my time.
+1	148	954.849	955.816	Antonin Scalia	source:oyez,verified:api	Thank you, counsel.
+1	149	955.816	973.024	Antonin Scalia	source:oyez,verified:api	Mr. Kneedler.
+1	150	973.024	975.208	Edwin S. Kneedler	source:oyez,verified:api	Mr. Chief Justice, and may it please the Court:
+1	151	975.208	992.920	Edwin S. Kneedler	source:oyez,verified:api	The Montana Supreme Court committed three basic errors with respect to all three rivers that require a remand for further proceedings to actually weigh and make factual findings concerning the evidence of the relevant reaches of the river for purposes of navigability for title.
+1	152	992.920	1001.776	Edwin S. Kneedler	source:oyez,verified:api	We are not talking about navigability for interstate transportation or admiralty or regulatory jurisdiction under the Rivers and Harbors Act or the Clean Water Act.
+1	153	1001.776	1004.132	Edwin S. Kneedler	source:oyez,verified:api	We are talking about navigability for title.
+1	154	1004.132	1004.759	Elena Kagan	source:oyez,verified:api	And why does that make a difference, Mr. Kneedler?
+1	155	1004.759	1011.412	Elena Kagan	source:oyez,verified:api	Why do you think that there are separate tests for title than for regulatory authority?
+1	156	1011.412	1031.513	Edwin S. Kneedler	source:oyez,verified:api	Well, in the Montello, for example, the question was whether there was admiralty or regulatory jurisdiction over the use of vessels on the upper reaches of the river, and that depended in the Court's view on whether that stretch was part of an interstate or international highway of commerce.
+1	157	1031.513	1043.742	Edwin S. Kneedler	source:oyez,verified:api	And so it would make sense to look at the whole river in determining whether it's a highway; and maybe in deciding whether there is a highway, you would look to a bypass stretch.
+1	158	1043.742	1048.504	Edwin S. Kneedler	source:oyez,verified:api	You would look at the highway, the land highway to decide whether its useful in interstate commerce.
+1	159	1048.504	1055.128	Edwin S. Kneedler	source:oyez,verified:api	For title purposes, though, the question is what happens to the stretch of the river right in front of the riparian owner's land.
+2	160	1055.128	1070.793	Edwin S. Kneedler	source:oyez,verified:api	As Mr. Clement said, that reflects the expectations of the property owner, that if there are no ships or boats going back and forth, that that property is -- adheres to the riparian lands more.
+2	161	1070.793	1076.338	Edwin S. Kneedler	source:oyez,verified:api	I also think it -- it pertains to the control or use of the beds of the rivers themselves.
+2	162	1076.338	1081.899	John G. Roberts, Jr.	source:oyez,verified:api	I would think, though, if you start drawing these lines, they become very difficult, in some rivers anyway, to -- to apply.
+2	163	1081.899	1084.648	John G. Roberts, Jr.	source:oyez,verified:api	I'm sure there are seasonable fluctuations.
+2	164	1084.648	1088.614	John G. Roberts, Jr.	source:oyez,verified:api	They may be navigable in some seasons, but not in others.
+2	165	1088.614	1096.720	John G. Roberts, Jr.	source:oyez,verified:api	The line at which you pass from navigability to non-navigability may be difficult to ascertain.
+2	166	1096.720	1103.279	John G. Roberts, Jr.	source:oyez,verified:api	It seems to me once you start chopping the highway of commerce up, it does create all those difficulties.
+2	167	1103.279	1108.025	Edwin S. Kneedler	source:oyez,verified:api	Well, first of all, we're not -- we're not talking about chopping the river up into narrow slices.
+2	168	1108.025	1111.215	Edwin S. Kneedler	source:oyez,verified:api	I mean, I think there has to be a discernible and substantial segment of the river.
+2	169	1111.215	1118.601	Edwin S. Kneedler	source:oyez,verified:api	Often -- often, it will be self-evident from the geo -- topographical features of the area.
+2	170	1118.601	1122.583	Edwin S. Kneedler	source:oyez,verified:api	Are there major falls and rapids over an extended period of time?
+2	171	1122.583	1134.830	Edwin S. Kneedler	source:oyez,verified:api	But also, the points you're raising are -- I think are inherent, because in deciding where navigability stops under any test or in any circumstance, you could have the difficulties that you have described.
+2	172	1134.830	1135.454	Sonia Sotomayor	source:oyez,verified:api	So what's de minimis?
+2	173	1135.454	1138.094	Edwin S. Kneedler	source:oyez,verified:api	Well, I think--
+2	174	1138.094	1144.123	Sonia Sotomayor	source:oyez,verified:api	Could 2.8 be de minimis in one situation and not, and how do we tell--
+2	175	1144.123	1146.638	Edwin S. Kneedler	source:oyez,verified:api	--I -- I think it -- I think it may well be.
+2	176	1146.638	1153.103	Edwin S. Kneedler	source:oyez,verified:api	I think -- I think an important -- I agree with the points that Mr. Clement made as guideposts.
+2	177	1153.103	1155.428	Edwin S. Kneedler	source:oyez,verified:api	I think another one -- and this pertains to--
+2	178	1155.428	1164.491	Sonia Sotomayor	source:oyez,verified:api	--If there's no falls but there are riparian waters that don't permit navigability over 2.8, than that's still navigable?
+2	179	1164.491	1165.567	Sonia Sotomayor	source:oyez,verified:api	I'm not sure--
+2	180	1165.567	1172.110	Edwin S. Kneedler	source:oyez,verified:api	--No, I think -- I think it has to be -- I'm speaking of a situation where the river is not navigable in fact.
+2	181	1172.110	1174.781	Edwin S. Kneedler	source:oyez,verified:api	And that's the test, navigable in fact, not navigable in law.
+2	182	1174.781	1180.762	Edwin S. Kneedler	source:oyez,verified:api	If a -- if a boat cannot pass in front of the riparian land, then that would be non-navigable.
+2	183	1180.762	1181.480	Edwin S. Kneedler	source:oyez,verified:api	I agree that--
+2	184	1181.480	1185.388	Antonin Scalia	source:oyez,verified:api	And it shouldn't matter whether it's 2.8 miles or 1 mile, right?
+2	185	1185.388	1191.884	Antonin Scalia	source:oyez,verified:api	I mean, if the land is non-navigable -- if the river at that point is non-navigable, it's non-navigable.
+2	186	1191.884	1193.023	Edwin S. Kneedler	source:oyez,verified:api	--For title purposes, yes.
+2	187	1193.023	1194.025	Antonin Scalia	source:oyez,verified:api	And that's what we're talking about, for title purposes.
+2	188	1194.025	1197.102	Antonin Scalia	source:oyez,verified:api	I don't see why there -- there ought to be any de minimis exception.
+2	189	1197.102	1205.677	Edwin S. Kneedler	source:oyez,verified:api	Well, I -- I think at some -- if you -- if you consider part of the -- part of what is going on here is who controls the riverbed.
+2	190	1205.677	1219.107	Edwin S. Kneedler	source:oyez,verified:api	I think it would be unworkable to have a passage, a portion of a river where you have 10-foot strips across the river that are riparian owner-owned, and the State owned everything else, or if you had stripes across a river.
+2	191	1219.107	1221.372	Edwin S. Kneedler	source:oyez,verified:api	So I think -- I think the test also--
+2	192	1221.372	1223.212	Anthony M. Kennedy	source:oyez,verified:api	But how would the boat get up there?
+2	193	1223.212	1226.808	Anthony M. Kennedy	source:oyez,verified:api	Does it just jump over the 10 feet?
+2	194	1226.808	1232.619	Edwin S. Kneedler	source:oyez,verified:api	--Well, in The Montello, the -- there is evidence that the boat was lifted.
+2	195	1232.619	1235.430	Edwin S. Kneedler	source:oyez,verified:api	The men got out of the boat and lifted the boat up over the falls.
+2	196	1235.430	1235.679	Anthony M. Kennedy	source:oyez,verified:api	Okay.
+2	197	1235.679	1236.662	Anthony M. Kennedy	source:oyez,verified:api	Then that would work.
+2	198	1236.662	1237.083	Edwin S. Kneedler	source:oyez,verified:api	Pardon me?
+2	199	1237.083	1237.692	Anthony M. Kennedy	source:oyez,verified:api	Then that would work.
+2	200	1237.692	1238.210	Edwin S. Kneedler	source:oyez,verified:api	In that situation.
+2	201	1238.210	1244.052	Edwin S. Kneedler	source:oyez,verified:api	But if you have a long stretch of -- of river where that was not practicable -- then you--
+2	202	1244.052	1247.004	Stephen G. Breyer	source:oyez,verified:api	You can't lift a boat over Niagara Falls.
+2	203	1247.004	1262.902	Stephen G. Breyer	source:oyez,verified:api	And I -- and I read somewhere that -- and I hope I am wrong, but I have a feeling I read somewhere that the land under Niagara Falls has long been considered to be navigable, and therefore, it's owned by the United States.
+2	204	1262.902	1263.978	Antonin Scalia	source:oyez,verified:api	The international boundary.
+2	205	1263.978	1264.540	Edwin S. Kneedler	source:oyez,verified:api	--It's owned by the State.
+2	206	1264.540	1265.682	Stephen G. Breyer	source:oyez,verified:api	It's owned by the State.
+2	207	1265.682	1267.823	Stephen G. Breyer	source:oyez,verified:api	I mean, the navigable -- I get mixed up in that.
+2	208	1267.823	1271.009	Edwin S. Kneedler	source:oyez,verified:api	The reply brief I think--
+2	209	1271.009	1273.914	Stephen G. Breyer	source:oyez,verified:api	The navigable ones are owned by the State.
+2	210	1273.914	1274.741	Stephen G. Breyer	source:oyez,verified:api	Okay.
+2	211	1274.741	1276.679	Stephen G. Breyer	source:oyez,verified:api	Everybody's thought the land under Niagara Falls is owned by the State.
+2	212	1276.679	1287.251	Stephen G. Breyer	source:oyez,verified:api	Oh dear, because that sort of wrecks our nice theory that all the steps, all the little bits of it that are non -- that are--
+2	213	1287.251	1291.139	Edwin S. Kneedler	source:oyez,verified:api	--That's not an -- I think that's not an extended strip in the way that -- the way that we're discussing here.
+2	214	1291.139	1291.498	Stephen G. Breyer	source:oyez,verified:api	--Okay.
+2	215	1291.498	1293.374	Stephen G. Breyer	source:oyez,verified:api	Now we have to define what's an extended strip.
+2	216	1293.374	1294.091	Edwin S. Kneedler	source:oyez,verified:api	Well, if I--
+2	217	1294.091	1297.714	Antonin Scalia	source:oyez,verified:api	I thought it's also an international boundary--
+2	218	1297.714	1297.979	Edwin S. Kneedler	source:oyez,verified:api	--Yes.
+2	219	1297.979	1299.122	Antonin Scalia	source:oyez,verified:api	--As to which there is a different rule.
+2	220	1299.122	1299.917	Edwin S. Kneedler	source:oyez,verified:api	Yes, and the--
+2	221	1299.917	1300.339	Stephen G. Breyer	source:oyez,verified:api	Okay.
+2	222	1300.339	1309.006	Stephen G. Breyer	source:oyez,verified:api	So how much are we wrecking if we just say, look, the bit that's non-navigable is different from the bit that's navigable, period?
+2	223	1309.006	1312.442	Stephen G. Breyer	source:oyez,verified:api	Doesn't matter if it's 5 -- 5 feet of land or not.
+2	224	1312.442	1313.818	Stephen G. Breyer	source:oyez,verified:api	What -- what are we wrecking?
+2	225	1313.818	1325.388	Edwin S. Kneedler	source:oyez,verified:api	--I think it does matter whether it's 5 feet, because the -- because an important point here is that, who can make sensible use or control the relevant stretch of the river.
+2	226	1325.388	1328.921	Edwin S. Kneedler	source:oyez,verified:api	If it's 5 feet or 10 feet and you had strips that stayed private--
+2	227	1328.921	1332.263	Stephen G. Breyer	source:oyez,verified:api	A quick question that you could probably answer just by saying: We decided not to.
+2	228	1332.263	1333.807	Stephen G. Breyer	source:oyez,verified:api	But I was somewhat curious.
+2	229	1333.807	1337.527	Stephen G. Breyer	source:oyez,verified:api	It's really the United States v. Montana in this, who owns the land, and it's a question of Federal law.
+2	230	1337.527	1340.511	Stephen G. Breyer	source:oyez,verified:api	It's going to be highly factual no matter what this happens.
+2	231	1340.511	1345.038	Stephen G. Breyer	source:oyez,verified:api	Made for this Court's original jurisdiction.
+2	232	1345.038	1352.864	Stephen G. Breyer	source:oyez,verified:api	And -- and normally in original jurisdiction, we appoint a master, it's worked out, and we review the master's report.
+2	233	1352.864	1360.531	Stephen G. Breyer	source:oyez,verified:api	We can't do that here because it's a case about -- why didn't you go into, or why couldn't you go into, a quiet title action at the lower court?
+2	234	1360.531	1365.670	Edwin S. Kneedler	source:oyez,verified:api	--We could, and we have not given consideration to that, but that might be -- that might be a possibility.
+2	235	1365.670	1369.905	Edwin S. Kneedler	source:oyez,verified:api	The United States is not a party to this case and couldn't be -- and couldn't be bound by the judgment.
+2	236	1369.905	1382.088	Ruth Bader Ginsburg	source:oyez,verified:api	Could it have intervened somehow, because the -- the United States has come here rather reluctantly, because you recommended against granting cert in this case.
+2	237	1382.088	1389.973	Ruth Bader Ginsburg	source:oyez,verified:api	When it was in the Montana court and it was a question of what is the Federal law, the Federal law is going to control.
+2	238	1389.973	1391.473	Ruth Bader Ginsburg	source:oyez,verified:api	Everybody agrees with that.
+2	239	1391.473	1399.140	Ruth Bader Ginsburg	source:oyez,verified:api	Could the United States have come into the proceedings in the Montana State court?
+3	240	1399.140	1405.074	Edwin S. Kneedler	source:oyez,verified:api	Ordinarily, the United States would not intervene in a State court proceeding, or if it did it would remove the case to Federal court.
+3	241	1405.074	1410.636	Edwin S. Kneedler	source:oyez,verified:api	So that -- that would be -- that would be a -- an additional consideration as to whether to get into this suit.
+3	242	1410.636	1415.962	Edwin S. Kneedler	source:oyez,verified:api	The United States would -- would typically bring its own quiet title action in -- in Federal court.
+3	243	1415.962	1418.774	John G. Roberts, Jr.	source:oyez,verified:api	Your -- your answer a moment ago gives me pause.
+3	244	1418.774	1425.115	John G. Roberts, Jr.	source:oyez,verified:api	You -- you said the United States would not be bound by this litigation, but could bring its own quiet title action.
+3	245	1425.115	1426.741	Edwin S. Kneedler	source:oyez,verified:api	Well, we would be bound by this Court's decision, obviously.
+3	246	1426.741	1430.269	Edwin S. Kneedler	source:oyez,verified:api	But I was just speaking of the law of -- the law of judgments.
+3	247	1430.269	1441.687	Edwin S. Kneedler	source:oyez,verified:api	And if this Court remands back to the trial court with general directions but doesn't adjudicate particular stretches definitively, then, you know, I think we -- that's the situation that we would -- that we would be in.
+3	248	1441.687	1446.655	Ruth Bader Ginsburg	source:oyez,verified:api	And if we -- if it were remanded, the United States would still stay out of it?
+3	249	1446.655	1450.200	Edwin S. Kneedler	source:oyez,verified:api	I assume so.
+3	250	1450.200	1452.559	Edwin S. Kneedler	source:oyez,verified:api	Obviously, that would be a -- that would be a further consideration.
+3	251	1452.559	1465.396	Sonia Sotomayor	source:oyez,verified:api	"--Am I to take that ""de minimis"" to you means small enough so that they get the boat physically over the portage, Whether they carry it, drag it?"
+3	252	1465.396	1465.740	Edwin S. Kneedler	source:oyez,verified:api	No.
+3	253	1465.740	1467.334	Edwin S. Kneedler	source:oyez,verified:api	I think if they -- I think if they can take it through the river, it's not an interruption at all.
+3	254	1467.334	1481.825	Edwin S. Kneedler	source:oyez,verified:api	But if -- if you have -- if you have something that can't be transversed by a boat at all and it's long enough that it could sensibly be thought of as a -- as a separate parcel adhering to the -- to the riparian land -- that would be--
+3	255	1481.825	1485.639	Sonia Sotomayor	source:oyez,verified:api	Go back to carrying their boat on their shoulders, which apparently in The Montello they did.
+3	256	1485.639	1486.512	Sonia Sotomayor	source:oyez,verified:api	What's the answer--
+3	257	1486.512	1487.982	Edwin S. Kneedler	source:oyez,verified:api	--They didn't carry the boat out of the river.
+3	258	1487.982	1493.305	Edwin S. Kneedler	source:oyez,verified:api	These were Durham boats that were 70 feet long and -- and weighed quite a bit.
+3	259	1493.305	1496.492	Edwin S. Kneedler	source:oyez,verified:api	Now, maybe there were small canoes; that could have been done.
+3	260	1496.492	1498.040	Edwin S. Kneedler	source:oyez,verified:api	I -- I think a small portage.
+3	261	1498.040	1499.990	Edwin S. Kneedler	source:oyez,verified:api	Again, I don't think it's the length of the portage.
+3	262	1499.990	1505.694	Edwin S. Kneedler	source:oyez,verified:api	I think it's the interruption of the -- of the navigable portion of the river that -- that is -- that is relevant.
+3	263	1505.694	1512.439	Edwin S. Kneedler	source:oyez,verified:api	If it's large enough to constitute a -- a sensible administrable parcel, that that should be enough.
+3	264	1512.439	1520.356	Edwin S. Kneedler	source:oyez,verified:api	I did want to take one moment to discuss the Madison River because there, as Mr. Clement discussed, the considerations are somewhat different.
+3	265	1520.356	1530.386	Edwin S. Kneedler	source:oyez,verified:api	First of all, the Court made a similar mistake there by discussing the river as a whole, and the log float in the middle stretch of the river, but not focusing on the relevant stretches where the dams are located.
+3	266	1530.386	1559.452	Edwin S. Kneedler	source:oyez,verified:api	"But it also put a lot of emphasis on current recreational use by drift boats and what-not without proper foundation to -- to determine whether that was relevant for title purposes at Statehood, because the relevant question is whether whatever boats are used now are ones that would have been used as custom -- this is the language from The Daniel Ball -- as ""the customary modes of travel"" -- ""travel and transportation at the"" -- ""at the time of statehood""."
+3	267	1559.452	1560.622	John G. Roberts, Jr.	source:oyez,verified:api	It's kind of odd.
+3	268	1560.622	1563.090	John G. Roberts, Jr.	source:oyez,verified:api	Maybe this is -- maybe this is Justice Alito's earlier question.
+3	269	1563.090	1567.556	John G. Roberts, Jr.	source:oyez,verified:api	It's kind of odd that the more navigable the river is, the more claim the State has.
+3	270	1567.556	1572.879	John G. Roberts, Jr.	source:oyez,verified:api	The less navigable -- you're talking about sportsboats and drift fishing -- then it's Federal.
+3	271	1572.879	1576.802	Edwin S. Kneedler	source:oyez,verified:api	Well, that's -- that's a product of the -- of the equal footing doctrine.
+3	272	1576.802	1580.128	Edwin S. Kneedler	source:oyez,verified:api	And the Court has long said that the State gets the beds of navigable waters.
+3	273	1580.128	1581.283	John G. Roberts, Jr.	source:oyez,verified:api	Thank you, counsel.
+3	274	1581.283	1584.719	John G. Roberts, Jr.	source:oyez,verified:api	Mr. Garre.
+3	275	1584.719	1587.655	Gregory G. Garre	source:oyez,verified:api	Thank you, Mr. Chief Justice, and may it please the Court:
+3	276	1587.655	1591.702	Gregory G. Garre	source:oyez,verified:api	This case is about who owns the riverbeds underlying the rivers at issue.
+3	277	1591.702	1593.980	Gregory G. Garre	source:oyez,verified:api	It's not about flood lanes; it's about the riverbeds.
+3	278	1593.980	1600.479	Gregory G. Garre	source:oyez,verified:api	And under this Court's precedents, it's settled that title to the riverbeds is conveyed to the State under the Constitution if they are navigable.
+3	279	1600.479	1605.962	Gregory G. Garre	source:oyez,verified:api	It's been understood in Montana for more than a century that these rivers are navigable.
+3	280	1605.962	1608.177	Gregory G. Garre	source:oyez,verified:api	The rivers were meandered as navigable.
+3	281	1608.177	1617.755	Gregory G. Garre	source:oyez,verified:api	PPL's deeds -- and this is at page 172 of the appendix to the opposition brief -- specifically exclude the riverbeds.
+3	282	1617.755	1625.889	Gregory G. Garre	source:oyez,verified:api	The test for navigability that this Court has applied for 140 years, going back to The Montello and The Daniel Ball, is whether the river served as a continuous highway of commerce.
+3	283	1625.889	1636.230	Gregory G. Garre	source:oyez,verified:api	"In The Montello, the Court recognized the fact that few of the nation's great rivers did not include some, quote, ""serious interruptions to uninterrupted navigation""."
+3	284	1636.230	1643.710	Gregory G. Garre	source:oyez,verified:api	And the -- and the Court's answer to that geographic fact was not to say then let's carve out the interruptions and say those aren't navigable.
+3	285	1643.710	1650.335	Gregory G. Garre	source:oyez,verified:api	The Court's answer was to say unbroken navigation is not required to establish navigability.
+3	286	1650.335	1664.970	Sonia Sotomayor	source:oyez,verified:api	Under your theory, if there's a fall like this of 17 miles, and a train is 50 miles away and traverses that 17 miles, that portage is good enough.
+3	287	1664.970	1673.402	Gregory G. Garre	source:oyez,verified:api	You have to show that the commerce traveled along the river under the customary modes of trade and travel.
+3	288	1673.402	1683.258	Sonia Sotomayor	source:oyez,verified:api	Outside of your fur traders and your gold miners, has that happened in any other situation -- your alleged gold miners and fur traders?
+3	289	1683.258	1689.084	Sonia Sotomayor	source:oyez,verified:api	Has that happened on -- on the -- in the Great Falls?
+3	290	1689.084	1702.140	Gregory G. Garre	source:oyez,verified:api	If you take the Great Falls, the history of portage from 1864 to 1868 was lively commerce of millions of dollars, in today's value billions of dollars of gold, from Helena to Fort Benton back east.
+3	291	1702.140	1705.623	Gregory G. Garre	source:oyez,verified:api	This is covered in detail by the Solicitor General's brief that we've appended here.
+3	292	1705.623	1726.145	Sonia Sotomayor	source:oyez,verified:api	Could you -- could you do me a favor and you tell me again -- I am having real trouble with the competing evidence in this case with respect to every one of the three areas in dispute and I have some serious questions about whether the court properly granted summary judgment.
+3	293	1726.145	1735.987	Sonia Sotomayor	source:oyez,verified:api	Your brief seems to suggest that I can't do -- we can't do anything about that because it wasn't a part of the question presented.
+3	294	1735.987	1737.423	Gregory G. Garre	source:oyez,verified:api	I--
+3	295	1737.423	1745.608	Sonia Sotomayor	source:oyez,verified:api	Your adversary says that it's a fair question if we determine there is any legal approach -- error in legal approach of the court below.
+3	296	1745.608	1751.621	Sonia Sotomayor	source:oyez,verified:api	I'm assuming that also means on their weighing of evidentiary matters.
+3	297	1751.621	1755.291	Sonia Sotomayor	source:oyez,verified:api	So why shouldn't we address the summary judgment issue?
+3	298	1755.291	1764.474	Gregory G. Garre	source:oyez,verified:api	--The question presented is whether the Montana Supreme Court or whether a court -- a court -- what the constitutional test would be for a court in this situation.
+3	299	1764.474	1767.098	Gregory G. Garre	source:oyez,verified:api	It's not even limited to the Montana Supreme Court here.
+3	300	1767.098	1768.237	Gregory G. Garre	source:oyez,verified:api	It presents a legal question.
+3	301	1768.237	1777.299	Gregory G. Garre	source:oyez,verified:api	With respect to summary judgment, the problem for PPL is not that it didn't present enough paper; the problem is it litigated the case under a wrong legal theory.
+3	302	1777.299	1785.184	Gregory G. Garre	source:oyez,verified:api	It litigated the case that the -- that the Missouri, for example, was not navigable because you couldn't take a boat down the falls.
+3	303	1785.184	1792.559	Gregory G. Garre	source:oyez,verified:api	This Court's precedents for more than 140 years asked the question of whether the river served as a continuous highway of commerce.
+3	304	1792.559	1794.618	Gregory G. Garre	source:oyez,verified:api	We presented evidence, summarized--
+3	305	1794.618	1794.855	Antonin Scalia	source:oyez,verified:api	For what purpose?
+3	306	1794.855	1807.130	Antonin Scalia	source:oyez,verified:api	Were they -- were they -- were we answering the question for the same purpose, or were we asking it for purposes of whether Federal regulation could extend to the whole river?
+3	307	1807.130	1821.075	Antonin Scalia	source:oyez,verified:api	For that purpose, it's easy to say if the whole river is -- you know -- used for commerce, the Federal Government can regulate even those portions of the river that are non-navigable, that -- but that have to be portaged around.
+3	308	1821.075	1828.153	Antonin Scalia	source:oyez,verified:api	But that's a different question from who -- who owns title to the -- to the bed under the -- the portions that have to be portaged.
+3	309	1828.153	1833.402	Gregory G. Garre	source:oyez,verified:api	--Your Honor, PPL recognizes that The Daniel Ball supplies the test for navigability for title.
+3	310	1833.402	1838.428	Gregory G. Garre	source:oyez,verified:api	This Court recognized that in the Utah case, the Vanguard title case that they hold out.
+3	311	1838.428	1842.912	Gregory G. Garre	source:oyez,verified:api	So the only question is did The Montello apply The Daniel Ball test or did it apply something else?
+3	312	1842.912	1847.989	Gregory G. Garre	source:oyez,verified:api	And the first paragraph of the Court's decision in The Montello said it applied The Daniel Ball test.
+3	313	1847.989	1857.734	Gregory G. Garre	source:oyez,verified:api	Courts -- this Court and lower courts for more than a century have understood The Daniel Ball and The Montello to supply the test for navigability of title.
+3	314	1857.734	1868.653	Gregory G. Garre	source:oyez,verified:api	What they are asking this Court to do is upend more than 140 years of precedent and the amicus brief filed by the States in this case gives -- gives the Court a sense of the disruption that this would cause.
+3	315	1868.653	1875.649	Samuel A. Alito, Jr.	source:oyez,verified:api	What -- what do you understand to be the reason for the rule that the States own the navigable rivers?
+3	316	1875.649	1889.251	Gregory G. Garre	source:oyez,verified:api	The reason for the rule was the public trust doctrine which -- which sought to keep these rivers free for the public to use for navigation, for fishing and for other uses; and this court's precedents--
+3	317	1889.251	1894.592	Samuel A. Alito, Jr.	source:oyez,verified:api	What do fishing and navigation have to do -- for -- what does fishing have to do with navigability?
+3	318	1894.592	1898.577	Gregory G. Garre	source:oyez,verified:api	--Well, it gets back to the -- the public trust doctrine, Your Honor.
+3	319	1898.577	1904.092	Gregory G. Garre	source:oyez,verified:api	Fishing doesn't have -- fishing is a purpose of the public trust doctrine, which is why it was understood--
+4	320	1904.092	1905.106	Samuel A. Alito, Jr.	source:oyez,verified:api	Let me put it this way.
+4	321	1905.106	1910.132	Samuel A. Alito, Jr.	source:oyez,verified:api	Why -- why should -- why does the State own a navigable river but not a non-navigable river?
+4	322	1910.132	1924.674	Gregory G. Garre	source:oyez,verified:api	--Because the navigable rivers were the arteries of commerce in this country, and at the time of the founding it was understood -- and this gets to the core issue of federalism in this case -- that the States ought to be the ones that control the navigable rivers, not the Federal Government.
+4	323	1924.674	1931.876	Samuel A. Alito, Jr.	source:oyez,verified:api	Yes, and if that's the reason -- if that's the reason for the rule, than what is the justification for State ownership of a portion of the river that is not navigable?
+4	324	1931.876	1937.592	Gregory G. Garre	source:oyez,verified:api	I think this gets back to the question of whether you can just chop up the rivers into navigable and nonnavigable bits.
+4	325	1937.592	1944.292	Gregory G. Garre	source:oyez,verified:api	And we are talking -- this Court, Justice O'Connor observed in her dissent in the Phillips Petroleum case that navigability wasn't decided inch by inch.
+4	326	1944.292	1957.757	Gregory G. Garre	source:oyez,verified:api	What the other side is asking you to adopt here is a test of navigability that's at least by mile by mile, if not acre by acre, which is completely different than this Court has ever assessed navigability.
+4	327	1957.757	1984.387	Samuel A. Alito, Jr.	source:oyez,verified:api	The rule that you are arguing for might be an established rule that we should follow, but as a matter of theory I don't understand what the justification is for State ownership of a non-navigable portion of the river if the reason for the underlying rule is so that people will not put up obstructions on the river so that they -- it can be maintained as an -- as an avenue of commerce.
+4	328	1984.387	1999.316	Samuel A. Alito, Jr.	source:oyez,verified:api	I can see that you -- why the State would own that, because otherwise riparian owners could put up fences and obstructions and charge tolls and -- and that sort of thing; but if it's not navigable I don't see what it has to do with -- with commerce or transportation.
+4	329	1999.316	2008.172	Gregory G. Garre	source:oyez,verified:api	What -- what the Framers were concerned about and this is also reflected in the Northwest Ordinance 2, was ensuring that the navigable waters, the major arteries of commerce in this country, remained open.
+4	330	2008.172	2015.059	Gregory G. Garre	source:oyez,verified:api	And so they -- they applied a much more -- much broader conception of navigability than as--
+4	331	2015.059	2019.477	Antonin Scalia	source:oyez,verified:api	But -- but they are closed where they are -- they're impassable for ships anyway.
+4	332	2019.477	2020.650	Antonin Scalia	source:oyez,verified:api	They're closed.
+4	333	2020.650	2022.101	Antonin Scalia	source:oyez,verified:api	What do you mean, remain open?
+4	334	2022.101	2022.931	Gregory G. Garre	source:oyez,verified:api	--And so that was the argument--
+4	335	2022.931	2023.087	Antonin Scalia	source:oyez,verified:api	You've -- you've got falls.
+4	336	2023.087	2024.553	Antonin Scalia	source:oyez,verified:api	You've got waterfalls, you got rapids.
+4	337	2024.553	2029.630	Antonin Scalia	source:oyez,verified:api	What does it mean to be sure that that river remains open to commerce?
+4	338	2029.630	2033.363	Antonin Scalia	source:oyez,verified:api	Commerce is impossible over it.
+4	339	2033.363	2038.330	Gregory G. Garre	source:oyez,verified:api	--And so that was the argument that the district court adopted in The Montello case, and this Court emphatically rejected it.
+4	340	2038.330	2040.643	Gregory G. Garre	source:oyez,verified:api	And by the way, the portage in The Montello case was 5 miles long.
+4	341	2040.643	2045.670	Gregory G. Garre	source:oyez,verified:api	That's reflected in the -- the record in that case before this Court.
+4	342	2045.670	2052.541	Ruth Bader Ginsburg	source:oyez,verified:api	Mr. Garre, what is -- you say that you are not taking just -- you look at the whole river as a whole.
+4	343	2052.541	2055.072	Ruth Bader Ginsburg	source:oyez,verified:api	You are saying no, that isn't the position?
+4	344	2055.072	2055.899	Gregory G. Garre	source:oyez,verified:api	No, it's not.
+4	345	2055.899	2057.478	Ruth Bader Ginsburg	source:oyez,verified:api	And that it's also not inch by inch.
+4	346	2057.478	2062.973	Ruth Bader Ginsburg	source:oyez,verified:api	So what -- when is segmentation appropriate?
+4	347	2062.973	2066.349	Gregory G. Garre	source:oyez,verified:api	I think the relevant stretch or segmentation is really a litigation term.
+4	348	2066.349	2070.080	Gregory G. Garre	source:oyez,verified:api	Our position is this Court's test: continuous highway of commerce.
+4	349	2070.080	2076.000	Gregory G. Garre	source:oyez,verified:api	You would take the part of the river at issue in a case, take that part and look -- ask the question, was that part of a continuous highway of commerce or not?
+4	350	2076.000	2092.901	Gregory G. Garre	source:oyez,verified:api	So if you found yourself in Cataract Canyon in the Utah case, you would ask yourself that question, and you would say, no, this was not part of a continuous highway of commerce because no one argued either that the canyon was portaged or that goods was traveling down the Colorado River through the canyon and out into Arizona.
+4	351	2092.901	2111.345	Gregory G. Garre	source:oyez,verified:api	If you ask yourself that question in this case along the Great Falls, you would say yes, because the evidence was unrebutted that millions of dollars of gold was traveled up from Helena to Fort Benton along the -- the Missouri River with the aid of a portage, and that that was unquestionably a highway of commerce.
+4	352	2111.345	2115.904	Gregory G. Garre	source:oyez,verified:api	What they are asking this Court to do is chop rivers up into navigable and nonnavigable pieces.
+4	353	2115.904	2117.686	Gregory G. Garre	source:oyez,verified:api	How would that impact the public trust doctrine?
+4	354	2117.686	2119.920	Gregory G. Garre	source:oyez,verified:api	The -- the brief filed by the National--
+4	355	2119.920	2130.305	Ruth Bader Ginsburg	source:oyez,verified:api	So you just -- so you are disagreeing with the United States, which has given us its view of what the Federal law is.
+4	356	2130.305	2132.337	Ruth Bader Ginsburg	source:oyez,verified:api	It doesn't coincide with Montana's.
+4	357	2132.337	2136.615	Gregory G. Garre	source:oyez,verified:api	--The United States has sided completely with Montana.
+4	358	2136.615	2141.474	Gregory G. Garre	source:oyez,verified:api	The answer it gives for what is a short interruption in its brief is an interruption that doesn't warrant separate consideration.
+4	359	2141.474	2144.861	Gregory G. Garre	source:oyez,verified:api	That's on page 17 of its brief.
+4	360	2144.861	2146.753	Gregory G. Garre	source:oyez,verified:api	That's the epitome of a circular test, and--
+4	361	2146.753	2149.249	Stephen G. Breyer	source:oyez,verified:api	Just out of -- I mean, to waste your time for a second.
+4	362	2149.249	2155.247	Stephen G. Breyer	source:oyez,verified:api	Why do the feds own the land underneath the -- and why -- under the nonnavigable part?
+4	363	2155.247	2160.199	Stephen G. Breyer	source:oyez,verified:api	Why -- why do the feds own -- own the land under -- under nonnavigable streams?
+4	364	2160.199	2163.276	Gregory G. Garre	source:oyez,verified:api	--I think if you -- if you applied the proper test here you would conclude that the river--
+4	365	2163.276	2170.447	Stephen G. Breyer	source:oyez,verified:api	I mean, a little creek somewhere which you'd think, gee, those belong to the State, but it turns out the feds own the land underneath the little creek; is that right?
+4	366	2170.447	2173.005	Gregory G. Garre	source:oyez,verified:api	--I think what -- the nonnavigable parts--
+4	367	2173.005	2173.504	Stephen G. Breyer	source:oyez,verified:api	Yes.
+4	368	2173.504	2175.130	Gregory G. Garre	source:oyez,verified:api	--didn't transfer under the equal footing doctrine.
+4	369	2175.130	2179.225	Gregory G. Garre	source:oyez,verified:api	Oftentimes those were subject to separate conveyances, so they might come into private property.
+4	370	2179.225	2179.397	Gregory G. Garre	source:oyez,verified:api	I think--
+4	371	2179.397	2179.880	Stephen G. Breyer	source:oyez,verified:api	I see.
+4	372	2179.880	2188.080	Gregory G. Garre	source:oyez,verified:api	--And what was--
+4	373	2188.080	2188.594	Stephen G. Breyer	source:oyez,verified:api	Is that right?
+4	374	2188.594	2191.734	Gregory G. Garre	source:oyez,verified:api	--Yes, I think that's right.
+4	375	2191.734	2192.030	Stephen G. Breyer	source:oyez,verified:api	Okay.
+4	376	2192.030	2198.075	Gregory G. Garre	source:oyez,verified:api	And what was critically important to the -- to the Framers was that the States would have control over the navigable waterways.
+4	377	2198.075	2201.557	Gregory G. Garre	source:oyez,verified:api	This Court has described that as an essential attribute of State sovereignty.
+4	378	2201.557	2205.102	John G. Roberts, Jr.	source:oyez,verified:api	But we are talking about the land at the bottom of the -- the river.
+4	379	2205.102	2210.367	John G. Roberts, Jr.	source:oyez,verified:api	What is it that the State can't do on the navigable waterways that it wants to do?
+4	380	2210.367	2226.078	Gregory G. Garre	source:oyez,verified:api	Well, owner -- ownership -- along with ownership goes the right to control whether facilities can be built on them, bridges or pipelines; it goes -- along with that goes the rights to mineral leases--
+4	381	2226.078	2235.452	Anthony M. Kennedy	source:oyez,verified:api	But as the Chief Justice is indicating, I think, this concerns who owns the bed; and that is different from navigable waters of the United States.
+4	382	2235.452	2248.757	Anthony M. Kennedy	source:oyez,verified:api	And -- and some of the answers you gave to Justice Alito about the purposes and the reasons for navigable waters of the United States are quite different, really, than for the considerations we have about riparian ownership.
+4	383	2248.757	2265.204	Anthony M. Kennedy	source:oyez,verified:api	The navigable waters of the United States can be controlled by the United States for many purposes, but that is concurrent with a separate document -- doctrine for underlying ownership of the bed.
+4	384	2265.204	2266.016	Gregory G. Garre	source:oyez,verified:api	--Right.
+4	385	2266.016	2275.495	Anthony M. Kennedy	source:oyez,verified:api	And it's not clear to me that the test for navigable waters is the same in each case as to the whole river.
+4	386	2275.495	2281.805	Gregory G. Garre	source:oyez,verified:api	Well, I think that the test that we are articulating is The Daniel Ball and Montello Test -- continuous highway test.
+4	387	2281.805	2292.444	Gregory G. Garre	source:oyez,verified:api	I think with respect to the riverbeds, it's always been understood that with controlled riverbeds, along navigable waters, States have a right to control fishing, navigation and other aspects.
+4	388	2292.444	2296.020	Stephen G. Breyer	source:oyez,verified:api	But, now, Montello was a case -- to follow up this same question.
+4	389	2296.020	2299.300	Stephen G. Breyer	source:oyez,verified:api	Montello, I take it was not a title case.
+4	390	2299.300	2302.470	Stephen G. Breyer	source:oyez,verified:api	Montello was a regulation of the stream case.
+4	391	2302.470	2307.313	Stephen G. Breyer	source:oyez,verified:api	So I can understand perfectly well why that language in Montello applies for the reason Justice Kennedy just said.
+4	392	2307.313	2316.137	Stephen G. Breyer	source:oyez,verified:api	Now, I grant you that in later title cases this Court has taken the same words and written them.
+4	393	2316.137	2323.258	Stephen G. Breyer	source:oyez,verified:api	But is there an instance in the later title cases where that language has played a controlling role?
+4	394	2323.258	2324.537	Gregory G. Garre	source:oyez,verified:api	Well, the--
+4	395	2324.537	2345.840	Stephen G. Breyer	source:oyez,verified:api	What case should I look at to see -- was really meant that this -- to start with where Justice Scalia was and say what Justice Kennedy just said and then thinking well, I'm thinking well Montello is a case that involved a different purpose and now the later cases, although they quoted the language, it didn't have a role.
+4	396	2345.840	2346.936	Stephen G. Breyer	source:oyez,verified:api	Am I right or not?
+4	397	2346.936	2355.432	Gregory G. Garre	source:oyez,verified:api	--This case has recognized always that The Daniel Ball and the Montello is the test for navigability for title as well as admiralty.
+4	398	2355.432	2359.554	Gregory G. Garre	source:oyez,verified:api	It has never drawn the kind of distinction that PPL and the United States has asked be drawn here.
+4	399	2359.554	2360.926	Antonin Scalia	source:oyez,verified:api	The question is has it held that.
+5	400	2360.926	2365.630	Antonin Scalia	source:oyez,verified:api	Do you have a case where it would have made a difference?
+5	401	2365.630	2368.878	Gregory G. Garre	source:oyez,verified:api	Not of this Court.
+5	402	2368.878	2369.689	Gregory G. Garre	source:oyez,verified:api	The lower courts--
+5	403	2369.689	2369.814	Antonin Scalia	source:oyez,verified:api	Okay.
+5	404	2369.814	2374.825	Gregory G. Garre	source:oyez,verified:api	--have relied upon The Daniel Ball and Montello in plenty of circumstances adjudicating a title.
+5	405	2374.825	2380.105	Gregory G. Garre	source:oyez,verified:api	I think the Court has to think about what the world would look like if the Court adopted PPL United States--
+5	406	2380.105	2395.664	Antonin Scalia	source:oyez,verified:api	If this is such an understood and traditional rule, why didn't Montana make its rights known earlier when these private owners bought the land?
+5	407	2395.664	2404.301	Antonin Scalia	source:oyez,verified:api	Indeed the State gave them condemnation power to flood adjacent lands so that they could build their dams.
+5	408	2404.301	2411.375	Antonin Scalia	source:oyez,verified:api	And you say while all this was going on, well of course everybody knew that Montana owned this land.
+5	409	2411.375	2422.041	Antonin Scalia	source:oyez,verified:api	Now they come back what, 100 years later and they not only want to get the land back, they want to tax them for their use of it over all these 100 years?
+5	410	2422.041	2422.650	Antonin Scalia	source:oyez,verified:api	That's extraordinary.
+5	411	2422.650	2426.135	Gregory G. Garre	source:oyez,verified:api	--PPL's deeds, Your Honor, PPL's deeds exclusively exclude the riverbeds at issue in this case.
+5	412	2426.135	2434.802	Gregory G. Garre	source:oyez,verified:api	So PPL can have no claim to those lands, and in fact in its supplemental brief says that the United States owns the lands.
+5	413	2434.802	2439.724	Gregory G. Garre	source:oyez,verified:api	We are not talking about the flood lands here, we are talking about between the low water marks.
+5	414	2439.724	2446.860	Gregory G. Garre	source:oyez,verified:api	Those lands were surveyed and meandered at statehood to show that they did not convey to private parties.
+5	415	2446.860	2451.607	Gregory G. Garre	source:oyez,verified:api	Montana courts have recognized for more than a century that these waters are not navigable.
+5	416	2451.607	2452.905	Gregory G. Garre	source:oyez,verified:api	Everybody understood that they were -- navigable.
+5	417	2452.905	2466.226	Gregory G. Garre	source:oyez,verified:api	The reason why this issue only arises now is because of a 1999 decision of the Montana Supreme Court that said that the State, made clear that the State had a fiduciary obligation to seek compensation for the use of the riverbeds.
+5	418	2466.226	2472.598	Gregory G. Garre	source:oyez,verified:api	So that then teed up the question of whether the State could actually charge rent for the riverbeds.
+5	419	2472.598	2473.705	Gregory G. Garre	source:oyez,verified:api	The State in this case--
+5	420	2473.705	2475.457	Elena Kagan	source:oyez,verified:api	And what about other land owners on the riverbeds.
+5	421	2475.457	2478.034	Elena Kagan	source:oyez,verified:api	If Montana wins this case will they be paying rent as well?
+5	422	2478.034	2482.452	Gregory G. Garre	source:oyez,verified:api	--They are not using the riverbeds, Your Honor.
+5	423	2482.452	2486.889	Gregory G. Garre	source:oyez,verified:api	The reason why the facilities here are using the riverbeds is because they actually sit on it.
+5	424	2486.889	2499.227	Gregory G. Garre	source:oyez,verified:api	There are other instances where private land owners have easements and leases, like mineral leases with the State, under the -- because of the accepted understanding that the State does own those lands.
+5	425	2499.227	2500.943	Gregory G. Garre	source:oyez,verified:api	And this is not at all unusual.
+5	426	2500.943	2510.505	Gregory G. Garre	source:oyez,verified:api	If you look at the State's brief, Washington and Oregon have thousands of these types of permits because it is established that if the water is navigable than the State owns the riverbeds and there are consequences that flow over this.
+5	427	2510.505	2514.440	Gregory G. Garre	source:oyez,verified:api	But this really isn't a fight between the State and the private land owners.
+5	428	2514.440	2518.718	Gregory G. Garre	source:oyez,verified:api	It's a fight between the State and the United States.
+5	429	2518.718	2519.408	Gregory G. Garre	source:oyez,verified:api	Because if this case--
+5	430	2519.408	2520.281	Elena Kagan	source:oyez,verified:api	I guess if I could understand then.
+5	431	2520.281	2522.641	Elena Kagan	source:oyez,verified:api	You think that this is a one of a kind landowner.
+5	432	2522.641	2525.827	Elena Kagan	source:oyez,verified:api	There are no other land owners in Montana who are in this situation of PPL?
+5	433	2525.827	2542.583	Gregory G. Garre	source:oyez,verified:api	--No, I think there are other land owners who have asserted -- who want rights to get minerals along rivers or have peers or bridges, and in those situations they get permits from the State to use it.
+5	434	2542.583	2558.781	Gregory G. Garre	source:oyez,verified:api	But I think what's going to happen is if this Court declares that every mile or so that is in interruption is nonnavigable, then title is going to transfer to the United States because under this Court's precedent in Utah, the Court held that if waters were not navigable the United States would have--
+5	435	2558.781	2560.704	Sonia Sotomayor	source:oyez,verified:api	Is there a mile stretch anywhere on this river.
+5	436	2560.704	2561.827	Gregory G. Garre	source:oyez,verified:api	--A mile stretch?
+5	437	2561.827	2562.357	Sonia Sotomayor	source:oyez,verified:api	Yes.
+5	438	2562.357	2566.748	Sonia Sotomayor	source:oyez,verified:api	Is there a mile stretch in which the boats stop?
+5	439	2566.748	2568.698	Sonia Sotomayor	source:oyez,verified:api	Some water in the middle--
+5	440	2568.698	2573.397	Gregory G. Garre	source:oyez,verified:api	The two areas at issue here is the Great Falls stretch--
+5	441	2573.397	2574.349	Sonia Sotomayor	source:oyez,verified:api	--I know the two at issue.
+5	442	2574.349	2585.502	Sonia Sotomayor	source:oyez,verified:api	But you're saying if we rule the way we do, we are going to slice it up and so does the Attorney -- the Solicitor General's office say, we are going to slice it up half mile or half acre by half acre.
+5	443	2585.502	2586.503	Sonia Sotomayor	source:oyez,verified:api	I am not sure how that happens.
+5	444	2586.503	2590.515	Sonia Sotomayor	source:oyez,verified:api	I go back to Justice Kennedy's question, which is does a boat stop mid stream?
+5	445	2590.515	2597.995	Gregory G. Garre	source:oyez,verified:api	--So the test would be any non-de minimis interruption, that's the one that PPL and the United States are urging here.
+5	446	2597.995	2600.916	Gregory G. Garre	source:oyez,verified:api	There are thousands of dams in the country.
+5	447	2600.916	2608.103	Gregory G. Garre	source:oyez,verified:api	There is Niagara Falls which for more than a century its been understood that the State owns it, not because its an international boundary, that's a line plucked out of the decision.
+5	448	2608.103	2610.115	Gregory G. Garre	source:oyez,verified:api	Read the decision and--
+5	449	2610.115	2610.599	Stephen G. Breyer	source:oyez,verified:api	All right.
+5	450	2610.599	2612.210	Stephen G. Breyer	source:oyez,verified:api	So how do I find that out.
+5	451	2612.210	2616.959	Stephen G. Breyer	source:oyez,verified:api	If I start with a practical premise of not wanting to interrupt expectations.
+5	452	2616.959	2630.841	Stephen G. Breyer	source:oyez,verified:api	I also believe that it's the most common thing in the world for electric power companies to put hydroelectric facilities where there are water falls or rapids and that's true all over the country.
+5	453	2630.841	2640.574	Stephen G. Breyer	source:oyez,verified:api	So what's the status quo with the -- you know, somebody could count up how many hydroelectric plants there are on water falls and what's the general view?
+5	454	2640.574	2650.335	Stephen G. Breyer	source:oyez,verified:api	Are those hydroelectric companies been thinking that they are leasing or buying from the feds or from the States?
+5	455	2650.335	2653.287	Stephen G. Breyer	source:oyez,verified:api	I mean, I don't know what's happened in the past.
+5	456	2653.287	2656.597	Stephen G. Breyer	source:oyez,verified:api	And I looked at the briefs and I can't get a very good picture.
+5	457	2656.597	2674.636	Gregory G. Garre	source:oyez,verified:api	--The best evidence I think we have about this question of the implications comes from the brief filed by 26 States, which explains that if this Court adopts the kind of segmentation approach, any interruption that is not de minimis has to be carved out it's going to wreak havoc in States across the country especially, in the western States.
+5	458	2674.636	2678.119	Gregory G. Garre	source:oyez,verified:api	Again, getting--
+5	459	2678.119	2691.662	Stephen G. Breyer	source:oyez,verified:api	When you say wreak havoc, you mean to say that the States have leased those strips with the water falls which are impassable to hydroelectric companies and the leases will have to be renegotiated or something like that?
+5	460	2691.662	2695.300	Gregory G. Garre	source:oyez,verified:api	--I'm not referring to specific leases on that.
+5	461	2695.300	2698.128	Gregory G. Garre	source:oyez,verified:api	I'm talking about things like public access for fishing, for example.
+5	462	2698.128	2709.887	Gregory G. Garre	source:oyez,verified:api	The State decided that the Steelheader case in Oregon, and this is what's going to happen, either the public -- private landowners are going to claim people coming along my banks to fish, they don't have access to these waters.
+5	463	2709.887	2715.792	Gregory G. Garre	source:oyez,verified:api	If they were navigable -- understood as navigable waters owned by the State, it's clear that they had would have access.
+5	464	2715.792	2717.773	Gregory G. Garre	source:oyez,verified:api	There is going to be clashes, there's going to be--
+5	465	2717.773	2718.760	Antonin Scalia	source:oyez,verified:api	Well, I thought you say it doesn't belong to the private individuals.
+5	466	2718.760	2721.181	Antonin Scalia	source:oyez,verified:api	I thought you said it belongs to the United States if it doesn't belong to the--
+5	467	2721.181	2727.085	Gregory G. Garre	source:oyez,verified:api	--What this Court has said is if it's not navigable, the United States has it.
+5	468	2727.085	2728.177	Gregory G. Garre	source:oyez,verified:api	The question of--
+5	469	2728.177	2728.598	Antonin Scalia	source:oyez,verified:api	--They are.
+5	470	2728.598	2732.891	Antonin Scalia	source:oyez,verified:api	And you think the United States is going to keep off these fishermen.
+5	471	2732.891	2736.144	Gregory G. Garre	source:oyez,verified:api	--The question is whether there would be a separate conveyance from the United States.
+5	472	2736.144	2739.673	Gregory G. Garre	source:oyez,verified:api	There is certainly going to be plenty of private landowners, I think, who are going to claim private ownership.
+5	473	2739.673	2741.845	Gregory G. Garre	source:oyez,verified:api	So there is going to be some sorting out to do.
+5	474	2741.845	2742.173	Antonin Scalia	source:oyez,verified:api	But you think they are wrong, right?
+5	475	2742.173	2745.187	Gregory G. Garre	source:oyez,verified:api	Well, no.
+5	476	2745.187	2751.527	Gregory G. Garre	source:oyez,verified:api	If the river is not navigable, then the land didn't convey under equal footing doctrine.
+5	477	2751.527	2756.133	Gregory G. Garre	source:oyez,verified:api	There would be a separate question of whether they conveyed by some other Federal patent, land patent, or the like.
+5	478	2756.133	2759.101	Gregory G. Garre	source:oyez,verified:api	And there are certainly -- certainly are plenty of those.
+5	479	2759.101	2760.193	Gregory G. Garre	source:oyez,verified:api	But I think what is clearer is--
+6	480	2760.193	2773.857	Ruth Bader Ginsburg	source:oyez,verified:api	Mr. Garre, you said, this is genuinely a controversy between the States and the United States, but the United States is not a party to this litigation.
+6	481	2773.857	2782.431	Ruth Bader Ginsburg	source:oyez,verified:api	And we know from the briefing before us, the United States takes a different position than Montana, it doesn't agree with you.
+6	482	2782.431	2797.460	Ruth Bader Ginsburg	source:oyez,verified:api	But if this case -- how can a case be decided without any input from the United States when you say that's the true dispute is between the States and the nation?
+6	483	2797.460	2799.784	Gregory G. Garre	source:oyez,verified:api	--Well, the United States is here.
+6	484	2799.784	2800.798	Gregory G. Garre	source:oyez,verified:api	It's given its views.
+6	485	2800.798	2804.062	Gregory G. Garre	source:oyez,verified:api	It's true that it didn't participant below and it is a little bit unusual.
+6	486	2804.062	2808.640	Gregory G. Garre	source:oyez,verified:api	What's weird is that the United States has never actually asserted ownership to the riverbeds in this case.
+6	487	2808.640	2809.093	Gregory G. Garre	source:oyez,verified:api	But I think--
+6	488	2809.093	2812.247	Elena Kagan	source:oyez,verified:api	Does PPL pay rent to the United States.
+6	489	2812.247	2814.716	Gregory G. Garre	source:oyez,verified:api	--Not with respect to the riverbeds.
+6	490	2814.716	2817.149	Gregory G. Garre	source:oyez,verified:api	There is a statement in the brief that suggest that they pay rent.
+6	491	2817.149	2820.447	Gregory G. Garre	source:oyez,verified:api	That's with respect to the upland, the flooded lands, for example, along the reservoir.
+6	492	2820.447	2826.710	Gregory G. Garre	source:oyez,verified:api	The United States has never charged rent for the use of the riverbeds themselves between the low water marks.
+6	493	2826.710	2829.303	Anthony M. Kennedy	source:oyez,verified:api	Would you help me with this?
+6	494	2829.303	2843.638	Anthony M. Kennedy	source:oyez,verified:api	Navigable waters of the United States for purposes of Federal jurisdiction over many activities such as boating is one concept.
+6	495	2843.638	2851.308	Anthony M. Kennedy	source:oyez,verified:api	Navigable waters of the United States for purposes of State ownership of the bed serves different purposes.
+6	496	2851.308	2864.145	Anthony M. Kennedy	source:oyez,verified:api	Are the -- are the boundaries and the definitions of what is navigable co-ex-extensive and parallel and precisely the same in each case?
+6	497	2864.145	2877.174	Anthony M. Kennedy	source:oyez,verified:api	Or, on the other hand, are there some cases where a body of water, say the falls, is navigable waters of the United States but not navigable waters of the United States for purposes of bed ownership by the State?
+6	498	2877.174	2878.610	Gregory G. Garre	source:oyez,verified:api	There certainly--
+6	499	2878.610	2881.406	Anthony M. Kennedy	source:oyez,verified:api	And, and if there is a difference, can you tell me a case?
+6	500	2881.406	2883.530	Anthony M. Kennedy	source:oyez,verified:api	And I think Justice Scalia basically was asking this earlier.
+6	501	2883.530	2891.649	Gregory G. Garre	source:oyez,verified:api	--There are two -- well, there is three distinctions between the test for title and the test for regulatory purposes.
+6	502	2891.649	2891.915	Anthony M. Kennedy	source:oyez,verified:api	Yes.
+6	503	2891.915	2894.181	Gregory G. Garre	source:oyez,verified:api	None of which bear on the dispute in this case.
+6	504	2894.181	2895.195	Gregory G. Garre	source:oyez,verified:api	One is for title.
+6	505	2895.195	2896.540	Gregory G. Garre	source:oyez,verified:api	You look at the time of statehood.
+6	506	2896.540	2899.102	Gregory G. Garre	source:oyez,verified:api	You don't look at the river at a later time.
+6	507	2899.102	2902.661	Gregory G. Garre	source:oyez,verified:api	The next is, is that for purposes of title, you look at the river in its natural state.
+6	508	2902.661	2904.708	Gregory G. Garre	source:oyez,verified:api	You don't look at improvements.
+6	509	2904.708	2912.987	Gregory G. Garre	source:oyez,verified:api	And the third is, for purposes of title, kind of commerce you consider is actually more expansive in the type you could consider for regulatory purposes.
+6	510	2912.987	2927.591	Gregory G. Garre	source:oyez,verified:api	This case, the focus has been on the rivers at the time of statehood, their use as highways of commerce without improvements, which is in the heartland of the test for navigability under The Daniel Ball and the Montello.
+6	511	2927.591	2948.020	Gregory G. Garre	source:oyez,verified:api	None of the distinctions that this Court has ever recognized would bear on this, nor would it make any sense, I think, to say that the rule that we identified in the Montello that has, for more than a century has been established as the test for title for navigability somehow has to be applied differently in this case in a way that would require breaking up the rivers.
+6	512	2948.020	2948.472	Gregory G. Garre	source:oyez,verified:api	And I think--
+6	513	2948.472	2968.684	Anthony M. Kennedy	source:oyez,verified:api	But it is conceded, is it not, that with -- if we rule for the power companies in this case, there still may be a situations in which these waters can be navigable waters of the United States for other purposes other than ownership of the bed.
+6	514	2968.684	2970.571	Anthony M. Kennedy	source:oyez,verified:api	Or am I wrong on that?
+6	515	2970.571	2975.958	Gregory G. Garre	source:oyez,verified:api	--No, I think the United States' position is, say they are navigable for Federal purposes but not for State purposes.
+6	516	2975.958	2977.833	Gregory G. Garre	source:oyez,verified:api	And I think -- and they have taken what I think is a pretty remarkable position.
+6	517	2977.833	3002.977	Gregory G. Garre	source:oyez,verified:api	If we look at the brief that we have appended to our brief, the United States in the Montana Power Company case, the United States is saying, the very same stretch of the Missouri along the Great Falls is navigable because it serves as a continuous highway of commerce and the falls did not prevent the river from being used as a continuous highway and, therefore, it's navigable under the Montello and The Daniel Ball, which is the theory that they recognize.
+6	518	3002.977	3005.024	Gregory G. Garre	source:oyez,verified:api	And now they are here saying, well, that was only for regulatory purposes and not for title purposes.
+6	519	3005.024	3012.597	Gregory G. Garre	source:oyez,verified:api	But it's the same test in both cases, and that's the test that the nation has understood for more than 150 years.
+6	520	3012.597	3014.004	John G. Roberts, Jr.	source:oyez,verified:api	No, but I'm not sure it has the same consequences.
+6	521	3014.004	3022.845	John G. Roberts, Jr.	source:oyez,verified:api	It seems to me that regardless of who prevails in this case, the State will be able to exercise regulatory jurisdiction over the waters.
+6	522	3022.845	3027.779	John G. Roberts, Jr.	source:oyez,verified:api	You know, you can't fish during these seasons, or there are different limits on how many fish you can take.
+6	523	3027.779	3029.654	John G. Roberts, Jr.	source:oyez,verified:api	And so will the Federal government.
+6	524	3029.654	3040.681	John G. Roberts, Jr.	source:oyez,verified:api	It will be able to apply Federal law to the river regardless of who owns parts of the river, regardless of who owns the land underneath.
+6	525	3040.681	3048.301	Gregory G. Garre	source:oyez,verified:api	And so this Court has always recognized the State's authority to make those decisions as an essential attribute of their sovereignty.
+6	526	3048.301	3049.533	Gregory G. Garre	source:oyez,verified:api	And that's why the State's--
+6	527	3049.533	3054.205	John G. Roberts, Jr.	source:oyez,verified:api	Without regard -- But I would say without regard to whether they happened to own the land under the river or not.
+6	528	3054.205	3063.061	Gregory G. Garre	source:oyez,verified:api	--No, when they own the land under the river, that -- the ability to control access along those rivers and fishing and the like is an essential attribute of State sovereignty.
+6	529	3063.061	3075.618	Gregory G. Garre	source:oyez,verified:api	So just saying that, well, the Federal government and State government can regulate together is, I think, an important intrusion on State sovereignty as this Court has always understood under the Equal Footing Doctrine and the Public Trust Doctrine.
+6	530	3075.618	3085.736	Gregory G. Garre	source:oyez,verified:api	And you also have the problem of competing regulation of these rivers when you go from mile to mile, interruption to interruption, potentially thousands along rivers.
+6	531	3085.736	3096.514	Gregory G. Garre	source:oyez,verified:api	And that's laid out in the brief by the environmental groups here, the National Wildlife Foundation, Tribal Unlimited and other groups that talk about the problems with fragmented regulatory jurisdiction.
+6	532	3096.514	3101.152	Gregory G. Garre	source:oyez,verified:api	And you also get into the question of public access for fishing, too.
+6	533	3101.152	3109.150	Gregory G. Garre	source:oyez,verified:api	The rivers are used for commerce, but the Public Trust Doctrine was always used to protect access to rivers for fishing, too.
+6	534	3109.150	3116.555	Gregory G. Garre	source:oyez,verified:api	And so if you look at a place like the Great Falls or the Thompson Falls, these are among the most sought after fishing rivers in the world.
+6	535	3116.555	3132.593	Antonin Scalia	source:oyez,verified:api	You are willing to concede on behalf of the State that if we find that the State does not have ownership of the bed, the State does not have regulatory jurisdiction for all of these purposes that you were now describing?
+6	536	3132.593	3133.857	Gregory G. Garre	source:oyez,verified:api	Absolutely not, Justice Scalia.
+6	537	3133.857	3136.418	Antonin Scalia	source:oyez,verified:api	Well, then your argument doesn't carry much weight.
+6	538	3136.418	3141.212	Antonin Scalia	source:oyez,verified:api	The State can continue to regulate all those things whether or not it owns the bed.
+6	539	3141.212	3149.662	Gregory G. Garre	source:oyez,verified:api	And so every time this Court has said that the ability to do that is an essential attribute of sovereignty, it must not have meant it because the United States could do it, too.
+6	540	3149.662	3159.160	Gregory G. Garre	source:oyez,verified:api	I mean, it is important to the states because having the sovereign capacity over those riverbeds as navigable waters under the Public Trust Doctrine is critical to the State's authority.
+6	541	3159.160	3166.297	Antonin Scalia	source:oyez,verified:api	Well, you have sovereignty over the land owned, owned by other private persons.
+6	542	3166.297	3183.509	Gregory G. Garre	source:oyez,verified:api	And I think it gets back to the Public Trust Doctrine, the Equal Footing Doctrine, what this Court has said in the Utah case and other cases about the role of states in regulating navigable rivers and owning title to the river beds underlying those rivers.
+6	543	3183.509	3185.319	John G. Roberts, Jr.	source:oyez,verified:api	We haven't talked much about the Madison.
+6	544	3185.319	3192.958	John G. Roberts, Jr.	source:oyez,verified:api	What is your best piece of evidence with respect to the Madison for the proposition that it was navigable at statehood?
+6	545	3192.958	3196.377	Gregory G. Garre	source:oyez,verified:api	Well, there was some evidence of use by fur trappers and the like.
+6	546	3196.377	3198.986	Gregory G. Garre	source:oyez,verified:api	It was not extensive because this area was relatively sparse.
+6	547	3198.986	3206.438	John G. Roberts, Jr.	source:oyez,verified:api	Well, fur trappers are going to go -- they don't need a lot of water to ply their canoes up the river.
+6	548	3206.438	3212.295	Gregory G. Garre	source:oyez,verified:api	Well, and this Court has recognized that things like pirogues and bateaux were sufficient to establish the continuous highway of commerce.
+6	549	3212.295	3216.931	Gregory G. Garre	source:oyez,verified:api	I think the point on the Madison is the susceptibility for use as a navigable river.
+6	550	3216.931	3235.973	Gregory G. Garre	source:oyez,verified:api	And the main point that we made below is that where their own expert had recognized that PPL's dams had impeded the flow of water over of the river, that if those dams impede the flow of water of the river but yet today there are thousands of drift boats similar to the boats that would have used it at the time of statehood, then it is good evidence that it was susceptible for use.
+6	551	3235.973	3241.046	Gregory G. Garre	source:oyez,verified:api	But I think the Madison is in a different category than the Missouri and the Clark Fork.
+6	552	3241.046	3247.781	Gregory G. Garre	source:oyez,verified:api	I do want to answer the question about the The Des Plaines River in the Economy Light case, there was an 18-mile portage.
+6	553	3247.781	3250.670	Gregory G. Garre	source:oyez,verified:api	That's made clear at page 18 A of our addendum where the government recognized that.
+6	554	3250.670	3255.447	Gregory G. Garre	source:oyez,verified:api	In -- Montello it was a five-mile portage.
+6	555	3255.447	3258.243	Gregory G. Garre	source:oyez,verified:api	And there are other examples of portages.
+6	556	3258.243	3262.743	Sonia Sotomayor	source:oyez,verified:api	Counsel, was that the canal -- what subsequently became the canal area.
+6	557	3262.743	3264.459	Gregory G. Garre	source:oyez,verified:api	I -- I think that's right.
+6	558	3264.459	3266.616	Gregory G. Garre	source:oyez,verified:api	It's in the testimony in that decision.
+6	559	3266.616	3277.502	Gregory G. Garre	source:oyez,verified:api	But certainly 17 miles -- and the other thing is that in the amicus brief, on page 27 of the Tubbs brief, she suggests that the actual portage before Statehood was only 8 miles.
+7	560	3277.502	3283.328	Gregory G. Garre	source:oyez,verified:api	I don't think you can draw a constitutional line between 5, 7, or even 10 miles and 17 miles.
+7	561	3283.328	3292.087	Gregory G. Garre	source:oyez,verified:api	We think the line the Constitution draws is whether -- asks whether the river was served as a continuous highway of commerce, notwithstanding any interruption along that way.
+7	562	3292.087	3304.632	Sonia Sotomayor	source:oyez,verified:api	I think that then the simplest rule is, is the river from shore to opposite shore -- any portion of it -- did boats traverse it.
+7	563	3304.632	3307.725	Sonia Sotomayor	source:oyez,verified:api	That would be I think what Justice Alito was asking.
+7	564	3307.725	3314.393	Gregory G. Garre	source:oyez,verified:api	But that's not even a rule that PPL was asking for, because they acknowledge that some interruptions would be navigable.
+7	565	3314.393	3315.173	Gregory G. Garre	source:oyez,verified:api	"They call it ""non-de minimis""."
+7	566	3315.173	3316.250	Gregory G. Garre	source:oyez,verified:api	It's not clear how you get there.
+7	567	3316.250	3326.201	Gregory G. Garre	source:oyez,verified:api	If you go between the low watermarks, there's only a part of the way that you could actually bring a boat up, but yet it's established that the State owns the entire riverbeds between low watermark to low watermark.
+7	568	3326.201	3334.040	Gregory G. Garre	source:oyez,verified:api	After traversing the Missouri and the very falls at issue in this case, Meriwether Lewis described it as
+7	569	3334.040	3339.600	Gregory G. Garre	source:oyez,verified:api	"""he didn't think the world could furnish a finer example of a navigable river through a mountainous country than the Missouri. """
+7	570	3339.600	3348.237	Gregory G. Garre	source:oyez,verified:api	That assessment made by the President's own agent, charged with assessing the suitability of the Missouri for commerce, was consistent with more than 140 years of this precedent--
+7	571	3348.237	3349.816	Anthony M. Kennedy	source:oyez,verified:api	Did he write that during his 30-day -- 32-day portage?
+7	572	3349.816	3355.794	Anthony M. Kennedy	source:oyez,verified:api	[Laughter]
+7	573	3355.794	3357.436	Gregory G. Garre	source:oyez,verified:api	--Your Honor, it was an 11-day portage.
+7	574	3357.436	3359.155	Gregory G. Garre	source:oyez,verified:api	At the time of Statehood, it was a one-day portage.
+7	575	3359.155	3362.670	Gregory G. Garre	source:oyez,verified:api	I think what's significant is he wrote it after that portage.
+7	576	3362.670	3368.011	Gregory G. Garre	source:oyez,verified:api	And yet he recognized that there was not a finer example of a navigable river through a mountainous country.
+7	577	3368.011	3370.886	Gregory G. Garre	source:oyez,verified:api	That assessment is consistent with this Court's precedents for more than 140 years.
+7	578	3370.886	3379.647	Gregory G. Garre	source:oyez,verified:api	It's consistent with the actual use of the Missouri as a continuous highway of commerce along the very stretch at issue here.
+7	579	3379.647	3391.143	Gregory G. Garre	source:oyez,verified:api	We don't believe that PPL or the United States has -- has provided a legal reason for this Court to overturn the judgment of the Montana Supreme Court that the Missouri or the other rivers at issue in this case are navigable.
+7	580	3391.143	3392.937	John G. Roberts, Jr.	source:oyez,verified:api	Thank you, counsel.
+7	581	3392.937	3395.296	John G. Roberts, Jr.	source:oyez,verified:api	Mr. Clement, you have 4 minutes remaining.
+7	582	3395.296	3397.110	Paul D. Clement	source:oyez,verified:api	Thank you, Mr. Chief Justice.
+7	583	3397.110	3398.061	Paul D. Clement	source:oyez,verified:api	A few points in rebuttal.
+7	584	3398.061	3398.873	Paul D. Clement	source:oyez,verified:api	First, it's--
+7	585	3398.873	3403.073	Sonia Sotomayor	source:oyez,verified:api	Portages that are de minimis.
+7	586	3403.073	3411.008	Sonia Sotomayor	source:oyez,verified:api	Point me -- I don't care where they are in the United States -- give me a list of some that are de minimis.
+7	587	3411.008	3413.633	Paul D. Clement	source:oyez,verified:api	--I mean, I don't have any de minimis portages for you.
+7	588	3413.633	3429.983	Paul D. Clement	source:oyez,verified:api	The portages he's talking about, as far as I can tell, the 5-mile and 8-mile are portages between rivers, and that has nothing to do with whether the bypassed stretch of the river would be non-navigable because it's de minimis, because if you portage between two rivers, you're not bypassing anything.
+7	589	3429.983	3443.152	Paul D. Clement	source:oyez,verified:api	Where I can talk about sort of portages being de minimis, if you look at the special master's report in the Utah case, there are a few places in the Cataract Canyon where he talks about portages, and he talks -- you know, in parts where they got boats to.
+7	590	3443.152	3452.694	Paul D. Clement	source:oyez,verified:api	But the -- the key point is, whenever the Court has talked about portages in the context of navigability, they've pointed to them as suggesting non-navigability.
+7	591	3452.694	3457.958	Paul D. Clement	source:oyez,verified:api	And in certain circumstances, well, you had to portage a little bit, but that's not enough to make the stretch non-navigable.
+7	592	3457.958	3460.863	Anthony M. Kennedy	source:oyez,verified:api	And what were your -- what were your other four points you were going to give us?
+7	593	3460.863	3461.050	Paul D. Clement	source:oyez,verified:api	Well, I've given you a couple, I'd start with the deeds.
+7	594	3461.050	3464.033	Paul D. Clement	source:oyez,verified:api	Your Honor.
+7	595	3464.033	3467.266	Paul D. Clement	source:oyez,verified:api	You know, the -- the State wants to make something of the fact that the deeds stop at the river.
+7	596	3467.266	3468.826	Paul D. Clement	source:oyez,verified:api	But that's true throughout the State.
+7	597	3468.826	3473.123	Paul D. Clement	source:oyez,verified:api	And the question then becomes what rule governs the ownership of the riverbeds?
+7	598	3473.123	3475.557	Paul D. Clement	source:oyez,verified:api	And that's where navigability versus non-navigability.
+7	599	3475.557	3477.008	Paul D. Clement	source:oyez,verified:api	So the deeds don't prove anything.
+7	600	3477.008	3478.837	Paul D. Clement	source:oyez,verified:api	That's just the way the deeds were written.
+7	601	3478.837	3485.115	Paul D. Clement	source:oyez,verified:api	The next point: Justice Kagan, you asked about, you know, did the other owner -- other people on the river have anything to fear.
+7	602	3485.115	3488.629	Paul D. Clement	source:oyez,verified:api	And the answer as far as I heard was, well, these are different.
+7	603	3488.629	3489.721	Paul D. Clement	source:oyez,verified:api	They sit on the riverbed.
+7	604	3489.721	3492.719	Paul D. Clement	source:oyez,verified:api	Well, two things, Your Honor: so do some of the peers.
+7	605	3492.719	3495.797	Paul D. Clement	source:oyez,verified:api	And that's why people have filed amicus briefs and are very concerned.
+7	606	3495.797	3499.172	Paul D. Clement	source:oyez,verified:api	But more to the point, these things have not moved under the riverbed recently.
+7	607	3499.172	3506.012	Paul D. Clement	source:oyez,verified:api	They've been sitting there for 100 years, and the State lent its eminent domain power to us to help us build these dams.
+7	608	3506.012	3510.508	Paul D. Clement	source:oyez,verified:api	These dams were critical to developing energy and development in this area.
+7	609	3510.508	3514.712	Paul D. Clement	source:oyez,verified:api	And now 100 years later, they want compensation for the little river strip--
+7	610	3514.712	3516.990	Antonin Scalia	source:oyez,verified:api	Could the United States demand compensation?
+7	611	3516.990	3520.164	Paul D. Clement	source:oyez,verified:api	--We pay the United States compensation right now.
+7	612	3520.164	3528.080	Paul D. Clement	source:oyez,verified:api	The difference is, the United States isn't going in afterwards and trying to put a hold-up to us and saying it wants $50 million for this.
+7	613	3528.080	3531.563	Paul D. Clement	source:oyez,verified:api	We pay rents to FERC for some of these lands.
+7	614	3531.563	3533.984	Paul D. Clement	source:oyez,verified:api	Actually, the State gets 37.5 percent of the--
+7	615	3533.984	3534.343	Antonin Scalia	source:oyez,verified:api	For the riverbed?
+7	616	3534.343	3534.920	Antonin Scalia	source:oyez,verified:api	For the riverbed land?
+7	617	3534.920	3538.355	Paul D. Clement	source:oyez,verified:api	--Well, look at footnote 3 of the government's brief.
+7	618	3538.355	3549.773	Paul D. Clement	source:oyez,verified:api	I mean, again, the problem here is if you want people to have deeds that really are -- parse out whether it's riverbed or upland, they don't because everybody defaults to the bottom line -- the background rule.
+7	619	3549.773	3559.642	Paul D. Clement	source:oyez,verified:api	The background rule is if it's a non-navigable river, the riparian owners, whether it be the United States or private property owners, get to midway, or if they own both on both sides, they get the whole thing.
+7	620	3559.642	3560.645	Paul D. Clement	source:oyez,verified:api	I think on de minimis, we've talked about it a lot.
+7	621	3560.645	3566.455	Paul D. Clement	source:oyez,verified:api	But I would point out that the one thing we know that is not de minimis from Utah is 4.35 miles.
+7	622	3566.455	3572.530	Paul D. Clement	source:oyez,verified:api	Because that's what the Court analyzed separately in the portion of Cataract Canyon.
+7	623	3572.530	3576.122	Paul D. Clement	source:oyez,verified:api	Every stretch at issue here, every dam at issue here, is more than 4.35 miles.
+7	624	3576.122	3583.788	Paul D. Clement	source:oyez,verified:api	Fully five of the dams are on the 17-mile Great Falls stretch, which they agree is impassable.
+7	625	3583.788	3588.908	Paul D. Clement	source:oyez,verified:api	The other five are reservoir dams that create reservoirs that extend over 4.35 miles.
+7	626	3588.908	3593.175	Paul D. Clement	source:oyez,verified:api	There's nothing de minimis in the best evidence that is the $50 million in compensation.
+7	627	3593.175	3601.765	Paul D. Clement	source:oyez,verified:api	I think the $50 million in background also shows that although this is a dispute between Montana and the United States, my client is caught in the middle of it, and they are obviously concerned about it, too.
+7	628	3601.765	3607.404	Paul D. Clement	source:oyez,verified:api	I want to talk about what's disputed and what's undisputed.
+7	629	3607.404	3610.465	Paul D. Clement	source:oyez,verified:api	What is undisputed is the 17 miles is impassable.
+7	630	3610.465	3614.057	Paul D. Clement	source:oyez,verified:api	That's enough, as I say, to give us judgment as a matter of law for the five dams on that stretch.
+7	631	3614.057	3621.490	Paul D. Clement	source:oyez,verified:api	What is hotly disputed, despite my friend's representation, is whether or not there was through commerce through this bypass route.
+7	632	3621.490	3625.865	Paul D. Clement	source:oyez,verified:api	He suggests it's undisputed that gold went from Helena down to Fort Benton down to St. Louis.
+7	633	3625.865	3628.833	Paul D. Clement	source:oyez,verified:api	And that of course is not disputed.
+7	634	3628.833	3630.362	Paul D. Clement	source:oyez,verified:api	But it went on roads.
+7	635	3630.362	3633.469	Paul D. Clement	source:oyez,verified:api	It didn't go on the upper Missouri.
+7	636	3633.469	3648.275	Paul D. Clement	source:oyez,verified:api	And if you want to know who's got the better of this argument, I ask you to think about this question: the United States Army built a 600-mile overland road from Fort Benton, the traditional head of navigation on the Missouri, to Walla Walla, Washington.
+7	637	3648.275	3656.788	Paul D. Clement	source:oyez,verified:api	Now, if the State is right and the upper Missouri and the Clark Fork were navigable, all they had to do was have a 60-mile road to connect the two.
+7	638	3656.788	3657.802	Paul D. Clement	source:oyez,verified:api	They were never navigable.
+7	639	3657.802	3659.646	Paul D. Clement	source:oyez,verified:api	Thank you, Your Honor.
+7	640	3659.646	3660.239	John G. Roberts, Jr.	source:oyez,verified:api	Thank you, counsel.
+7	641	3660.239	3661.222	John G. Roberts, Jr.	source:oyez,verified:api	The case is now submitted.
