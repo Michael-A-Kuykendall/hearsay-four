@@ -622,6 +622,12 @@ impl WordRecord {
 }
 
 // ---------------------------------------------------------------------------
+// Readable-text restoration + TXT/SRT/VTT exporters (bead hearsay-four-kpz,
+// TXT-1): classical casing/punctuation restoration and subtitle exports.
+// ---------------------------------------------------------------------------
+pub mod readable;
+
+// ---------------------------------------------------------------------------
 // Word-level WER scorer (bead hearsay-four-chd, lane A2).
 //
 // Canonical home of the classical Levenshtein core moved out of `runner`
