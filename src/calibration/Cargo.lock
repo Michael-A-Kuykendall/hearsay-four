@@ -94,7 +94,9 @@ name = "calibration"
 version = "0.1.0"
 dependencies = [
  "accent",
+ "corpus",
  "fabric",
+ "fse",
  "invariant_ppt",
  "proptest",
 ]

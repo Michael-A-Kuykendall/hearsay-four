@@ -24,6 +24,9 @@ pub const FEATURE_DIM: usize = 39;
 pub mod arena;
 pub mod enrollment;
 
+#[cfg(test)]
+mod frontend_feed_tests;
+
 /// A single feature frame (39-dim vector).
 pub type Frame = [f64; FEATURE_DIM];
 
@@ -103,6 +106,78 @@ pub fn fit_baseline(frames: &[Frame]) -> Option<Baseline> {
         Some("stage0"),
     );
     Some(baseline)
+}
+
+/// Ceiling for a degenerate per-dimension variance (D3 front-end feed,
+/// bead hearsay-four-7eh).
+///
+/// [`fit_baseline`] adds `epsilon = 1e-9` to every variance, so constant
+/// frames (all-silence FSE output, or synthesised stub frames) fit to a
+/// variance of exactly `1e-9` in every dimension. Anything at or below this
+/// ceiling carries no usable speaker information and is rejected by
+/// [`fit_baseline_checked`]; real speech fits orders of magnitude above it
+/// (locked by `frontend_oyez_golden_variance_matches_fixture`).
+pub const DEGENERATE_VARIANCE_CEIL: f64 = 1e-6;
+
+/// Explicit failure for the strict front-end fit entry point
+/// ([`fit_baseline_checked`]) — an invalid baseline is an error, never a
+/// silent degenerate fit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BaselineError {
+    /// No frames provided.
+    EmptyInput,
+    /// Frames carry no usable speech information: a non-finite component, a
+    /// non-finite/non-degenerate fit, or a zero-variance (degenerate) fit —
+    /// e.g. all-silence input or constant synthesised frames.
+    DegenerateFrames,
+}
+
+impl std::fmt::Display for BaselineError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BaselineError::EmptyInput => write!(f, "baseline fit has no frames"),
+            BaselineError::DegenerateFrames => {
+                write!(f, "baseline fit is degenerate (silence or constant frames)")
+            }
+        }
+    }
+}
+
+impl std::error::Error for BaselineError {}
+
+/// Strict front-end fit (D3, bead hearsay-four-7eh): the default enrollment
+/// entry point over real Stage-1 FSE frames (`frames in -> Gaussian baseline
+/// out`).
+///
+/// Unlike [`fit_baseline`], which is the raw numerical core kept for
+/// back-compat (fse/accent scoring paths), this entry rejects an invalid
+/// baseline explicitly instead of fitting it silently:
+/// - empty input → [`BaselineError::EmptyInput`]
+/// - non-finite components, or a degenerate (zero-variance) fit as produced
+///   by all-silence input or constant synthesised frames →
+///   [`BaselineError::DegenerateFrames`]
+///
+/// The finiteness pre-check runs before [`fit_baseline`] because the core's
+/// boundary invariant panics on non-finite payloads.
+pub fn fit_baseline_checked(frames: &[Frame]) -> Result<Baseline, BaselineError> {
+    if frames.is_empty() {
+        return Err(BaselineError::EmptyInput);
+    }
+    if frames.iter().any(|f| f.iter().any(|x| !x.is_finite())) {
+        return Err(BaselineError::DegenerateFrames);
+    }
+    let baseline = fit_baseline(frames).expect("nonempty finite frames fit");
+    if !baseline.is_valid() {
+        return Err(BaselineError::DegenerateFrames);
+    }
+    if baseline
+        .variance
+        .iter()
+        .all(|&v| v <= DEGENERATE_VARIANCE_CEIL)
+    {
+        return Err(BaselineError::DegenerateFrames);
+    }
+    Ok(baseline)
 }
 
 /// Score a frame against a baseline: negative log-likelihood under the
