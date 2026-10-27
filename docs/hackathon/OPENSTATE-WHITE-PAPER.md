@@ -282,3 +282,32 @@ surfaces after two hallucinated APIs were compiler-rejected on the
 previous lap). Edit batches on one file serialize on digest (second
 preview rebases); batches across files apply in parallel. No shell
 redirects into the repo; no hand-written files except /tmp probes.
+
+## 14. Fifteen-bead wave + tooling correction (Oct 27, observed)
+
+- The full transcription-service plan (15 beads, initiatives A–E) was
+  researched by three parallel read-only survey children (pipeline
+  crates, support crates, beads+claims), synthesized into a
+  dependency-ordered graph, filed sequentially with `bd`, then
+  implemented in up to four concurrent lane worktrees. All 15 landed
+  green and pushed. The concurrent pattern from Track A/B scaled
+  without modification.
+- Independent re-verification (never the implementer's word) caught:
+  nested-lane cargo workspace failure (lanes now live outside the
+  repo), a pipe-masked nonzero merge exit that closed a bead early
+  (record corrected, process fixed), a 1-ulp serde_json parse defect
+  (fixed with `float_roundtrip`, seed kept as regression), a C2/C3
+  merge that silently dropped the verification hook (ported into the
+  shared per-chunk path, re-verified), and routine fmt/clippy in-lane.
+  Every catch was a merge-blocker found before main, not after.
+- Tooling correction, owner-ordered mid-wave: all repo code/doc
+  interaction moved to the OpenState symbolic surface (`ast_search`
+  → `read_text_region`/`read_symbol` → `preview` → `apply`;
+  `edit_text_preview`/`apply` for Markdown with digest-serialized
+  batches), shell reserved for build/test/quality gates only. Text
+  search is literal per-file and needed two attempts on first use
+  (alternation syntax is not supported; exact-phrase anchors work).
+  The owner's standing estimate is ~60% faster with the symbolic
+  surface; this ledger records the estimate as the owner's, with the
+  observed mechanism being fewer mis-addressed edits and
+  machine-checked anchors rather than raw speed.
