@@ -19,6 +19,7 @@ fn main() -> Result<(), String> {
     // the 39c.2 fixture), and a bare N limits to the first N rows.
     let mut root = PathBuf::from("/home/michael/repos/hearsay-four/data/session");
     let mut limit: Option<usize> = None;
+    let mut enroll: Option<PathBuf> = None;
     let mut i = 1;
     while i < args.len() {
         if args[i] == "--root" {
@@ -27,6 +28,13 @@ fn main() -> Result<(), String> {
                 .get(i)
                 .map(PathBuf::from)
                 .ok_or_else(|| "--root needs a directory".to_string())?;
+        } else if args[i] == "--enroll" {
+            i += 1;
+            enroll = Some(
+                args.get(i)
+                    .map(PathBuf::from)
+                    .ok_or_else(|| "--enroll needs a WAV file".to_string())?,
+            );
         } else if let Ok(n) = args[i].parse::<usize>() {
             limit = Some(n);
         } else {
@@ -70,12 +78,30 @@ fn main() -> Result<(), String> {
     // handling (the first 100 frames ARE the speaker's voice, so A's NLL
     // is artificially low for early utterances and the experiment loses
     // sensitivity to drift).
-    let baseline = calibration::Baseline {
-        mean: vec![0.0; FEATURE_DIM],
-        variance: vec![1.0; FEATURE_DIM],
-        frame_count: 0,
+    let baseline = match &enroll {
+        Some(path) => {
+            let enroll_audio = corpus::audio::decode_to_pcm16k(path)
+                .map_err(|e| format!("enroll decode {}: {e}", path.display()))?;
+            let fitted =
+                accent::baseline_from_frames(&enroll_audio.frames, enroll_audio.sample_rate)
+                    .map_err(|e| format!("enroll baseline: {e}"))?;
+            println!(
+                "baseline: ENROLLMENT ({} frames from {})",
+                fitted.frame_count,
+                path.display()
+            );
+            fitted
+        }
+        None => {
+            let generic = calibration::Baseline {
+                mean: vec![0.0; FEATURE_DIM],
+                variance: vec![1.0; FEATURE_DIM],
+                frame_count: 0,
+            };
+            println!("baseline: GENERIC (mean=0, var=1 per dim) — §6 'generic reference'");
+            generic
+        }
     };
-    println!("baseline: GENERIC (mean=0, var=1 per dim) — §6 'generic reference'");
 
     let a = ConditionA::new(baseline.clone());
     let mut b = ConditionB::new(baseline);

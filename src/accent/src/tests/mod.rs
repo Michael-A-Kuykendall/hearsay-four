@@ -6,6 +6,7 @@ mod condition_a_tests;
 mod condition_b_tests;
 mod derive_tests;
 mod drift_tests;
+mod enroll_baseline_tests;
 mod feedback_tests;
 mod measure_tests;
 mod ppt_accent_tests;

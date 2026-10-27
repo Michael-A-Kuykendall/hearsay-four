@@ -233,6 +233,22 @@ pub fn slice_pcm(
     Ok(pcm[start..stop.min(pcm.len())].to_vec())
 }
 
+/// Build a speaker baseline from enrollment PCM via the same front-end path
+/// as scoring (window → extract → fit). Powers the `--enroll` runs (bead
+/// fo7); the generic reference stays the default everywhere else.
+pub fn baseline_from_frames(
+    pcm: &[i16],
+    sample_rate: u32,
+) -> Result<calibration::Baseline, String> {
+    if pcm.is_empty() {
+        return Err("no enrollment samples".to_string());
+    }
+    let windows = fse::window_audio(pcm, sample_rate);
+    let frames = fse::extract_features(&windows, sample_rate)
+        .map_err(|e| format!("enrollment feature extraction failed: {e:?}"))?;
+    calibration::fit_baseline(&frames).ok_or_else(|| "enrollment produced no frames".to_string())
+}
+
 /// Decode the session audio (full clip) into 16 kHz mono PCM.
 pub fn decode_session_audio() -> Result<corpus::audio::Pcm16kAudio, String> {
     let root = std::env::var(SESSION_ROOT_ENV)
