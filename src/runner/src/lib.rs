@@ -325,27 +325,11 @@ pub struct FullPipelineOutput {
     pub stats: FullPipelineStats,
 }
 
-/// Classical Levenshtein distance over phone strings (template matching —
-/// counts only, no weights, no learning: a lookup-table alignment, NOT a
-/// model).
-fn edit_distance(a: &[String], b: &[String]) -> usize {
-    if a.is_empty() {
-        return b.len();
-    }
-    if b.is_empty() {
-        return a.len();
-    }
-    let mut prev: Vec<usize> = (0..=b.len()).collect();
-    let mut cur = vec![0usize; b.len() + 1];
-    for (i, x) in a.iter().enumerate() {
-        cur[0] = i + 1;
-        for (j, y) in b.iter().enumerate() {
-            let sub = usize::from(x != y);
-            cur[j + 1] = (prev[j] + sub).min(prev[j + 1] + 1).min(cur[j] + 1);
-        }
-        std::mem::swap(&mut prev, &mut cur);
-    }
-    prev[b.len()]
+/// Thin wrapper over [`output::edit_distance`] (bead hearsay-four-chd):
+/// the canonical Levenshtein core lives in `output`; this keeps
+/// [`run_full_pipeline`] behavior unchanged (counts only, NOT a model).
+pub fn edit_distance(a: &[String], b: &[String]) -> usize {
+    output::edit_distance(a, b)
 }
 
 /// Clamp to a finite [0,1] `f32` for the output contract (`score_in_range`).
@@ -764,6 +748,30 @@ mod full_pipeline_tests {
             recording_ref: "synthetic".to_string(),
             started_ms: 0,
         }
+    }
+
+    #[test]
+    fn wer_wrapper_matches_output_core_on_fixtures() {
+        // Bead hearsay-four-chd (4): the thin wrapper agrees with the
+        // canonical `output::edit_distance` core on all fixtures.
+        let phone = |s: &str| s.to_string();
+        let fixtures: [(Vec<String>, Vec<String>); 3] = [
+            (vec![phone("S"), phone("T")], vec![phone("S"), phone("T")]),
+            (
+                vec![phone("S"), phone("T")],
+                vec![phone("S"), phone("T"), phone("EY")],
+            ),
+            (vec![], vec![phone("S"), phone("T"), phone("EY")]),
+        ];
+        for (a, b) in &fixtures {
+            assert_eq!(edit_distance(a, b), output::edit_distance(a, b));
+            assert_eq!(edit_distance(a, b), output::edit_distance(b, a));
+        }
+        assert_eq!(
+            edit_distance(&fixtures[1].0, &fixtures[1].1),
+            1,
+            "wrapper still counts single insertion"
+        );
     }
 
     #[test]

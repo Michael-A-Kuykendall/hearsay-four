@@ -512,6 +512,228 @@ impl WordRecord {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Word-level WER scorer (bead hearsay-four-chd, lane A2).
+//
+// Canonical home of the classical Levenshtein core moved out of `runner`
+// (`runner::edit_distance` is now a thin wrapper so `run_full_pipeline`
+// behavior is unchanged), plus [`wer`]: S+D+I over normalized word
+// sequences divided by reference length, with per-utterance alignment.
+//
+// Normalization mirrors the A1 ground-truth extractor
+// (`corpus::ground_truth::normalize_word`): Unicode lowercase, strip
+// surrounding (leading/trailing) punctuation, drop tokens that normalize
+// to empty. Pure, model-free, offline: counts only, no weights, no learning.
+// ---------------------------------------------------------------------------
+
+/// Classical Levenshtein distance over token strings (template matching —
+/// counts only, no weights, no learning: a lookup-table alignment, NOT a
+/// model).
+///
+/// Canonical core moved out of `runner` (bead hearsay-four-chd).
+pub fn edit_distance(a: &[String], b: &[String]) -> usize {
+    if a.is_empty() {
+        return b.len();
+    }
+    if b.is_empty() {
+        return a.len();
+    }
+    let mut prev: Vec<usize> = (0..=b.len()).collect();
+    let mut cur = vec![0usize; b.len() + 1];
+    for (i, x) in a.iter().enumerate() {
+        cur[0] = i + 1;
+        for (j, y) in b.iter().enumerate() {
+            let sub = usize::from(x != y);
+            cur[j + 1] = (prev[j] + sub).min(prev[j + 1] + 1).min(cur[j] + 1);
+        }
+        std::mem::swap(&mut prev, &mut cur);
+    }
+    prev[b.len()]
+}
+
+/// Normalize one raw whitespace-separated token: lowercase, strip
+/// surrounding punctuation, keep internal characters (hyphens,
+/// apostrophes) intact. Returns `None` when nothing remains. Mirrors the
+/// A1 extractor so scored hypotheses compare like-for-like with
+/// ground-truth word lists.
+fn normalize_word(raw: &str) -> Option<String> {
+    let lowered = raw.to_lowercase();
+    let stripped = lowered.trim_matches(|c: char| !c.is_alphanumeric());
+    if stripped.is_empty() {
+        None
+    } else {
+        Some(stripped.to_string())
+    }
+}
+
+/// Normalize a word sequence: lowercase/strip each token, drop empties.
+fn normalize_words(words: &[String]) -> Vec<String> {
+    words.iter().filter_map(|w| normalize_word(w)).collect()
+}
+
+/// One word-level alignment operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AlignOp {
+    /// Reference and hypothesis words match.
+    Correct,
+    /// Reference word replaced by a different hypothesis word.
+    Substitution,
+    /// Reference word with no hypothesis counterpart.
+    Deletion,
+    /// Hypothesis word with no reference counterpart.
+    Insertion,
+}
+
+/// One aligned word pair in a [`WerScore`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WerAlignment {
+    /// The operation at this position.
+    pub op: AlignOp,
+    /// Reference word (`None` for insertions).
+    pub reference: Option<String>,
+    /// Hypothesis word (`None` for deletions).
+    pub hypothesis: Option<String>,
+}
+
+/// Word error rate score with per-utterance alignment.
+#[derive(Debug, Clone, PartialEq)]
+pub struct WerScore {
+    /// (S+D+I) / reference length (0.0 for two empty sequences; the
+    /// hypothesis length as `f64` when the reference is empty but the
+    /// hypothesis is not).
+    pub wer: f64,
+    /// Substitution count.
+    pub substitutions: usize,
+    /// Deletion count.
+    pub deletions: usize,
+    /// Insertion count.
+    pub insertions: usize,
+    /// Normalized reference length (the divisor when nonzero).
+    pub reference_len: usize,
+    /// Per-utterance alignment, in reference order.
+    pub alignment: Vec<WerAlignment>,
+}
+
+/// Score hypothesis against reference: S+D+I over normalized word
+/// sequences divided by reference length, plus per-utterance alignment.
+///
+/// Both sequences are normalized first (lowercase, strip surrounding
+/// punctuation, drop empties). The alignment backtrace prefers diagonal
+/// (correct/substitution) over deletion over insertion, so the op
+/// sequence is deterministic for a given input pair.
+pub fn wer(reference: &[String], hypothesis: &[String]) -> WerScore {
+    let r = normalize_words(reference);
+    let h = normalize_words(hypothesis);
+    let (m, n) = (r.len(), h.len());
+    if m == 0 {
+        let alignment: Vec<WerAlignment> = h
+            .iter()
+            .cloned()
+            .map(|word| WerAlignment {
+                op: AlignOp::Insertion,
+                reference: None,
+                hypothesis: Some(word),
+            })
+            .collect();
+        let insertions = alignment.len();
+        return WerScore {
+            wer: if insertions == 0 {
+                0.0
+            } else {
+                insertions as f64
+            },
+            substitutions: 0,
+            deletions: 0,
+            insertions,
+            reference_len: 0,
+            alignment,
+        };
+    }
+    // dp[i][j]: min edits converting r[..i] into h[..j].
+    let mut dp = vec![vec![0usize; n + 1]; m + 1];
+    for (i, row) in dp.iter_mut().enumerate().take(m + 1) {
+        row[0] = i;
+    }
+    for (j, cell) in dp[0].iter_mut().enumerate().take(n + 1) {
+        *cell = j;
+    }
+    for i in 1..=m {
+        for j in 1..=n {
+            let sub = usize::from(r[i - 1] != h[j - 1]);
+            dp[i][j] = (dp[i - 1][j - 1] + sub)
+                .min(dp[i - 1][j] + 1)
+                .min(dp[i][j - 1] + 1);
+        }
+    }
+    // Backtrace from (m, n): diagonal first, then deletion, then insertion.
+    let (mut i, mut j) = (m, n);
+    let mut alignment = Vec::with_capacity(m + n);
+    while i > 0 || j > 0 {
+        if i > 0 && j > 0 && r[i - 1] == h[j - 1] && dp[i][j] == dp[i - 1][j - 1] {
+            alignment.push(WerAlignment {
+                op: AlignOp::Correct,
+                reference: Some(r[i - 1].clone()),
+                hypothesis: Some(h[j - 1].clone()),
+            });
+            i -= 1;
+            j -= 1;
+        } else if i > 0 && j > 0 && dp[i][j] == dp[i - 1][j - 1] + 1 {
+            alignment.push(WerAlignment {
+                op: AlignOp::Substitution,
+                reference: Some(r[i - 1].clone()),
+                hypothesis: Some(h[j - 1].clone()),
+            });
+            i -= 1;
+            j -= 1;
+        } else if i > 0 && dp[i][j] == dp[i - 1][j] + 1 {
+            alignment.push(WerAlignment {
+                op: AlignOp::Deletion,
+                reference: Some(r[i - 1].clone()),
+                hypothesis: None,
+            });
+            i -= 1;
+        } else {
+            alignment.push(WerAlignment {
+                op: AlignOp::Insertion,
+                reference: None,
+                hypothesis: Some(h[j - 1].clone()),
+            });
+            j -= 1;
+        }
+    }
+    alignment.reverse();
+    let mut substitutions = 0;
+    let mut deletions = 0;
+    let mut insertions = 0;
+    for step in &alignment {
+        match step.op {
+            AlignOp::Correct => {}
+            AlignOp::Substitution => substitutions += 1,
+            AlignOp::Deletion => deletions += 1,
+            AlignOp::Insertion => insertions += 1,
+        }
+    }
+    WerScore {
+        wer: (substitutions + deletions + insertions) as f64 / m as f64,
+        substitutions,
+        deletions,
+        insertions,
+        reference_len: m,
+        alignment,
+    }
+}
+
+/// Score a committed [`Transcript`] against a reference word list: the
+/// hypothesis is the transcript's word texts in order. Scoring is
+/// read-only; records still validate afterwards (see `wer_tests`).
+pub fn transcript_wer(reference: &[String], transcript: &Transcript) -> WerScore {
+    let hypothesis: Vec<String> = transcript.words.iter().map(|w| w.text.clone()).collect();
+    wer(reference, &hypothesis)
+}
+
+#[cfg(test)]
+mod wer_tests;
+
 #[cfg(test)]
 mod ppt_tests;
 
