@@ -22,6 +22,7 @@ fn sample_record(word: &str, id_base: u64) -> WordRecord {
                 label: format!("FRAME:{id_base}"),
                 support: vec![],
                 active: true,
+                rating: 90.0,
             }],
         },
         ChainLayer {
@@ -35,6 +36,7 @@ fn sample_record(word: &str, id_base: u64) -> WordRecord {
                     unconditional: false,
                 }],
                 active: true,
+                rating: 85.0,
             }],
         },
         ChainLayer {
@@ -48,6 +50,7 @@ fn sample_record(word: &str, id_base: u64) -> WordRecord {
                     unconditional: false,
                 }],
                 active: true,
+                rating: 80.0,
             }],
         },
     ]);
@@ -59,6 +62,8 @@ fn sample_record(word: &str, id_base: u64) -> WordRecord {
         vec![Hypothesis::new("other", 0.4, HypothesisStatus::Retracted)],
         Evidence::new(EvidenceKind::Acoustic, "synthetic fixture", 0.7),
         chain,
+        85.0,
+        "2 channels; log-odds 1.7346; rating 85.00",
     )
 }
 

@@ -159,3 +159,46 @@ pub fn winner(set: &NBestSet) -> Option<&NBestCandidate> {
             .unwrap_or(std::cmp::Ordering::Equal)
     })
 }
+
+/// A stage-3 rating bundle propagated into a committed WordRecord
+/// (bead hearsay-four-shq): the winner's 0–100 credibility rating verbatim,
+/// the evidence-channel count behind it, and the per-record evidence
+/// summary. This only moves ratings — per alpha-indexed-dispatch there is
+/// no scheduling layer here, just the competition outcome.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PropagatedRating {
+    /// Winner's rating, verbatim (INV `rating_in_range`).
+    pub rating: f64,
+    /// Number of supporting evidence channels behind the rating.
+    pub evidence_count: usize,
+    /// Per-record evidence summary (never empty).
+    pub summary: String,
+}
+
+/// Per-record evidence summary for a candidate: channel count, combined
+/// log-odds, and 0–100 rating. Pure formatting over the candidate's own
+/// fields — no model, no I/O, deterministic on a fixed fixture.
+pub fn evidence_summary(candidate: &NBestCandidate) -> String {
+    let channels = if candidate.evidence_count == 1 {
+        "channel"
+    } else {
+        "channels"
+    };
+    format!(
+        "{} {}; log-odds {:.4}; rating {:.2}",
+        candidate.evidence_count,
+        channels,
+        candidate.log_odds,
+        candidate.rating()
+    )
+}
+
+/// Propagate the N-best winner's rating for commit: rating verbatim plus
+/// the evidence summary. Returns `None` when the frame emitted nothing.
+pub fn propagate_winner(set: &NBestSet) -> Option<PropagatedRating> {
+    winner(set).map(|candidate| PropagatedRating {
+        rating: candidate.rating(),
+        evidence_count: candidate.evidence_count,
+        summary: evidence_summary(candidate),
+    })
+}

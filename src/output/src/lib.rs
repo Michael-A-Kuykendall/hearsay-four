@@ -86,6 +86,13 @@ pub struct Node {
     pub support: Vec<JustificationRef>,
     /// Current survival status.
     pub active: bool,
+    /// Stage-3 credibility rating on the Hearsay-II 0–100 scale
+    /// (bead hearsay-four-shq): the frame layer carries the acoustic rating,
+    /// and every higher node derives from strictly lower premises, so a
+    /// node's rating never exceeds its premises (INV `rating_in_range` plus
+    /// monotone non-increase along the chain, enforced by
+    /// [`ProvenanceChain::validate`]).
+    pub rating: f64,
 }
 
 /// Reference to an arena justification set (survival semantics, aem.13).
@@ -124,6 +131,14 @@ pub struct WordRecord {
     pub decided_by: Evidence,
     /// Full derivation to acoustic evidence.
     pub provenance: ProvenanceChain,
+    /// Stage-3 winner rating on the Hearsay-II 0–100 scale, propagated
+    /// verbatim from the stage-3 competition that committed this word
+    /// (bead hearsay-four-shq; INV `rating_in_range`).
+    pub source_rating: f64,
+    /// Per-record summary of the evidence channels behind the commit
+    /// (bead hearsay-four-shq; e.g. channel count, combined log-odds, and
+    /// rating — never empty on a committed record).
+    pub evidence_summary: String,
 }
 
 /// Session metadata for a [`Transcript`] (schema section 3.1).
@@ -174,6 +189,16 @@ impl WordRecord {
     /// the hypotheses it beat, the evidence that decided the competition,
     /// and the derivation chain. Validation of the chain (termination at
     /// acoustic evidence, acyclicity) belongs to nak.1, not this constructor.
+    ///
+    /// The stage-3 propagation contract (bead hearsay-four-shq) additionally
+    /// requires the winner's 0–100 rating verbatim (`source_rating`) plus a
+    /// per-record evidence summary (`evidence_summary`): this constructor
+    /// takes both, so a committed record always carries its propagated
+    /// rating. No scheduling layer is involved (alpha-indexed-dispatch):
+    /// the rating is moved here unchanged.
+    // Nine args mirror the nine WordRecord fields one-to-one; a parameter
+    // object would just re-invent the struct, so the lint is allowed here.
+    #[allow(clippy::too_many_arguments)]
     pub fn committed(
         text: impl Into<String>,
         span_ms: (u64, u64),
@@ -182,6 +207,8 @@ impl WordRecord {
         losing: Vec<Hypothesis>,
         decided_by: Evidence,
         provenance: ProvenanceChain,
+        source_rating: f64,
+        evidence_summary: impl Into<String>,
     ) -> Self {
         Self {
             text: text.into(),
@@ -192,6 +219,8 @@ impl WordRecord {
             losing,
             decided_by,
             provenance,
+            source_rating,
+            evidence_summary: evidence_summary.into(),
         }
     }
 }
@@ -233,6 +262,19 @@ pub enum ChainError {
     EmptyDecidingEvidence,
     /// A score/strength field is NaN, infinite, or outside [0,1].
     ScoreOutOfRange(&'static str),
+    /// A chain node's rating is NaN, infinite, or outside [0,100]
+    /// (INV `rating_in_range`, bead hearsay-four-shq).
+    NodeRatingOutOfRange { node: u64 },
+    /// A node's rating exceeds one of its premises' ratings: confidence
+    /// must not increase along the derivation (monotone non-increase,
+    /// bead hearsay-four-shq).
+    RatingIncreasesAlongChain { node: u64, premise: u64 },
+    /// The propagated stage-3 source rating is NaN, infinite, or outside
+    /// [0,100] (INV `rating_in_range`, bead hearsay-four-shq).
+    SourceRatingOutOfRange,
+    /// The per-record evidence summary is missing (bead hearsay-four-shq:
+    /// every committed record carries source rating + evidence summary).
+    EmptyEvidenceSummary,
 }
 
 impl ChainLevel {
@@ -247,11 +289,26 @@ impl ChainLevel {
     }
 }
 
+/// Tolerance for float noise when comparing propagated ratings: ratings
+/// derived from the same log-odds arithmetic are bitwise equal, but
+/// independently combined paths may differ by a rounding step.
+const RATING_MONOTONE_EPS: f64 = 1e-9;
+
+/// Check whether a 0–100 stage-3 rating value is usable (finite, in range).
+fn rating_value_in_range(rating: f64) -> bool {
+    rating.is_finite() && (0.0..=100.0).contains(&rating)
+}
+
 impl ProvenanceChain {
     /// Check INV `provenance_terminates` + INV `chain_acyclic`: layers start
     /// at frame-level acoustic evidence, strictly ascend, every premise
     /// resolves to a strictly lower layer, and every node reaches a frame
     /// node by following premises.
+    ///
+    /// Plus the stage-3 propagation contract (bead hearsay-four-shq):
+    /// INV `rating_in_range` (every node rating finite and in [0,100]) and
+    /// monotone non-increase along the chain (no node rating exceeds any of
+    /// its premises' ratings).
     pub fn validate(&self) -> Result<(), ChainError> {
         if self.layers.is_empty() {
             return Err(ChainError::EmptyChain);
@@ -298,6 +355,34 @@ impl ProvenanceChain {
                                 });
                             }
                             Some(_) => {}
+                        }
+                    }
+                }
+            }
+        }
+        // Stage-3 propagation invariants (bead hearsay-four-shq): every
+        // node rating is finite and in [0,100] ...
+        let mut rating_of: std::collections::BTreeMap<u64, f64> = std::collections::BTreeMap::new();
+        for layer in &self.layers {
+            for node in &layer.nodes {
+                if !rating_value_in_range(node.rating) {
+                    return Err(ChainError::NodeRatingOutOfRange { node: node.id });
+                }
+                rating_of.insert(node.id, node.rating);
+            }
+        }
+        // ... and ratings never increase along the derivation: a node is
+        // only as credible as its weakest premise.
+        for layer in self.layers.iter().skip(1) {
+            for node in &layer.nodes {
+                for justification in &node.support {
+                    for &premise in &justification.premises {
+                        let premise_rating = rating_of.get(&premise).copied().unwrap_or(0.0);
+                        if node.rating > premise_rating + RATING_MONOTONE_EPS {
+                            return Err(ChainError::RatingIncreasesAlongChain {
+                                node: node.id,
+                                premise,
+                            });
                         }
                     }
                 }
@@ -374,8 +459,12 @@ impl WordRecord {
     /// acoustic evidence, and passes the result here with the committed
     /// winner, the losing hypotheses it beat (stage3/stage4 N-best outputs),
     /// and the deciding evidence. Validation (INVs `provenance_terminates`,
-    /// `records_loser_and_evidence`, `score_in_range`, `chain_acyclic`)
-    /// runs before the record is returned.
+    /// `records_loser_and_evidence`, `score_in_range`, `chain_acyclic`,
+    /// plus the stage-3 propagation ratings `rating_in_range` and monotone
+    /// non-increase) runs before the record is returned.
+    // Nine args mirror the nine WordRecord fields one-to-one; a parameter
+    // object would just re-invent the struct, so the lint is allowed here.
+    #[allow(clippy::too_many_arguments)]
     pub fn committed_from_live(
         text: impl Into<String>,
         span_ms: (u64, u64),
@@ -384,22 +473,41 @@ impl WordRecord {
         losing: Vec<Hypothesis>,
         decided_by: Evidence,
         provenance: ProvenanceChain,
+        source_rating: f64,
+        evidence_summary: impl Into<String>,
     ) -> Result<Self, ChainError> {
         let record = Self::committed(
-            text, span_ms, confidence, winner, losing, decided_by, provenance,
+            text,
+            span_ms,
+            confidence,
+            winner,
+            losing,
+            decided_by,
+            provenance,
+            source_rating,
+            evidence_summary,
         );
         record.validate()?;
         Ok(record)
     }
 
-    /// Check INVs `records_loser_and_evidence`, `score_in_range`, plus the
-    /// full chain contract (`provenance_terminates`, `chain_acyclic`).
+    /// Check INVs `records_loser_and_evidence`, `score_in_range`,
+    /// `rating_in_range` (propagated source rating in [0,100], non-empty
+    /// evidence summary), plus the full chain contract
+    /// (`provenance_terminates`, `chain_acyclic`, rating range + monotone
+    /// non-increase along the chain).
     pub fn validate(&self) -> Result<(), ChainError> {
         if self.losing.is_empty() {
             return Err(ChainError::NoLosingHypothesis);
         }
         if self.decided_by.description.trim().is_empty() {
             return Err(ChainError::EmptyDecidingEvidence);
+        }
+        if !rating_value_in_range(self.source_rating) {
+            return Err(ChainError::SourceRatingOutOfRange);
+        }
+        if self.evidence_summary.trim().is_empty() {
+            return Err(ChainError::EmptyEvidenceSummary);
         }
         for (field, value) in [
             ("confidence", self.confidence),
@@ -468,9 +576,10 @@ impl WordRecord {
             }
         }
         let mut out = format!(
-            "word {:?} [{}ms-{}ms] confidence {:.2}\n",
-            self.text, self.start_ms, self.end_ms, self.confidence
+            "word {:?} [{}ms-{}ms] confidence {:.2} source-rating {:.2}\n",
+            self.text, self.start_ms, self.end_ms, self.confidence, self.source_rating
         );
+        out.push_str(&format!("EVIDENCE SUMMARY: {}\n", self.evidence_summary));
         out.push_str(&format!(
             "WINNER: {:?} (score {:.2}, {})\n",
             self.winner.text,
@@ -741,6 +850,8 @@ mod ppt_tests;
 mod tests {
     use super::*;
 
+    /// Ratings descend frame -> sequence (90/85/80/75/70): in range and
+    /// monotone non-increasing along the chain (bead hearsay-four-shq).
     fn sample_chain() -> ProvenanceChain {
         ProvenanceChain::new(vec![
             ChainLayer {
@@ -750,6 +861,7 @@ mod tests {
                     label: "FRAME:0-20ms".to_string(),
                     support: vec![],
                     active: true,
+                    rating: 90.0,
                 }],
             },
             ChainLayer {
@@ -763,6 +875,7 @@ mod tests {
                         unconditional: false,
                     }],
                     active: true,
+                    rating: 85.0,
                 }],
             },
             ChainLayer {
@@ -776,6 +889,7 @@ mod tests {
                         unconditional: false,
                     }],
                     active: true,
+                    rating: 80.0,
                 }],
             },
             ChainLayer {
@@ -789,6 +903,7 @@ mod tests {
                         unconditional: false,
                     }],
                     active: true,
+                    rating: 75.0,
                 }],
             },
             ChainLayer {
@@ -802,6 +917,7 @@ mod tests {
                         unconditional: false,
                     }],
                     active: true,
+                    rating: 70.0,
                 }],
             },
         ])
@@ -821,6 +937,8 @@ mod tests {
                 0.78,
             ),
             sample_chain(),
+            85.0,
+            "2 channels; log-odds 1.7346; rating 85.00",
         );
 
         // Winner, loser, and deciding evidence share one record: the
@@ -885,6 +1003,8 @@ mod tests {
                 0.78,
             ),
             chain,
+            85.0,
+            "2 channels; log-odds 1.7346; rating 85.00",
         )
     }
 
@@ -907,6 +1027,8 @@ mod tests {
                     0.78,
                 ),
                 sample_chain(),
+                85.0,
+                "2 channels; log-odds 1.7346; rating 85.00",
             )
             .is_ok()
         );
@@ -1084,5 +1206,92 @@ mod tests {
         let back = WordRecord::from_json(&json).expect("round-trip parses");
         assert_eq!(back, record);
         assert!(back.validate().is_ok());
+    }
+
+    #[test]
+    fn propagated_node_ratings_validate_range_and_monotone() {
+        // Bead hearsay-four-shq: node ratings in [0,100], monotone
+        // non-increasing along the chain.
+        assert!(sample_chain().validate().is_ok());
+
+        // Out-of-range node rating fails red.
+        let mut high = sample_chain();
+        high.layers[1].nodes[0].rating = 101.0;
+        assert_eq!(
+            high.validate(),
+            Err(ChainError::NodeRatingOutOfRange { node: 2 })
+        );
+        let mut low = sample_chain();
+        low.layers[3].nodes[0].rating = f64::NEG_INFINITY;
+        assert_eq!(
+            low.validate(),
+            Err(ChainError::NodeRatingOutOfRange { node: 4 })
+        );
+
+        // A rating that rises along the derivation fails red, naming the
+        // edge (node 4 at 75.0 sits above premise 3 at 80.0: raising it to
+        // 85.0 breaks monotone non-increase).
+        let mut rising = sample_chain();
+        rising.layers[3].nodes[0].rating = 85.0;
+        assert_eq!(
+            rising.validate(),
+            Err(ChainError::RatingIncreasesAlongChain {
+                node: 4,
+                premise: 3
+            })
+        );
+
+        // Equal ratings still validate (non-increase permits equality).
+        let mut flat = sample_chain();
+        for layer in &mut flat.layers {
+            for node in &mut layer.nodes {
+                node.rating = 70.0;
+            }
+        }
+        assert!(flat.validate().is_ok());
+    }
+
+    #[test]
+    fn propagated_source_rating_and_summary_required() {
+        // The propagated stage-3 rating lands verbatim and validates.
+        let record = live_record(sample_chain());
+        assert_eq!(record.source_rating, 85.0);
+        assert!(!record.evidence_summary.is_empty());
+        assert!(record.validate().is_ok());
+
+        // An out-of-range propagated rating fails red.
+        let mut bad_rating = live_record(sample_chain());
+        bad_rating.source_rating = 150.0;
+        assert_eq!(
+            bad_rating.validate(),
+            Err(ChainError::SourceRatingOutOfRange)
+        );
+        let mut nan_rating = live_record(sample_chain());
+        nan_rating.source_rating = f64::NAN;
+        assert_eq!(
+            nan_rating.validate(),
+            Err(ChainError::SourceRatingOutOfRange)
+        );
+        assert!(
+            bad_rating.to_json().is_err(),
+            "bad rating must not serialize"
+        );
+
+        // A missing evidence summary fails red.
+        let mut no_summary = live_record(sample_chain());
+        no_summary.evidence_summary.clear();
+        assert_eq!(no_summary.validate(), Err(ChainError::EmptyEvidenceSummary));
+    }
+
+    #[test]
+    fn render_shows_propagated_rating_and_summary() {
+        let record = live_record(sample_chain());
+        let screen = record.render();
+        assert!(screen.contains("source-rating 85.00"), "rating shown");
+        assert!(screen.contains("EVIDENCE SUMMARY:"), "summary shown");
+        assert!(
+            screen.contains("2 channels; log-odds 1.7346; rating 85.00"),
+            "summary content shown"
+        );
     }
 }
