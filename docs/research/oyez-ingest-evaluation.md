@@ -93,3 +93,21 @@ manifest, same discipline as `data/corpus`).
 - Local `phrase_training` clips: front-end use only until provenance
   is established (0/3500 fully in-vocab, origin undocumented) —
   separate provenance bead, not this lane.
+
+## 7. Outcomes (2026-10-27 wave)
+
+- `oyez-bulk` (`hearsay-four-c1g`, CLOSED): N=3 cases across
+  1971/2011/2025 terms, 3/3 `failfast_run --root` exit 0 PASS,
+  margins 94.72 / 38.72 / 40.86, monotone-B true. Carry-forward:
+  Roberts/Sotomayor/Alito/Kagan persist 2011->2025, advocates
+  rotate fully. Manifests+transcripts+MANIFEST.json committed under
+  `sessions/oyez-bulk/`; audio gitignored.
+- `cv-eval` (`hearsay-four-jhn`, IN PROGRESS, blocked): Common
+  Voice HF copies are README-only (removed Oct 2025 to Mozilla
+  Data Collective, gated on signup + API key); S3 sample URL 403;
+  mirrors lack accent columns; v1 archive.org lacks accent
+  metadata. Eval pipeline (`cv_eval.rs` lib + bin, fetch script
+  with `--mdc`/`--from-dir`, 3 unit tests) built and
+  synthetic-green on `hackathon/track-b` (uncommitted). Resume:
+  human completes MDC signup, exports MDC_API_KEY, fetch `--mdc`,
+  run eval, commit on green.
