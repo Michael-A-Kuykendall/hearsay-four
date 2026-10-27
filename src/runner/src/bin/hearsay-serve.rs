@@ -14,7 +14,9 @@
 //!
 //! Contract (same as hearsay-demo): every word's provenance chain is
 //! re-validated before anything is printed — a violation exits 1, never a
-//! dangling ref and never partial JSON on stdout. Missing input exits 2.
+//! dangling ref and never partial JSON on stdout. Missing or undecodable
+//! input (MP3/WAV sniff fails, corrupt bytes) exits 2, also with empty
+//! stdout.
 //!
 //! Offline by construction: no sockets are opened, no network crates are
 //! linked, and the only pronunciation data is the vendored dictionary.
@@ -22,7 +24,7 @@
 use std::io::{IsTerminal, Read};
 use std::path::PathBuf;
 
-use corpus::audio::{Pcm16kAudio, TARGET_CHANNELS, TARGET_SAMPLE_RATE};
+use corpus::audio::Pcm16kAudio;
 use output::SessionMeta;
 use runner::{
     StreamingConfig, StreamingOutput, generic_reference_baseline, run_streaming_pipeline,
@@ -33,13 +35,15 @@ use runner::{
 const USAGE: &str = "\
 hearsay-serve: offline transcription service (E1, bead hearsay-four-j6r)\n\
 \n\
-usage: hearsay-serve [--input <audio.wav|->] [--enroll <enroll.wav>] \\\n\
+usage: hearsay-serve [--input <audio.mp3|wav|->] [--enroll <enroll.mp3|wav>] \\\n\
                      [--max-secs N] [--chunk-secs N]\n\
-  --input <path>   WAV file to transcribe; `-` or omitted reads WAV bytes\n\
-                   from stdin (pipe, never a TTY prompt)\n\
-  --enroll <path>  D1 enrollment clip: the scoring baseline is fit from this\n\
-                   audio through the front-end path instead of the generic\n\
-                   reference baseline\n\
+  --input <path>   MP3 or WAV file to transcribe (container sniffed from\n\
+                   content, not the extension); `-` or omitted reads\n\
+                   MP3/WAV bytes from stdin (pipe, never a TTY prompt)\n\
+  --enroll <path>  D1 enrollment clip (MP3 or WAV, sniffed like --input):\n\
+                   the scoring baseline is fit from this audio through\n\
+                   the front-end path instead of the generic reference\n\
+                   baseline\n\
   --max-secs N     cap on audio processed, seconds (default 12, 0 = no cap)\n\
   --chunk-secs N   audio seconds per committed word (default 2)\n\
 \n\
@@ -50,7 +54,7 @@ offline: no sockets, no network crates, vendored dictionary only.";
 /// Parsed CLI request.
 #[derive(Debug, Clone)]
 struct ServeRequest {
-    /// `None` (or `Some("-")`) means: read WAV bytes from stdin.
+    /// `None` (or `Some("-")`) means: read MP3/WAV bytes from stdin.
     input: Option<PathBuf>,
     /// D1 enrollment clip for the scoring baseline (`None` = generic ref).
     enroll: Option<PathBuf>,
@@ -76,6 +80,16 @@ impl ServeFailure {
         Self {
             code: 2,
             stderr: format!("hearsay-serve: {msg}\n{USAGE}\n"),
+        }
+    }
+
+    /// Undecodable input (missing file, sniff failure, corrupt MP3/WAV):
+    /// exit 2 like a usage error — the request never reached the pipeline —
+    /// but without the usage dump, since the CLI shape was fine.
+    fn input(msg: String) -> Self {
+        Self {
+            code: 2,
+            stderr: format!("hearsay-serve: {msg}\n"),
         }
     }
 
@@ -156,38 +170,13 @@ fn parse_args(args: &[String]) -> Result<ServeAction, ServeFailure> {
     }))
 }
 
-/// Decode WAV bytes (stdin path) into canonical 16 kHz mono PCM: `hound`
-/// parses the RIFF container, then the same mono-collapse + linear-resample
-/// the file path uses, so stdin and file agree exactly.
-fn decode_stdin_wav(bytes: &[u8]) -> Result<Pcm16kAudio, String> {
-    let reader = hound::WavReader::new(std::io::Cursor::new(bytes))
-        .map_err(|e| format!("not a 16-bit PCM WAV: {e}"))?;
-    let spec = reader.spec();
-    if spec.bits_per_sample != 16 {
-        return Err(format!(
-            "unsupported bits_per_sample {} (stdin WAV must be 16-bit PCM)",
-            spec.bits_per_sample
-        ));
-    }
-    let samples: Vec<i16> = reader
-        .into_samples::<i16>()
-        .collect::<Result<_, _>>()
-        .map_err(|e| format!("stdin WAV sample error: {e}"))?;
-    let audio = corpus::audio::PcmAudio {
-        sample_rate: spec.sample_rate,
-        channels: spec.channels,
-        samples,
-    };
-    let mono = corpus::audio::to_mono(&audio);
-    let frames = corpus::audio::resample_linear(&mono, audio.sample_rate, TARGET_SAMPLE_RATE);
-    if frames.is_empty() {
-        return Err("decoded zero frames".to_string());
-    }
-    Ok(Pcm16kAudio {
-        sample_rate: TARGET_SAMPLE_RATE,
-        channels: TARGET_CHANNELS,
-        frames,
-    })
+/// Decode piped-stdin bytes into canonical 16 kHz mono PCM, sniffing the
+/// container exactly like the file path ([`corpus::audio::decode_bytes`]:
+/// RIFF bytes decode as WAV, MPEG-sync/ID3 bytes as MP3) and sharing the
+/// same mono-collapse + linear-resample core, so stdin and file agree
+/// exactly for identical audio bytes.
+fn decode_stdin_audio(bytes: &[u8]) -> Result<Pcm16kAudio, String> {
+    corpus::audio::decode_bytes_to_pcm16k(bytes)
 }
 
 /// D1 enrollment-as-baseline wiring: fit a Gaussian baseline from an
@@ -258,7 +247,10 @@ fn emit(out: &StreamingOutput) -> (String, String, i32) {
 fn serve(req: &ServeRequest, stdin_bytes: Option<&[u8]>) -> (String, String, i32) {
     let fail = |failure: ServeFailure| (String::new(), failure.stderr, failure.code);
 
-    // Input: file WAV, or stdin WAV bytes (`-` or omitted `--input`).
+    // Input: file MP3/WAV (sniffed), or stdin MP3/WAV bytes (`-` or omitted
+    // `--input`). Any input that never decodes — missing file, unknown
+    // container, corrupt bytes — exits 2: the request never reached the
+    // pipeline, and stdout stays empty (never partial JSON).
     let wants_stdin = match &req.input {
         None => true,
         Some(path) => path.as_os_str() == "-",
@@ -267,12 +259,13 @@ fn serve(req: &ServeRequest, stdin_bytes: Option<&[u8]>) -> (String, String, i32
         match stdin_bytes {
             None | Some([]) => {
                 return fail(ServeFailure::usage(
-                    "no input: pass --input <audio.wav> or pipe WAV bytes on stdin".to_string(),
+                    "no input: pass --input <audio.mp3|wav> or pipe MP3/WAV bytes on stdin"
+                        .to_string(),
                 ));
             }
-            Some(bytes) => match decode_stdin_wav(bytes) {
+            Some(bytes) => match decode_stdin_audio(bytes) {
                 Ok(pcm) => (pcm, "stdin".to_string()),
-                Err(e) => return fail(ServeFailure::failed(format!("stdin decode failed: {e}"))),
+                Err(e) => return fail(ServeFailure::input(format!("stdin decode failed: {e}"))),
             },
         }
     } else {
@@ -280,7 +273,7 @@ fn serve(req: &ServeRequest, stdin_bytes: Option<&[u8]>) -> (String, String, i32
         match corpus::audio::decode_to_pcm16k(path) {
             Ok(pcm) => (pcm, path.display().to_string()),
             Err(e) => {
-                return fail(ServeFailure::failed(format!(
+                return fail(ServeFailure::input(format!(
                     "decode failed for {}: {e}",
                     path.display()
                 )));
@@ -289,12 +282,14 @@ fn serve(req: &ServeRequest, stdin_bytes: Option<&[u8]>) -> (String, String, i32
     };
 
     // Baseline: D1 enrolled clip when given, else the generic reference.
+    // An undecodable enrollment clip is an input error (exit 2), like the
+    // main input: scoring never started.
     let baseline = match &req.enroll {
         Some(path) => {
             let enroll_pcm = match corpus::audio::decode_to_pcm16k(path) {
                 Ok(pcm) => pcm,
                 Err(e) => {
-                    return fail(ServeFailure::failed(format!(
+                    return fail(ServeFailure::input(format!(
                         "enroll decode failed for {}: {e}",
                         path.display()
                     )));
@@ -302,7 +297,7 @@ fn serve(req: &ServeRequest, stdin_bytes: Option<&[u8]>) -> (String, String, i32
             };
             match enrolled_baseline(&enroll_pcm) {
                 Ok(baseline) => baseline,
-                Err(e) => return fail(ServeFailure::failed(format!("enrollment failed: {e}"))),
+                Err(e) => return fail(ServeFailure::input(format!("enrollment failed: {e}"))),
             }
         }
         None => generic_reference_baseline(),
@@ -528,6 +523,126 @@ mod serve_tests {
             word.validate()
                 .expect("enrolled chain terminates at acoustic evidence");
         }
+    }
+
+    /// MP3-1 fixtures (bead hearsay-four-gmv): the Oyez MP3 clip, its
+    /// decode-derived WAV twin, and the synthetic corrupt fixture.
+    const MP3_FIXTURE: &str = "../../data/demo/serve-mp3.mp3";
+    const MP3_TWIN_WAV: &str = "../../data/demo/serve-mp3-twin.wav";
+    const CORRUPT_MP3: &str = "../../data/demo/corrupt.mp3";
+
+    /// Parse stdout transcript JSON and redact the run-specific
+    /// `recording_ref`, so two runs over identical PCM compare
+    /// byte-identical everywhere else (words, provenance, stats).
+    fn normalized_json(stdout: &str) -> serde_json::Value {
+        let mut v: serde_json::Value =
+            serde_json::from_str(stdout).expect("stdout is valid transcript JSON");
+        if let Some(session) = v.pointer_mut("/transcript/session/recording_ref") {
+            *session = serde_json::Value::String("RECORDING_REF".to_string());
+        } else {
+            panic!("transcript session recording_ref present");
+        }
+        v
+    }
+
+    fn mp3_request(input: &str) -> ServeRequest {
+        ServeRequest {
+            input: Some(PathBuf::from(input)),
+            enroll: None,
+            // First 4 s (2 chunks): enough to prove end-to-end parity.
+            max_secs: 4.0,
+            chunk_secs: 2.0,
+        }
+    }
+
+    /// MP3-1 (bead hearsay-four-gmv): the Oyez MP3 clip served via
+    /// `--input` transcribes byte-identically (modulo `recording_ref`)
+    /// to its WAV twin — the wired MP3 decode reproduces the WAV path.
+    #[test]
+    fn serve_mp3_file_matches_wav_twin_transcript() {
+        let (mp3_out, mp3_err, mp3_code) = serve(&mp3_request(MP3_FIXTURE), None);
+        assert_eq!(
+            mp3_code, 0,
+            "MP3 fixture transcribes clean (stderr: {mp3_err})"
+        );
+        let (wav_out, wav_err, wav_code) = serve(&mp3_request(MP3_TWIN_WAV), None);
+        assert_eq!(
+            wav_code, 0,
+            "WAV twin transcribes clean (stderr: {wav_err})"
+        );
+        let mp3_json = normalized_json(&mp3_out);
+        let wav_json = normalized_json(&wav_out);
+        assert_eq!(
+            mp3_json, wav_json,
+            "MP3 transcript is byte-identical to its WAV twin (modulo recording_ref)"
+        );
+        let transcript = transcript_of(&mp3_out);
+        assert!(
+            !transcript.words.is_empty(),
+            "twin transcript non-empty on courtroom audio"
+        );
+        for word in &transcript.words {
+            word.validate()
+                .expect("twin chain terminates at frame-level acoustic evidence");
+        }
+    }
+
+    /// MP3-1: piped-stdin bytes are sniffed (MP3 vs WAV) and transcribe
+    /// byte-identically (modulo `recording_ref`) to the same bytes served
+    /// via `--input` — stdin and file agree exactly either way.
+    #[test]
+    fn serve_stdin_bytes_match_file_for_both_containers() {
+        for fixture in [MP3_FIXTURE, MP3_TWIN_WAV] {
+            let bytes = std::fs::read(fixture).expect("fixture bytes readable");
+            let req = ServeRequest {
+                input: None,
+                ..mp3_request(fixture)
+            };
+            let (stdin_out, stdin_err, stdin_code) = serve(&req, Some(&bytes));
+            assert_eq!(
+                stdin_code, 0,
+                "stdin {fixture} transcribes clean (stderr: {stdin_err})"
+            );
+            let (file_out, file_err, file_code) = serve(&mp3_request(fixture), None);
+            assert_eq!(
+                file_code, 0,
+                "file {fixture} transcribes clean (stderr: {file_err})"
+            );
+            assert_eq!(
+                normalized_json(&stdin_out),
+                normalized_json(&file_out),
+                "stdin bytes and --input file agree exactly for {fixture}"
+            );
+        }
+    }
+
+    /// MP3-1: a corrupt MP3 exits 2 with an error and never partial JSON —
+    /// via `--input` and via piped-stdin bytes alike. Undecodable input
+    /// never reaches the pipeline, so this is an input error (2), not a
+    /// pipeline failure (1).
+    #[test]
+    fn serve_corrupt_mp3_exits_2_without_partial_json() {
+        let (stdout, stderr, code) = serve(&mp3_request(CORRUPT_MP3), None);
+        assert_eq!(code, 2, "corrupt MP3 file exits 2");
+        assert!(stdout.is_empty(), "no partial JSON on stdout");
+        assert!(
+            stderr.contains("decode failed"),
+            "stderr names the decode failure (got {stderr:?})"
+        );
+        let bytes = std::fs::read(CORRUPT_MP3).expect("corrupt fixture readable");
+        let req = ServeRequest {
+            input: None,
+            ..mp3_request(CORRUPT_MP3)
+        };
+        let (stdin_out, stdin_err, stdin_code) = serve(&req, Some(&bytes));
+        assert_eq!(stdin_code, 2, "corrupt MP3 stdin bytes exit 2");
+        assert!(stdin_out.is_empty(), "no partial JSON on stdout");
+        assert!(!stdin_err.is_empty(), "stderr explains the failure");
+        // Unknown container bytes are an input error too, never a guess.
+        let (guess_out, guess_err, guess_code) = serve(&req, Some(&[0x00, 0x01, 0x02, 0x03]));
+        assert_eq!(guess_code, 2, "unknown bytes exit 2");
+        assert!(guess_out.is_empty(), "no partial JSON on stdout");
+        assert!(!guess_err.is_empty(), "stderr explains the failure");
     }
 
     /// (5) C1 rating invariants enforced on the serve path (bead

@@ -3,10 +3,16 @@
 //! Handles the two corpus formats (see `docs/research/corpus/`):
 //! - True RIFF PCM WAV (phrase_training, bulk_tts_1k) — `hound`.
 //! - MPEG audio, mislabeled `.wav` (quality_checked_1k) and CourtListener's
-//!   22.05 kHz enhanced MP3s — `minimp3`.
+//!   22.05 kHz enhanced MP3s — `symphonia` (`mp3` feature only).
 //!
 //! Output: canonical **PCM 16 kHz mono** `i16` frames via linear resampling
 //! when the source rate differs from 16 kHz.
+//!
+//! Both entry points — [`decode_file`]/[`decode_to_pcm16k`] (file path) and
+//! [`decode_bytes`]/[`decode_bytes_to_pcm16k`] (in-memory path, e.g. piped
+//! stdin) — sniff the container from magic bytes and share the same
+//! mono-collapse + resample core ([`to_pcm16k`]), so the two paths produce
+//! identical PCM for identical audio bytes.
 
 use std::fs::File;
 use std::path::Path;
@@ -49,16 +55,27 @@ pub fn detect_format(path: &Path) -> Result<AudioFormat, String> {
     let mut file = File::open(path).map_err(|e| format!("{}: {e}", path.display()))?;
     use std::io::Read;
     let n = file.read(&mut magic).unwrap_or(0);
-    if n >= 4 && &magic[..4] == b"RIFF" {
-        return Ok(AudioFormat::Wav);
+    Ok(sniff_format_bytes(&magic[..n]))
+}
+
+/// Detect the container format from a byte prefix (magic bytes).
+///
+/// Shared by the file path ([`detect_format`]) and the in-memory path, so
+/// piped stdin is sniffed exactly like a file: RIFF means WAV, an MPEG
+/// syncword or ID3v2 preamble means MP3, anything else is [`AudioFormat::Unknown`].
+pub fn sniff_format_bytes(prefix: &[u8]) -> AudioFormat {
+    let n = prefix.len();
+    if n >= 4 && &prefix[..4] == b"RIFF" {
+        return AudioFormat::Wav;
     }
     // MPEG audio syncword is 11 bits of 1s (0xFFEx for Layer III); ID3v2
     // preamble also implies MP3.
-    if (n >= 2 && magic[0] == 0xFF && magic[1] & 0xE0 == 0xE0) || (n >= 3 && magic[..3] == *b"ID3")
+    if (n >= 2 && prefix[0] == 0xFF && prefix[1] & 0xE0 == 0xE0)
+        || (n >= 3 && prefix[..3] == *b"ID3")
     {
-        return Ok(AudioFormat::Mp3);
+        return AudioFormat::Mp3;
     }
-    Ok(AudioFormat::Unknown)
+    AudioFormat::Unknown
 }
 
 /// Decode a WAV file to PCM via `hound` (16-bit PCM formats).
@@ -83,19 +100,17 @@ pub fn decode_wav(path: &Path) -> Result<PcmAudio, String> {
     })
 }
 
-/// Decode an MPEG audio file (MP1/2/2.5 Layer III, incl. ADTS-ish streams and
-/// mislabeled `.wav` files) via `symphonia`.
-pub fn decode_mp3(path: &Path) -> Result<PcmAudio, String> {
-    use symphonia::core::audio::SampleBuffer;
+/// Probe an MP3 [`MediaSourceStream`](symphonia::core::io::MediaSourceStream)
+/// and decode every packet to interleaved `i16` via the shared packet loop.
+fn decode_mp3_stream(
+    mss: symphonia::core::io::MediaSourceStream,
+    display: &str,
+) -> Result<PcmAudio, String> {
     use symphonia::core::codecs::CODEC_TYPE_NULL;
-    use symphonia::core::errors::Error as SymError;
     use symphonia::core::formats::FormatOptions;
-    use symphonia::core::io::MediaSourceStream;
     use symphonia::core::meta::MetadataOptions;
     use symphonia::core::probe::Hint;
 
-    let file = File::open(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let mss = MediaSourceStream::new(Box::new(file), Default::default());
     let mut hint = Hint::new();
     hint.with_extension("mp3");
 
@@ -106,21 +121,35 @@ pub fn decode_mp3(path: &Path) -> Result<PcmAudio, String> {
             &FormatOptions::default(),
             &MetadataOptions::default(),
         )
-        .map_err(|e| format!("{}: MP3 probe error: {e}", path.display()))?;
+        .map_err(|e| format!("{display}: MP3 probe error: {e}"))?;
     let mut format = probed.format;
 
     let track = format
         .tracks()
         .iter()
         .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
-        .ok_or_else(|| format!("{}: no audio track found", path.display()))?
+        .ok_or_else(|| format!("{display}: no audio track found"))?
         .clone();
     let mut decoder = symphonia::default::get_codecs()
         .make(
             &track.codec_params,
             &symphonia::core::codecs::DecoderOptions::default(),
         )
-        .map_err(|e| format!("{}: MP3 decoder init error: {e}", path.display()))?;
+        .map_err(|e| format!("{display}: MP3 decoder init error: {e}"))?;
+
+    decode_mp3_packets(&mut format, &mut decoder, display)
+}
+
+/// Shared symphonia packet loop: decode every packet to interleaved `i16`,
+/// skipping corrupt packets but failing the whole clip on demux errors and
+/// on a mid-stream sample-rate change.
+fn decode_mp3_packets(
+    format: &mut Box<dyn symphonia::core::formats::FormatReader>,
+    decoder: &mut Box<dyn symphonia::core::codecs::Decoder>,
+    display: &str,
+) -> Result<PcmAudio, String> {
+    use symphonia::core::audio::SampleBuffer;
+    use symphonia::core::errors::Error as SymError;
 
     let mut samples: Vec<i16> = Vec::new();
     let mut sample_rate: Option<u32> = None;
@@ -133,7 +162,7 @@ pub fn decode_mp3(path: &Path) -> Result<PcmAudio, String> {
                 break;
             }
             Err(e) => {
-                return Err(format!("{}: MP3 demux error: {e}", path.display()));
+                return Err(format!("{display}: MP3 demux error: {e}"));
             }
         };
         match decoder.decode(&packet) {
@@ -144,10 +173,7 @@ pub fn decode_mp3(path: &Path) -> Result<PcmAudio, String> {
                     None => sample_rate = Some(rate),
                     Some(r) if r != rate => {
                         return Err(format!(
-                            "{}: sample rate changes mid-stream ({} -> {})",
-                            path.display(),
-                            r,
-                            rate
+                            "{display}: sample rate changes mid-stream ({r} -> {rate})"
                         ));
                     }
                     _ => {}
@@ -160,18 +186,77 @@ pub fn decode_mp3(path: &Path) -> Result<PcmAudio, String> {
             // Skip corrupt packets instead of failing the whole clip.
             Err(SymError::DecodeError(_)) => continue,
             Err(e) => {
-                return Err(format!("{}: MP3 decode error: {e}", path.display()));
+                return Err(format!("{display}: MP3 decode error: {e}"));
             }
         }
     }
     if samples.is_empty() {
-        return Err(format!("{}: decoded zero frames", path.display()));
+        return Err(format!("{display}: decoded zero frames"));
     }
     Ok(PcmAudio {
         sample_rate: sample_rate.unwrap_or(0),
         channels: channels.max(1),
         samples,
     })
+}
+
+/// Decode an MPEG audio file (MP1/2/2.5 Layer III, incl. ADTS-ish streams and
+/// mislabeled `.wav` files) via `symphonia`.
+pub fn decode_mp3(path: &Path) -> Result<PcmAudio, String> {
+    use symphonia::core::io::MediaSourceStream;
+
+    let display = path.display().to_string();
+    let file = File::open(path).map_err(|e| format!("{display}: {e}"))?;
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+    decode_mp3_stream(mss, &display)
+}
+
+/// Decode MPEG audio from an in-memory buffer via `symphonia`, sharing the
+/// exact packet loop the file path uses, so identical bytes decode to
+/// identical PCM.
+pub fn decode_mp3_bytes(bytes: &[u8]) -> Result<PcmAudio, String> {
+    use symphonia::core::io::MediaSourceStream;
+
+    let mss = MediaSourceStream::new(
+        Box::new(std::io::Cursor::new(bytes.to_vec())),
+        Default::default(),
+    );
+    decode_mp3_stream(mss, "stdin")
+}
+
+/// Decode a 16-bit PCM WAV from an in-memory buffer via `hound`.
+pub fn decode_wav_bytes(bytes: &[u8]) -> Result<PcmAudio, String> {
+    let reader =
+        hound::WavReader::new(std::io::Cursor::new(bytes)).map_err(|e| format!("stdin: {e}"))?;
+    let spec = reader.spec();
+    if spec.bits_per_sample != 16 {
+        return Err(format!(
+            "stdin: unsupported bits_per_sample {} (must be 16-bit PCM)",
+            spec.bits_per_sample
+        ));
+    }
+    let samples: Vec<i16> = reader
+        .into_samples::<i16>()
+        .collect::<Result<_, _>>()
+        .map_err(|e| format!("stdin sample error: {e}"))?;
+    Ok(PcmAudio {
+        sample_rate: spec.sample_rate,
+        channels: spec.channels,
+        samples,
+    })
+}
+
+/// Decode in-memory audio bytes, dispatching on the sniffed container format
+/// exactly like [`decode_file`]: RIFF bytes decode as WAV, MPEG-sync/ID3
+/// bytes decode as MP3, anything else is an error (never guessed).
+pub fn decode_bytes(bytes: &[u8]) -> Result<PcmAudio, String> {
+    match sniff_format_bytes(bytes) {
+        AudioFormat::Wav => decode_wav_bytes(bytes),
+        AudioFormat::Mp3 => decode_mp3_bytes(bytes),
+        AudioFormat::Unknown => {
+            Err("stdin: unrecognized audio container (not RIFF/WAV, not MPEG sync)".to_string())
+        }
+    }
 }
 
 /// Decode a file, dispatching on its detected container format.
@@ -251,6 +336,36 @@ pub fn decode_to_pcm16k(path: &Path) -> Result<Pcm16kAudio, String> {
         channels: TARGET_CHANNELS,
         frames,
     })
+}
+
+/// Shared canonicalization core: collapse to mono, resample to 16 kHz, and
+/// reject empty decodes. Used by BOTH the file path and the in-memory path,
+/// so identical audio bytes produce identical PCM whichever way they arrive.
+pub fn to_pcm16k(audio: &PcmAudio) -> Result<Pcm16kAudio, String> {
+    let mono = to_mono(audio);
+    let frames = resample_linear(&mono, audio.sample_rate, TARGET_SAMPLE_RATE);
+    if frames.is_empty() {
+        return Err("decoded zero frames".to_string());
+    }
+    Ok(Pcm16kAudio {
+        sample_rate: TARGET_SAMPLE_RATE,
+        channels: TARGET_CHANNELS,
+        frames,
+    })
+}
+
+/// Decode in-memory audio bytes (MP3 or WAV, sniffed) into canonical
+/// **PCM 16 kHz mono** frames — the in-memory twin of [`decode_to_pcm16k`].
+/// Enforces `decode_produces_pcm_16k`.
+pub fn decode_bytes_to_pcm16k(bytes: &[u8]) -> Result<Pcm16kAudio, String> {
+    let audio = decode_bytes(bytes)?;
+    let pcm = to_pcm16k(&audio).map_err(|e| format!("stdin: {e}"))?;
+    assert_invariant(
+        audio.sample_rate > 0,
+        DECODE_PRODUCES_PCM_16K,
+        Some("stdin"),
+    );
+    Ok(pcm)
 }
 
 /// Canonical corpus audio: PCM 16 kHz mono `i16` frames.

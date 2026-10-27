@@ -13,6 +13,11 @@ data/corpus/raw/
 *.wav
 # Narrow exception: the zero-config demo fixture (bead 9hh) only.
 !data/demo/sample.wav
+# Narrow exception: MP3-1 serve fixtures (bead hearsay-four-gmv) — one Oyez
+# MP3 clip + its decode-derived WAV twin + one synthetic corrupt fixture.
+!data/demo/serve-mp3.mp3
+!data/demo/serve-mp3-twin.wav
+!data/demo/corrupt.mp3
 data/session/audio/
 
 # --- Agent / IDE internal tooling (not for public) ---

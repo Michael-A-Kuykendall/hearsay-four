@@ -35,7 +35,7 @@ fn decode_identifies_mislabeled_mp3() {
         AudioFormat::Mp3,
         "must detect MPEG sync despite .wav extension"
     );
-    let audio = decode_mp3(&path).expect("minimp3 decodes the mislabeled MP3");
+    let audio = decode_mp3(&path).expect("symphonia decodes the mislabeled MP3");
     assert!(audio.sample_rate > 0, "source rate known (24 kHz)");
     assert!(audio.frame_count() > 0);
 }
@@ -103,6 +103,67 @@ fn decode_resampler_linear_identity_and_ratio() {
     let down = resample_linear(&src, 24_000, 16_000);
     let expected_len = (8.0f64 * 16_000.0f64 / 24_000.0f64).round() as usize;
     assert_eq!(down.len(), expected_len);
+}
+
+/// MP3-1 (bead hearsay-four-gmv): the in-memory decode path produces
+/// byte-identical canonical PCM to the file path for identical bytes —
+/// for both the Oyez MP3 clip and its WAV twin.
+#[test]
+fn decode_bytes_path_matches_file_path() {
+    use crate::audio::{decode_bytes_to_pcm16k, sniff_format_bytes};
+    use std::path::PathBuf;
+
+    // Repo-relative fixtures (cargo test cwd is the corpus package root).
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/demo");
+    for name in ["serve-mp3.mp3", "serve-mp3-twin.wav"] {
+        let path = root.join(name);
+        let bytes = std::fs::read(&path).expect("fixture present");
+        // Sniff agrees with the on-disk probe.
+        let via_prefix = sniff_format_bytes(&bytes);
+        let via_file = detect_format(&path).expect("probe file");
+        assert_eq!(
+            via_prefix, via_file,
+            "{name}: stdin sniff matches file probe"
+        );
+        let from_bytes = decode_bytes_to_pcm16k(&bytes).expect("decode bytes");
+        let from_file = decode_to_pcm16k(&path).expect("decode file");
+        assert_eq!(from_bytes.sample_rate, from_file.sample_rate);
+        assert_eq!(from_bytes.channels, from_file.channels);
+        assert_eq!(
+            from_bytes.frames, from_file.frames,
+            "{name}: byte path and file path decode to identical PCM"
+        );
+        assert!(!from_bytes.frames.is_empty(), "{name}: non-empty PCM");
+    }
+    // Unknown bytes are an error on both paths, never a guess.
+    assert_eq!(
+        sniff_format_bytes(b"\x00\x01\x02\x03"),
+        AudioFormat::Unknown
+    );
+    assert!(decode_bytes_to_pcm16k(b"\x00\x01\x02\x03").is_err());
+}
+
+/// MP3-1: the synthetic corrupt fixture sniffs as MP3 but never decodes.
+#[test]
+fn decode_rejects_corrupt_mp3_fixture() {
+    use crate::audio::decode_bytes_to_pcm16k;
+    use std::path::PathBuf;
+
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/demo/corrupt.mp3");
+    assert_eq!(
+        detect_format(&path).unwrap(),
+        AudioFormat::Mp3,
+        "corrupt fixture carries an MP3 preamble"
+    );
+    assert!(
+        decode_mp3(&path).is_err(),
+        "corrupt fixture must not decode via file"
+    );
+    let bytes = std::fs::read(&path).expect("fixture present");
+    assert!(
+        decode_bytes_to_pcm16k(&bytes).is_err(),
+        "corrupt fixture must not decode via bytes"
+    );
 }
 
 #[test]
