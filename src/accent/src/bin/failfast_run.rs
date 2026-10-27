@@ -13,36 +13,80 @@ use accent::measure::{BucketStat, apply_rule, load_session, measure_session};
 use accent::{ConditionA, ConditionB, decode_session_audio};
 use calibration::FEATURE_DIM;
 
-fn main() -> Result<(), String> {
-    let args: Vec<String> = env::args().collect();
+/// Process exit codes (bead nwu regression gate):
+/// - 0: scored cleanly; with `--margin-floor` the gate PASSED.
+/// - 1: `--margin-floor` gate FAILED (verdict FAIL or margin below floor).
+/// - 2: usage or I/O error (missing dir, bad flag value, decode failure) —
+///   always with an error line, never a silent PASS.
+pub const EXIT_PASS: i32 = 0;
+pub const EXIT_GATE_FAIL: i32 = 1;
+pub const EXIT_ERROR: i32 = 2;
+
+fn main() {
+    std::process::exit(run(&env::args().collect::<Vec<_>>()));
+}
+
+fn run(args: &[String]) -> i32 {
     // Optional: --root <dir> scores a different session layout (default:
-    // the 39c.2 fixture), and a bare N limits to the first N rows.
+    // the 39c.2 fixture), a bare N limits to the first N rows, and
+    // --margin-floor <f> asserts the separation margin clears a regression
+    // floor (exit 1 on regress, exit 2 on error — never silent PASS).
     let mut root = PathBuf::from("/home/michael/repos/hearsay-four/data/session");
     let mut limit: Option<usize> = None;
     let mut enroll: Option<PathBuf> = None;
+    let mut margin_floor: Option<f64> = None;
     let mut i = 1;
     while i < args.len() {
         if args[i] == "--root" {
             i += 1;
-            root = args
-                .get(i)
-                .map(PathBuf::from)
-                .ok_or_else(|| "--root needs a directory".to_string())?;
+            match args.get(i) {
+                Some(d) => root = PathBuf::from(d),
+                None => {
+                    eprintln!("failfast_run: error: --root needs a directory");
+                    return EXIT_ERROR;
+                }
+            }
         } else if args[i] == "--enroll" {
             i += 1;
-            enroll = Some(
-                args.get(i)
-                    .map(PathBuf::from)
-                    .ok_or_else(|| "--enroll needs a WAV file".to_string())?,
-            );
+            match args.get(i) {
+                Some(f) => enroll = Some(PathBuf::from(f)),
+                None => {
+                    eprintln!("failfast_run: error: --enroll needs a WAV file");
+                    return EXIT_ERROR;
+                }
+            }
+        } else if args[i] == "--margin-floor" {
+            i += 1;
+            match args.get(i) {
+                Some(s) => match s.parse::<f64>() {
+                    Ok(f) if f.is_finite() => margin_floor = Some(f),
+                    _ => {
+                        eprintln!(
+                            "failfast_run: error: --margin-floor needs a finite number, got {s:?}"
+                        );
+                        return EXIT_ERROR;
+                    }
+                },
+                None => {
+                    eprintln!("failfast_run: error: --margin-floor needs a number");
+                    return EXIT_ERROR;
+                }
+            }
         } else if let Ok(n) = args[i].parse::<usize>() {
             limit = Some(n);
         } else {
-            return Err(format!("unknown arg {:?}", args[i]));
+            eprintln!("failfast_run: error: unknown arg {:?}", args[i]);
+            return EXIT_ERROR;
         }
         i += 1;
     }
-    let rows = load_session(&root).map_err(|e| format!("load manifest: {e}"))?;
+    let rows = match load_session(&root) {
+        Ok(rows) => rows,
+        Err(e) => {
+            eprintln!("failfast_run: error: load manifest: {e}");
+            return EXIT_ERROR;
+        }
+    };
     let total_rows = rows.len();
     let rows: Vec<_> = if let Some(n) = limit {
         rows.into_iter().take(n).collect()
@@ -55,10 +99,21 @@ fn main() -> Result<(), String> {
     println!("decoding session audio...");
     let audio = if custom_root {
         // Ingested runs (bead o20): single WAV written by session-ingest.
-        corpus::audio::decode_to_pcm16k(&root.join("audio/run1.wav"))
-            .map_err(|e| format!("decode: {e}"))?
+        match corpus::audio::decode_to_pcm16k(&root.join("audio/run1.wav")) {
+            Ok(audio) => audio,
+            Err(e) => {
+                eprintln!("failfast_run: error: decode: {e}");
+                return EXIT_ERROR;
+            }
+        }
     } else {
-        decode_session_audio().map_err(|e| format!("decode: {e}"))?
+        match decode_session_audio() {
+            Ok(audio) => audio,
+            Err(e) => {
+                eprintln!("failfast_run: error: decode: {e}");
+                return EXIT_ERROR;
+            }
+        }
     };
     println!(
         "  sample_rate={} frames={} duration={:.1}s",
@@ -80,11 +135,23 @@ fn main() -> Result<(), String> {
     // sensitivity to drift).
     let baseline = match &enroll {
         Some(path) => {
-            let enroll_audio = corpus::audio::decode_to_pcm16k(path)
-                .map_err(|e| format!("enroll decode {}: {e}", path.display()))?;
-            let fitted =
-                accent::baseline_from_frames(&enroll_audio.frames, enroll_audio.sample_rate)
-                    .map_err(|e| format!("enroll baseline: {e}"))?;
+            let enroll_audio = match corpus::audio::decode_to_pcm16k(path) {
+                Ok(audio) => audio,
+                Err(e) => {
+                    eprintln!("failfast_run: error: enroll decode {}: {e}", path.display());
+                    return EXIT_ERROR;
+                }
+            };
+            let fitted = match accent::baseline_from_frames(
+                &enroll_audio.frames,
+                enroll_audio.sample_rate,
+            ) {
+                Ok(fitted) => fitted,
+                Err(e) => {
+                    eprintln!("failfast_run: error: enroll baseline: {e}");
+                    return EXIT_ERROR;
+                }
+            };
             println!(
                 "baseline: ENROLLMENT ({} frames from {})",
                 fitted.frame_count,
@@ -108,8 +175,13 @@ fn main() -> Result<(), String> {
     println!();
 
     let stats: Vec<BucketStat> =
-        measure_session(&a, &mut b, &audio.frames, audio.sample_rate, &rows)
-            .map_err(|e| format!("measure_session: {e}"))?;
+        match measure_session(&a, &mut b, &audio.frames, audio.sample_rate, &rows) {
+            Ok(stats) => stats,
+            Err(e) => {
+                eprintln!("failfast_run: error: measure_session: {e}");
+                return EXIT_ERROR;
+            }
+        };
 
     println!("=== BUCKET STATS ===");
     println!(
@@ -165,5 +237,23 @@ fn main() -> Result<(), String> {
     }
     println!("  utterance_count: {}", b.utterance_count());
 
-    Ok(())
+    // Regression gate (bead nwu): with --margin-floor, PASS requires the
+    // pre-registered verdict AND margin >= floor. Exit 1 on regress, never
+    // a silent PASS; errors above already exited 2.
+    if let Some(floor) = margin_floor {
+        let gate_pass = verdict.passes_floor(floor);
+        println!();
+        println!("=== MARGIN GATE (regression floor {floor}) ===");
+        println!("  observed_margin (2nd-half A-B): {:.4}", verdict.margin);
+        println!("  required_floor:                 {floor:.4}");
+        if gate_pass {
+            println!("  GATE: PASS (margin >= floor)");
+            EXIT_PASS
+        } else {
+            println!("  GATE: FAIL (margin < floor or verdict FAIL)");
+            EXIT_GATE_FAIL
+        }
+    } else {
+        EXIT_PASS
+    }
 }

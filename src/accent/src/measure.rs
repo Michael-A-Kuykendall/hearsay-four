@@ -107,9 +107,38 @@ pub struct Verdict {
     /// Check 3: B non-increasing from first to last bucket, and
     /// B(final) ≤ A(final).
     pub monotone_b: bool,
+    /// Separation margin: mean(A, 2nd half) − mean(B, 2nd half). Powers the
+    /// `--margin-floor` regression gate (bead nwu): the gate passes only when
+    /// the pre-registered verdict holds AND `margin >= floor`.
+    pub margin: f64,
     /// Per-check detail strings for the report (INV
     /// `verdict_pre_registered` — the rule is fixed before analysis).
     pub checks: Vec<String>,
+}
+
+impl Verdict {
+    /// Regression-gate predicate (bead nwu): overall PASS requires the
+    /// pre-registered verdict AND the separation margin to clear the floor.
+    pub fn passes_floor(&self, floor: f64) -> bool {
+        self.pass && self.margin >= floor
+    }
+}
+
+/// Separation margin of a bucketed session: mean(A, 2nd half) − mean(B, 2nd
+/// half), with the same first/second-half split as [`apply_rule`] (the lower-
+/// indexed half is first; the rest is second).
+pub fn separation_margin(stats: &[BucketStat]) -> f64 {
+    let n = stats.len();
+    let half = n / 2;
+    let second = &stats[half..];
+    let mean = |pick: fn(&BucketStat) -> f64| {
+        if second.is_empty() {
+            f64::NAN
+        } else {
+            second.iter().map(pick).sum::<f64>() / second.len() as f64
+        }
+    };
+    mean(|b| b.mean_a) - mean(|b| b.mean_b)
 }
 
 /// Score every session row under both A and B, aggregating per bucket.
@@ -200,6 +229,7 @@ pub fn apply_rule(stats: &[BucketStat]) -> Verdict {
     let second_a = mean_a(second);
     let second_b = mean_b(second);
     let first_b = mean_b(first);
+    let margin = separation_margin(stats);
 
     let tail_separation = second_b < second_a;
     let margin_two_pp = second_a - second_b >= 0.02;
@@ -235,6 +265,7 @@ pub fn apply_rule(stats: &[BucketStat]) -> Verdict {
         tail_separation,
         margin_two_pp,
         monotone_b,
+        margin,
         checks,
     }
 }
