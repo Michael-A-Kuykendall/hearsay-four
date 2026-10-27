@@ -218,6 +218,24 @@ pub enum DecisionEvent {
     },
 }
 
+/// One unary term of a token's tiling-score breakdown (P2).
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnaryTerm {
+    pub class: SourceClass,
+    pub llr: Option<f64>,
+    pub weight: f64,
+    pub weighted: f64,
+}
+
+/// Per-token tiling-score breakdown (P2): `S(T)` components only.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TokenBreakdown {
+    pub terms: Vec<UnaryTerm>,
+    pub sequence_llr: Option<f64>,
+    pub unary_total: f64,
+    pub total: f64,
+}
+
 /// A scored tiling (§4, §7).
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScoredTiling {
@@ -804,6 +822,108 @@ impl DecisionFabric {
             margin,
             defeated: losers,
         }
+    }
+
+    /// One unary class term of a tiling-score breakdown (P2, bead
+    /// hearsay-four-ofy): the strongest active `llr`, its frozen weight,
+    /// and the weighted contribution `w_c * llr`. `llr: None` is the
+    /// absent term of §3 rule 2 (contributes 0, never a negative).
+    pub fn class_term(&self, token: FactId, class: SourceClass) -> (Option<f64>, f64, f64) {
+        let llr = self.active_unary_max(token, class);
+        let weight = self.params.weight(class);
+        (llr, weight, llr.map_or(0.0, |v| weight * v))
+    }
+
+    /// Per-token tiling-score breakdown for `token` in a tiling whose
+    /// predecessor is `prev` (`None` selects the `<s>` boundary pair).
+    /// Every value is an `S(T)` component (§4); liveness `L(h)` (§5) is
+    /// never computed here and never published (P2 contract).
+    pub fn token_breakdown(&self, prev: Option<FactId>, token: FactId) -> TokenBreakdown {
+        let terms: Vec<UnaryTerm> = SourceClass::UNARY
+            .iter()
+            .map(|c| {
+                let (llr, weight, weighted) = self.class_term(token, *c);
+                UnaryTerm {
+                    class: *c,
+                    llr,
+                    weight,
+                    weighted,
+                }
+            })
+            .collect();
+        let unary_total: f64 = terms.iter().map(|t| t.weighted).sum();
+        let sequence_llr = self.active_sequence_max(prev, token);
+        let sequence_weighted = sequence_llr.map_or(0.0, |v| self.params.w_sequence * v);
+        TokenBreakdown {
+            terms,
+            sequence_llr,
+            unary_total,
+            total: unary_total + sequence_weighted,
+        }
+    }
+
+    /// Full `S(T)` breakdown of a tiling (§4): per-token unary terms plus
+    /// one SEQUENCE term per adjacent pair, boundary pair included once.
+    /// The `total` equals [`DecisionFabric::tiling_score`] of the same
+    /// tiling; both are recomputed from active justifications (§2).
+    pub fn tiling_breakdown(&self, tiling: &[FactId]) -> (Vec<FactId>, Vec<f64>, f64) {
+        let mut totals = Vec::with_capacity(tiling.len());
+        let mut prev: Option<FactId> = None;
+        let mut total = 0.0;
+        for t in tiling {
+            let breakdown = self.token_breakdown(prev, *t);
+            totals.push(breakdown.total);
+            total += breakdown.total;
+            prev = Some(*t);
+        }
+        (tiling.to_vec(), totals, total)
+    }
+
+    /// Active unary evidence attached to a token (P2 rendering source).
+    pub fn active_unary_evidence(&self, token: FactId) -> Vec<UnaryEvidence> {
+        self.unary
+            .iter()
+            .filter(|e| e.token == token && self.premises_active(&e.premises))
+            .cloned()
+            .collect()
+    }
+
+    /// Revival events recorded for a token (§9.4), in log order.
+    pub fn revivals_for(&self, token: FactId) -> Vec<(FactId, f64)> {
+        self.log
+            .iter()
+            .filter_map(|e| match e {
+                DecisionEvent::Revived { token: t, via, llr } if *t == token => Some((*via, *llr)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Defeat recorded for a token (§10): winning tiling + margin.
+    pub fn defeat_for(&self, token: FactId) -> Option<(Vec<FactId>, f64)> {
+        self.log.iter().find_map(|e| match e {
+            DecisionEvent::Defeated {
+                token: t,
+                winner,
+                margin,
+            } if *t == token => Some((winner.clone(), *margin)),
+            _ => None,
+        })
+    }
+
+    /// USER correction facts gating a token's USER term (§3 rules 4-5):
+    /// the premise facts of its active USER evidence.
+    pub fn user_correction_facts(&self, token: FactId) -> Vec<FactId> {
+        let mut out = Vec::new();
+        for e in &self.unary {
+            if e.token == token && e.class == SourceClass::User && self.premises_active(&e.premises)
+            {
+                out.extend(e.premises.iter().copied());
+            }
+        }
+        out.sort_unstable();
+        out.dedup();
+        out
     }
 
     /// The published ACOUSTIC `llr` for a token (§6.2): computed from frames
