@@ -138,8 +138,9 @@ proptest! {
         let words_second: Vec<_> = second.iter().map(|m| m.word.clone()).collect();
         prop_assert_eq!(words_first, words_second);
 
-        // No orphan words: every word fact inherits syllable justification
-        // and its phones are exactly the committed sequence.
+        // No orphan words: every word fact inherits syllable justification.
+        // Full matches carry the aligned dictionary pronunciation; partial
+        // fallback hypotheses carry the committed input sequence.
         let expected_phones: Vec<String> = phones
             .iter()
             .map(|index| PHONEME_ALPHABET[*index].to_string())
@@ -147,7 +148,18 @@ proptest! {
         for matched in &first {
             prop_assert!(arena.fabric.support_count(matched.word_fact) > 0);
             prop_assert!(arena.fabric.is_active(matched.word_fact));
-            prop_assert_eq!(&matched.phones, &expected_phones);
+            if matched.partial {
+                prop_assert_eq!(&matched.phones, &expected_phones);
+            } else {
+                let table_prons: Vec<&Vec<String>> = table[&matched.word]
+                    .iter()
+                    .map(|entry| &entry.phones)
+                    .collect();
+                prop_assert!(
+                    table_prons.contains(&&matched.phones),
+                    "full match must align to a dictionary pronunciation"
+                );
+            }
         }
         prop_assert!(verify_all_contracts() >= 1);
     }
