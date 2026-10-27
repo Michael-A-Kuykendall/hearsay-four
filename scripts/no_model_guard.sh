@@ -39,7 +39,36 @@ for d in "$REPO"/src/*/; do
   fi
 done
 
+# 5. Network-client crates in the service path (bead hearsay-four-aff, E3):
+# the E1/E2 service path is offline by construction (no sockets opened,
+# vendored dictionary only), so no live-pipeline manifest may depend on a
+# direct socket/HTTP client crate. Ingestion is exempt: src/corpus
+# (corpus-fetch downloads CourtListener audio at dev time) may use an HTTP
+# client, exactly like the STT exemption in section 4. The unified workspace
+# root (./Cargo.toml) is scanned too, so a future [workspace.dependencies]
+# cannot smuggle a client into the service closure.
+NETWORK_CRATES='(reqwest|hyper|\btokio\b|\bureq\b|\bcurl\b|\bminreq\b|\bisahc\b|\bawc\b|\bsurf\b|\bmio\b|\bsocket2\b|\btungstenite\b)'
+while IFS= read -r manifest; do
+  if grep -Ei "$NETWORK_CRATES" "$manifest" 2>/dev/null; then
+    hit "network-client crate in service-path manifest: $manifest (see above)"
+  fi
+done < <(find "$REPO/src" -path "$REPO/src/corpus" -prune -o -name 'Cargo.toml' -print 2>/dev/null)
+if grep -Ei "$NETWORK_CRATES" "$REPO/Cargo.toml" 2>/dev/null; then
+  hit "network-client crate in unified workspace deps (see above)"
+fi
+
+# 6. Direct socket/HTTP client API use outside ingestion: a manifest is not
+# the only way to pull the network in, so Rust sources are scanned for
+# client API paths and socket types too. src/corpus is exempt (ingestion,
+# same as sections 4-5). Comment-only mentions without the `::` API path
+# (e.g. "no sockets are opened") do not match.
+while IFS= read -r srcfile; do
+  if grep -En '(reqwest::|hyper::|tokio::net|std::net::|TcpStream|TcpListener|UdpSocket|\bmio::|\bsocket2::|\bureq::|\bcurl::|tungstenite::|isahc::|minreq::|\bawc::|\bsurf::)' "$srcfile" 2>/dev/null; then
+    hit "network-client API usage outside src/corpus: $srcfile (see above)"
+  fi
+done < <(find "$REPO/src" -path "$REPO/src/corpus" -prune -o -name '*.rs' -print 2>/dev/null)
+
 if [ "$fail" -eq 0 ]; then
-  echo "NO-MODEL GUARD GREEN: no ML crates, weight files, model APIs, or STT-in-scoring-path."
+  echo "NO-MODEL GUARD GREEN: no ML crates, weight files, model APIs, STT-in-scoring-path, or network clients in the service path."
 fi
 exit "$fail"

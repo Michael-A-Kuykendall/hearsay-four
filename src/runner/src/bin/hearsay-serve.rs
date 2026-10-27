@@ -529,4 +529,81 @@ mod serve_tests {
                 .expect("enrolled chain terminates at acoustic evidence");
         }
     }
+
+    /// (5) C1 rating invariants enforced on the serve path (bead
+    /// hearsay-four-aff, E3): a served transcript whose node rating or
+    /// propagated source rating leaves the Hearsay-II 0-100 range is
+    /// rejected before print — exit 1 with empty stdout, never partial
+    /// JSON. The violation fixture is the real pipeline output with one
+    /// rating pushed out of range.
+    #[test]
+    fn serve_out_of_range_rating_yields_exit_1_without_partial_json() {
+        let pcm = corpus::audio::decode_to_pcm16k(std::path::Path::new(FIXTURE))
+            .expect("fixture decodes");
+        let take = ((pcm.sample_rate as f64 * 4.0) as usize).min(pcm.frames.len());
+        let pcm = Pcm16kAudio {
+            sample_rate: pcm.sample_rate,
+            channels: pcm.channels,
+            frames: pcm.frames[..take].to_vec(),
+        };
+        let run = || {
+            run_streaming_pipeline(
+                &pcm,
+                &generic_reference_baseline(),
+                &fse::default_codebook(),
+                SessionMeta {
+                    speaker_id: "test".to_string(),
+                    recording_ref: "rating-violation-fixture".to_string(),
+                    started_ms: 0,
+                },
+                &StreamingConfig {
+                    chunk_secs: 2.0,
+                    max_secs: 4.0,
+                    window_width: 0,
+                },
+            )
+            .expect("pipeline on fixture")
+        };
+        let good = run();
+        assert!(
+            !good.transcript.words.is_empty(),
+            "rating fixture needs at least one word"
+        );
+        assert!(
+            render_json(&good).is_ok(),
+            "unmodified pipeline output renders"
+        );
+
+        // Case A: a chain node rating pushed above 100 (the lexical layer
+        // always carries exactly one node — see the chain built above the
+        // `WordRecord::committed_from_live` call in the runner).
+        let mut bad_node = good.clone();
+        bad_node.transcript.words[0].provenance.layers[2].nodes[0].rating = 150.0;
+        assert!(
+            render_json(&bad_node).is_err(),
+            "node rating 150.0 must not render"
+        );
+        let (stdout, stderr, code) = emit(&bad_node);
+        assert_eq!(code, 1, "out-of-range node rating exits 1");
+        assert!(stdout.is_empty(), "no partial JSON on stdout");
+        assert!(
+            stderr.contains("provenance contract failed"),
+            "stderr names the contract (got {stderr:?})"
+        );
+
+        // Case B: the propagated stage-3 source rating pushed above 100.
+        let mut bad_source = run();
+        bad_source.transcript.words[0].source_rating = 150.0;
+        assert!(
+            render_json(&bad_source).is_err(),
+            "source rating 150.0 must not render"
+        );
+        let (stdout, stderr, code) = emit(&bad_source);
+        assert_eq!(code, 1, "out-of-range source rating exits 1");
+        assert!(stdout.is_empty(), "no partial JSON on stdout");
+        assert!(
+            stderr.contains("provenance contract failed"),
+            "stderr names the contract (got {stderr:?})"
+        );
+    }
 }
