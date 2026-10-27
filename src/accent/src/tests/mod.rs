@@ -5,6 +5,7 @@
 mod condition_a_tests;
 mod condition_b_tests;
 mod derive_tests;
+mod drift_dial_tests;
 mod drift_tests;
 mod enroll_baseline_tests;
 mod feedback_tests;
