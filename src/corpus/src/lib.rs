@@ -16,6 +16,7 @@
 pub mod audio;
 pub mod courtlistener;
 pub mod dotenv;
+pub mod ground_truth;
 pub mod invariants;
 pub mod manifest;
 
