@@ -74,3 +74,36 @@ A1, R1, R2 start concurrently — the plan's stated concurrency point.
    still use the old wording — sweep or exempt explicitly.
 4. Pre-plan beads above (APP-1/SUB-1/DIA/say/5qw): adopt, fold into
    P-track, or close. They are not in the plan's map.
+
+## Corrected execution graph (auditor pass, 2026-10-27 — supersedes the table above where they differ)
+
+Splits (originals closed, gates preserved in the a/b pair): A4 enu →
+A4a `p7u` (spec) → A4b `dg8` (implementation); R1 9pa → R1a `baj`
+(golden-test KN core) → R1b `2a0`; R2 3eh → R2a `tnk` (trainer core) →
+R2b `0bv`; R5 cri → R5a `71g` (decoder) → R5b `fi1` (A6 lattice
+regression); R8 7uv → R8a `wya` → R8b `5sw`; P3 xtd → P3a `f56` (facts/
+retraction) → P3b `6gt` (decode effect). R6 `3ay` left whole
+(borderline, not blocking).
+
+Added dependencies: A5 also needs A4b; A6 also needs A3 + A4b; R5a needs
+R1b + A5 (plus A3/A4b/R4); R5b needs R5a + A6; P3a needs R1b; P3b needs
+R5a; R6 follows R5b; R7 follows R1b; P5 also needs R7; R8a follows R7.
+
+Strengthened DoD: D0 validator-enforced inventory fields (incl. the
+5qw phrase_training question); D1 automated partition-invariant test as
+permanent regression; R1a hand-calculable Kneser-Ney golden test; R3
+closes SKIPPED BY OWNER if external audio rejected (not a pass); R7
+closes successful only at ≥ T1 (≤50% WER, RTF < 1, bounded set); R8b
+threshold chosen on DEV and pre-registered before any locked run.
+
+Lockbox ownership: A6 `cjj` owns M2; P5 `kt5` owns M4; R8b `5sw` owns
+M5. Openings logged in bead notes, at most once each.
+
+Stale-bead dispositions (all closed with reasons in DB): APP-1 `0d5` →
+superseded by P1/P2/P5, assembly fixture migrated to P5; SUB-1 `4s6` →
+superseded; DIA-1 `6if` → fixtures migrated to P1, closed; DIA-2 `9qy`
+→ deferred/out of scope (single-speaker plan); `say` → superseded,
+release smoke migrated to P5; `5qw` → folded into D0.
+
+Ready now: D0 `0f6`, A4a `p7u`, A3 `pri`. After D1: A1, R1a, R2a
+unlock. Totals after pass: 178 issues, 29 open, 25 blocked, 3 ready.
