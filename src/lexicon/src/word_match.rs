@@ -322,7 +322,7 @@ mod tests {
                 .fabric
                 .justifications(word_fact)
                 .iter()
-                .any(|j| j.premises == expected),
+                .any(|j| j.premise_set() == expected),
             "word must inherit justification from the syllable facts"
         );
     }
@@ -546,7 +546,7 @@ mod fuzzy_matcher_tests {
                     .fabric
                     .justifications(matched.word_fact)
                     .iter()
-                    .any(|j| j.premises == expected),
+                    .any(|j| j.premise_set() == expected),
                 "partial must inherit justification from the syllable facts"
             );
         }

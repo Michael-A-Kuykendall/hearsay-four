@@ -17,6 +17,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 pub mod decision;
 pub mod provenance;
 pub mod stats;
+pub mod token;
+
+pub use token::{PhoneToken, SilToken, TokenFact, WordToken};
 /// A fact identifier. Facts are hash-consed to a single id per content.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FactId(pub u64);
@@ -27,12 +30,21 @@ pub struct FactId(pub u64);
 pub struct Justification {
     /// The conclusion fact this justification entails.
     pub conclusion: FactId,
-    /// The premise fact ids (active iff all premises active).
-    pub premises: BTreeSet<FactId>,
+    /// Premise fact ids in derivation order, with multiplicity preserved
+    /// (A3): a token premise used twice appears twice, in place. Support
+    /// and subsumption compare the underlying set via `premise_set()`.
+    pub premises: Vec<FactId>,
     /// Unconditional justifications never have a failing premise
     /// (every premise is keyed solely on the conclusion's own nodes and the
     /// arena is append-only, so they cannot change). See aem.13 §3.2.
     pub unconditional: bool,
+}
+
+impl Justification {
+    /// Set view of the premises, for support/subsumption comparisons.
+    pub fn premise_set(&self) -> BTreeSet<FactId> {
+        self.premises.iter().copied().collect()
+    }
 }
 
 /// A fact's runtime state in the fabric.
@@ -81,6 +93,11 @@ pub struct Fabric {
     /// retraction cascade touch only the affected subgraph instead of
     /// scanning all facts on every op.
     dependents: BTreeMap<FactId, BTreeSet<FactId>>,
+    /// Hash-cons table for type facts (A3): content -> the one FactId.
+    type_cons: BTreeMap<String, FactId>,
+    /// Token payloads by fact id (A3): never hash-consed, one entry per
+    /// occurrence.
+    tokens: BTreeMap<FactId, TokenFact>,
 }
 
 impl Default for Fabric {
@@ -96,7 +113,86 @@ impl Fabric {
             next_id: AtomicU64::new(1),
             deliberately_retracted: std::collections::BTreeSet::new(),
             dependents: BTreeMap::new(),
+            type_cons: BTreeMap::new(),
+            tokens: BTreeMap::new(),
         }
+    }
+
+    /// Intern a type fact by content (A3): hash-consed globally, so the
+    /// same content (`WORD_TYPE`, `PRONUNCIATION`, n-gram entry, template
+    /// id, model parameter) always returns the one existing `FactId`.
+    pub fn intern_type(&mut self, content: impl Into<String>) -> FactId {
+        let content = content.into();
+        if let Some(&id) = self.type_cons.get(&content) {
+            return id;
+        }
+        let id = self.intern();
+        self.type_cons.insert(content, id);
+        id
+    }
+
+    /// The type content for a hash-consed type fact, if `id` is one.
+    pub fn type_content(&self, id: FactId) -> Option<&str> {
+        self.type_cons
+            .iter()
+            .find(|(_, v)| **v == id)
+            .map(|(k, _)| k.as_str())
+    }
+
+    fn intern_token(&mut self, token: TokenFact) -> FactId {
+        // Never hash-consed: every occurrence gets a fresh id, even for
+        // byte-identical payload and span.
+        let id = self.intern();
+        self.tokens.insert(id, token);
+        id
+    }
+
+    /// Intern a `WORD_TOKEN` occurrence (A3): always a distinct fact.
+    pub fn intern_word_token(
+        &mut self,
+        word: impl Into<String>,
+        start_frame: u64,
+        end_frame: u64,
+        source: impl Into<String>,
+    ) -> FactId {
+        self.intern_token(TokenFact::Word(WordToken {
+            word: word.into(),
+            start_frame,
+            end_frame,
+            source: source.into(),
+        }))
+    }
+
+    /// Intern a `PHONE_TOKEN` occurrence (A3): always a distinct fact.
+    pub fn intern_phone_token(
+        &mut self,
+        phone: impl Into<String>,
+        start_frame: u64,
+        end_frame: u64,
+    ) -> FactId {
+        self.intern_token(TokenFact::Phone(PhoneToken {
+            phone: phone.into(),
+            start_frame,
+            end_frame,
+        }))
+    }
+
+    /// Intern a `SIL_TOKEN` occurrence (A3): always a distinct fact.
+    pub fn intern_sil_token(&mut self, start_frame: u64, end_frame: u64) -> FactId {
+        self.intern_token(TokenFact::Silence(SilToken {
+            start_frame,
+            end_frame,
+        }))
+    }
+
+    /// Token payload for `id`, if it is a token fact.
+    pub fn token_fact(&self, id: FactId) -> Option<&TokenFact> {
+        self.tokens.get(&id)
+    }
+
+    /// Whether `id` is a token (occurrence) fact rather than a type fact.
+    pub fn is_token(&self, id: FactId) -> bool {
+        self.tokens.contains_key(&id)
     }
 
     /// Intern a fact, returning its id (hash-consing: same content, same id).
@@ -120,6 +216,20 @@ impl Fabric {
     /// pruned at assert time (normalization); retraction still never deletes
     /// anything (`retraction_preserves`).
     pub fn assert(&mut self, conclusion: FactId, premises: BTreeSet<FactId>, unconditional: bool) {
+        // Set-based callers keep sorted order; ordered/token derivations
+        // use `assert_ordered` to preserve order and multiplicity.
+        self.assert_ordered(conclusion, premises.into_iter().collect(), unconditional);
+    }
+
+    /// Assert with premises in derivation order, multiplicity preserved
+    /// (A3). Subsumption compares premise sets, but set-equal justifications
+    /// in different orders are distinct provenance and both are kept.
+    pub fn assert_ordered(
+        &mut self,
+        conclusion: FactId,
+        premises: Vec<FactId>,
+        unconditional: bool,
+    ) {
         let j = Justification {
             conclusion,
             premises,
@@ -136,18 +246,20 @@ impl Fabric {
             // Exact duplicate, or dominated by an existing set with a
             // premise-subset of ours (subsumed, can never decide support)
             // -> justification list unchanged.
+            let j_set = j.premise_set();
             if state.justifications.contains(&j)
-                || state
-                    .justifications
-                    .iter()
-                    .any(|existing| existing.premises.is_subset(&j.premises))
+                || state.justifications.iter().any(|existing| {
+                    let e_set = existing.premise_set();
+                    e_set != j_set && e_set.is_subset(&j_set)
+                })
             {
                 false
             } else {
                 // Our set strictly dominates some existing sets -> prune them.
-                state
-                    .justifications
-                    .retain(|existing| !j.premises.is_subset(&existing.premises));
+                state.justifications.retain(|existing| {
+                    let e_set = existing.premise_set();
+                    !(e_set != j_set && j_set.is_subset(&e_set))
+                });
                 state.justifications.push(j.clone());
                 true
             }
@@ -360,10 +472,15 @@ impl Fabric {
             .get(&conclusion)
             .map(|s| s.justifications.as_slice())
             .unwrap_or(&[]);
+        // Proper-subset comparability only: set-equal justifications in
+        // different premise orders are distinct provenance (A3), not a
+        // minimality violation.
         let violated = js.iter().enumerate().any(|(i, a)| {
-            js[i + 1..]
-                .iter()
-                .any(|b| a.premises.is_subset(&b.premises))
+            let a_set = a.premise_set();
+            js[i + 1..].iter().any(|b| {
+                let b_set = b.premise_set();
+                a_set != b_set && a_set.is_subset(&b_set)
+            })
         });
         assert_invariant(!violated, "justification_set_minimal", Some("fabric"));
     }
