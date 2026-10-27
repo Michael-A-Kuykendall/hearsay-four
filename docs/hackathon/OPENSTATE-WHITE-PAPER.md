@@ -311,3 +311,34 @@ redirects into the repo; no hand-written files except /tmp probes.
   surface; this ledger records the estimate as the owner's, with the
   observed mechanism being fewer mis-addressed edits and
   machine-checked anchors rather than raw speed.
+
+## 15. Merge-conflict resolution + SEG-1 build on the symbolic surface (Oct 27, observed)
+
+- The PART-1/MIC-1 merge carried 9 conflict hunks in one binary
+  (`hearsay-serve.rs`: struct fields, arg locals, match arms, struct init,
+  three test inits, usage text, one 120-line test-module union). All
+  resolved as unions via `edit_text_preview`/`apply` — every flag and all
+  five tests kept. One usage-text anchor needed three attempts: the line
+  ends in literal `\n\` Rust-continuation bytes that read output renders
+  ambiguously; each refusal's `nearest` hint pointed at the exact line.
+  Mechanism note: refusal payloads are the debugging interface, not dead
+  ends — the third attempt byte-matched.
+- Verification-before-claim, twice in one session: the PKG-1 and SEG-1
+  lane branches were reported green but `merge-base --is-ancestor` plus
+  empty diff stat showed zero unique commits on both. PKG-1 was re-proven
+  by running its gate on main; SEG-1 was implemented fresh. No bead
+  closed on a lane's word.
+- SEG-1 itself was built symbolically end to end: `symbol_overview` →
+  `read_text_region` → targeted `search` to find the `Frame` layout
+  (`[c1..c12, logE, Δ, ΔΔ]`, logE floored at `ln(1e-12)` — the property
+  the silence edge case rests on); `create_file_preview`/`apply` for the
+  detector and its tests, `edit_text` for module wiring. One query miss
+  (`struct Frame` rejected — bare identifiers only). Clippy caught two
+  `needless_range_loop` lints in new code, fixed the same way.
+- Re-scope case study: the SEG-1 bead premised on "Oyez reference word
+  gaps" — measured first (all 1589 utterance boundaries across 3 bulk
+  cases tile at gap 0.0s; transcript.json blocks likewise contiguous).
+  Bead amended with the measurement before any implementation, gate
+  replaced with synthetic-exact plus a pre-registered plausibility band
+  plus a skip-if-absent diagnostic. The symbolic surface made the
+  re-scope cheap: four small files, no grep-and-hope.
