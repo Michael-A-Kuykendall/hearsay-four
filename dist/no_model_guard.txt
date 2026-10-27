@@ -1,1 +1,1 @@
-NO-MODEL GUARD GREEN: no ML crates, weight files, model APIs, or STT-in-scoring-path.
+NO-MODEL GUARD GREEN: no ML crates, weight files, model APIs, STT-in-scoring-path, or network clients in the service path.
