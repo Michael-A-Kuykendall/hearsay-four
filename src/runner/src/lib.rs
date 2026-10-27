@@ -987,6 +987,78 @@ pub struct StreamingOutput {
     pub repairs: Vec<RepairEvent>,
     /// Human-readable per-chunk commit + verify/repair log (audit trail).
     pub audit: Vec<String>,
+    /// Provisional-hypothesis display events (bead hearsay-four-2bs,
+    /// PART-1): one `provisional` event per committed chunk in chunk order,
+    /// then one `revised` event per cross-chunk repair in repair order.
+    pub events: Vec<ProvisionalEvent>,
+}
+
+/// Kind of a [`ProvisionalEvent`]: a per-chunk provisional hypothesis, a
+/// cross-chunk repair revision, or a final (settled) word for display.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProvisionalKind {
+    Provisional,
+    Revised,
+    Final,
+}
+
+impl ProvisionalKind {
+    /// Stable NDJSON `kind` string.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ProvisionalKind::Provisional => "provisional",
+            ProvisionalKind::Revised => "revised",
+            ProvisionalKind::Final => "final",
+        }
+    }
+
+    /// Parse an NDJSON `kind` string back (unknown strings are `None` —
+    /// never a guess).
+    pub fn parse_kind(s: &str) -> Option<Self> {
+        match s {
+            "provisional" => Some(ProvisionalKind::Provisional),
+            "revised" => Some(ProvisionalKind::Revised),
+            "final" => Some(ProvisionalKind::Final),
+            _ => None,
+        }
+    }
+}
+
+/// One provisional-hypothesis display event (bead hearsay-four-2bs, PART-1):
+/// a per-chunk provisional word (committed-so-far with the provisional
+/// flag) or a revision event when cross-chunk repair revises an early
+/// commit. Rendered as one NDJSON object per line by `serve --provisional`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProvisionalEvent {
+    pub kind: ProvisionalKind,
+    /// Index of the committed chunk this event describes.
+    pub chunk_idx: usize,
+    /// The hypothesized word (`new_word` for a revision).
+    pub word: String,
+    /// True while the hypothesis may still be revised by later evidence.
+    pub provisional: bool,
+    /// The superseded word (revision events only).
+    pub old_word: Option<String>,
+    /// Why the revision was accepted (revision events only).
+    pub reason: Option<String>,
+    /// The audit-trail line that recorded this commit/repair.
+    pub audit: String,
+}
+
+impl ProvisionalEvent {
+    /// Serialize one NDJSON event object (plain `serde_json::Value` — no
+    /// new dependencies beyond the existing `serde_json`).
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::json!({
+            "kind": self.kind.as_str(),
+            "chunk_idx": self.chunk_idx,
+            "word": self.word,
+            "provisional": self.provisional,
+            "old_word": self.old_word,
+            "reason": self.reason,
+            "audit": self.audit,
+        })
+    }
 }
 
 /// One cross-chunk repair: later evidence revised an earlier commit.
@@ -1045,6 +1117,7 @@ pub struct StreamingPipeline {
     evicted_facts: usize,
     repairs: Vec<RepairEvent>,
     audit: Vec<String>,
+    events: Vec<ProvisionalEvent>,
 }
 
 impl StreamingPipeline {
@@ -1107,6 +1180,7 @@ impl StreamingPipeline {
             evicted_facts: 0,
             repairs: Vec::new(),
             audit: Vec::new(),
+            events: Vec::new(),
         })
     }
 
@@ -1176,10 +1250,23 @@ impl StreamingPipeline {
             .count();
         self.state.fabric.retract_all(evictees);
         self.evicted_facts += evicted;
-        self.audit.push(format!(
+        let audit_line = format!(
             "chunk {idx}: committed {:?} (frames {}, evicted {evicted} audio facts)",
             out.record.text, out.frames,
-        ));
+        );
+        self.audit.push(audit_line.clone());
+        // PART-1 (bead hearsay-four-2bs): every commit is also a
+        // provisional-hypothesis display event (committed-so-far, still
+        // revisable by later-chunk evidence).
+        self.events.push(ProvisionalEvent {
+            kind: ProvisionalKind::Provisional,
+            chunk_idx: idx,
+            word: out.record.text.clone(),
+            provisional: true,
+            old_word: None,
+            reason: None,
+            audit: audit_line,
+        });
         self.word_facts.push(out.word_fact);
         self.records.push(out.record);
         Ok(())
@@ -1305,11 +1392,24 @@ impl StreamingPipeline {
             old_fact,
             new_fact,
         };
-        self.audit.push(format!(
+        let audit_line = format!(
             "repair chunk {chunk_idx}: {:?} -> {:?} ({})",
             event.old_word, event.new_word, event.reason
-        ));
+        );
+        self.audit.push(audit_line.clone());
         self.repairs.push(event.clone());
+        // PART-1 (bead hearsay-four-2bs): the revision is also a display
+        // event, carrying the superseded word and the audit line so the
+        // trail stays intact in the event stream.
+        self.events.push(ProvisionalEvent {
+            kind: ProvisionalKind::Revised,
+            chunk_idx,
+            word: event.new_word.clone(),
+            provisional: false,
+            old_word: Some(event.old_word.clone()),
+            reason: Some(event.reason.clone()),
+            audit: audit_line,
+        });
         Ok(RepairOutcome::Repaired(event))
     }
 
@@ -1343,6 +1443,7 @@ impl StreamingPipeline {
             stats,
             repairs: self.repairs.clone(),
             audit: self.audit.clone(),
+            events: self.events.clone(),
         })
     }
 
@@ -1369,6 +1470,13 @@ impl StreamingPipeline {
     /// Cross-chunk repairs applied so far.
     pub fn repairs(&self) -> &[RepairEvent] {
         &self.repairs
+    }
+
+    /// Provisional-hypothesis display events so far (bead hearsay-four-2bs,
+    /// PART-1): one `provisional` event per commit, then one `revised`
+    /// event per repair.
+    pub fn events(&self) -> &[ProvisionalEvent] {
+        &self.events
     }
 
     /// Live provenance/memory snapshot over the shared fabric.
@@ -1819,6 +1927,188 @@ mod stream_tests {
         assert_eq!(pipe.audit().len(), 4, "two commits + two verify lines");
         let out = pipe.finish().expect("finish");
         assert!(out.repairs.is_empty(), "no repairs recorded");
+    }
+}
+
+#[cfg(test)]
+mod provisional_tests {
+    //! Provisional-hypothesis display gates (bead hearsay-four-2bs, PART-1).
+    //!
+    //! Model-free, synthetic sine PCM only, offline: counting and table
+    //! lookup only — no network, no STT text, no learned weights.
+    use super::*;
+
+    fn sine_pcm_16k(seconds: f64, hz: f64) -> Pcm16kAudio {
+        let rate = 16_000u32;
+        let n = (rate as f64 * seconds) as usize;
+        Pcm16kAudio {
+            sample_rate: rate,
+            channels: 1,
+            frames: (0..n)
+                .map(|i| {
+                    ((2.0 * std::f64::consts::PI * hz * i as f64 / rate as f64).sin() * 8000.0)
+                        as i16
+                })
+                .collect(),
+        }
+    }
+
+    fn test_session() -> SessionMeta {
+        SessionMeta {
+            speaker_id: "test".to_string(),
+            recording_ref: "provisional-test".to_string(),
+            started_ms: 0,
+        }
+    }
+
+    fn provisional_words(events: &[ProvisionalEvent]) -> Vec<String> {
+        events
+            .iter()
+            .filter(|e| e.kind == ProvisionalKind::Provisional)
+            .map(|e| e.word.clone())
+            .collect()
+    }
+
+    /// (1) Repair fixture: per-chunk provisional events fire at commit, then
+    /// a cross-chunk repair emits a revision event — with the audit trail
+    /// intact (audit names the repair, transcript re-validates).
+    #[test]
+    fn provisional_then_revised_event_with_audit_intact_on_repair() {
+        let pcm = sine_pcm_16k(1.0, 440.0);
+        let baseline = generic_reference_baseline();
+        let codebook = fse::default_codebook();
+        let cfg = StreamingConfig {
+            chunk_secs: 0.5,
+            max_secs: 1.0,
+            window_width: 0,
+        };
+        let mut pipe =
+            StreamingPipeline::new(pcm.sample_rate, &baseline, &codebook, test_session(), cfg)
+                .expect("streaming pipeline");
+        pipe.feed(&pcm.frames).expect("feed");
+        assert_eq!(pipe.records().len(), 2, "two chunks committed");
+        // Provisional events: one per commit, in chunk order, flagged
+        // provisional, matching the committed words.
+        let committed: Vec<String> = pipe.records().iter().map(|r| r.text.clone()).collect();
+        assert_eq!(pipe.events().len(), 2, "one event per commit");
+        for (i, event) in pipe.events().iter().enumerate() {
+            assert_eq!(event.kind, ProvisionalKind::Provisional);
+            assert_eq!(event.chunk_idx, i);
+            assert_eq!(event.word, committed[i]);
+            assert!(event.provisional, "commit still revisable");
+            assert!(event.old_word.is_none(), "no superseded word yet");
+            assert!(!event.audit.is_empty(), "event carries its audit line");
+        }
+        // Later-chunk evidence revises chunk 0 (same repair hook as the C3
+        // cross-chunk test: strong evidence for a different word).
+        let w0 = committed[0].clone();
+        let candidate = {
+            let dict = lexicon::ingest_sample(lexicon::CLOSED_VOCABULARY_CMUDICT);
+            let mut vocab: Vec<String> = dict.keys().cloned().collect();
+            vocab.sort();
+            vocab
+                .into_iter()
+                .find(|word| *word != w0)
+                .expect("vocabulary alternative")
+        };
+        let outcome = pipe
+            .verify_or_add(0, &candidate, 0.90, "provisional-display repair check")
+            .expect("repair");
+        match outcome {
+            RepairOutcome::Repaired(_) => {}
+            RepairOutcome::Kept { .. } => panic!("strong later evidence must repair"),
+        }
+        // Revision event: kind + superseded word + reason + audit line.
+        assert_eq!(pipe.events().len(), 3, "repair appends one event");
+        let revised = pipe.events()[2].clone();
+        assert_eq!(revised.kind, ProvisionalKind::Revised);
+        assert_eq!(revised.chunk_idx, 0);
+        assert_eq!(revised.word, candidate);
+        assert!(!revised.provisional, "revision settles the display");
+        assert_eq!(revised.old_word.as_deref(), Some(w0.as_str()));
+        assert!(
+            revised.reason.as_deref().is_some_and(|r| !r.is_empty()),
+            "revision carries its reason"
+        );
+        assert!(
+            revised.audit.contains("repair"),
+            "revision carries its audit line"
+        );
+        // Audit trail intact: the repair line is in the pipeline audit, the
+        // event audit matches it, and the repaired transcript validates.
+        assert!(
+            pipe.audit().iter().any(|line| line.contains("repair")),
+            "audit names the repair"
+        );
+        assert!(
+            pipe.audit().contains(&revised.audit),
+            "event audit line is the trail line"
+        );
+        pipe.records()[0]
+            .validate()
+            .expect("repaired record still terminates at acoustic evidence");
+        let out = pipe.finish().expect("finish");
+        assert_eq!(out.stats.repair_count, 1);
+        assert_eq!(out.events.len(), 3, "output carries the event stream");
+        assert_eq!(out.transcript.words[0].text, candidate);
+        // Every event round-trips through its NDJSON shape.
+        for event in &out.events {
+            let v = event.to_json();
+            assert_eq!(
+                ProvisionalKind::parse_kind(v["kind"].as_str().expect("kind string")),
+                Some(event.kind),
+                "kind survives NDJSON"
+            );
+            assert_eq!(
+                v["chunk_idx"].as_u64().unwrap_or(u64::MAX) as usize,
+                event.chunk_idx
+            );
+            assert_eq!(v["word"].as_str().unwrap_or(""), event.word);
+            assert_eq!(
+                v["provisional"].as_bool().unwrap_or(!event.provisional),
+                event.provisional
+            );
+            assert_eq!(v["audit"].as_str().unwrap_or(""), event.audit);
+        }
+    }
+
+    /// (2) No-repair fixture: provisional words equal the final words (and
+    /// no revision event fires).
+    #[test]
+    fn provisional_equals_final_without_repair() {
+        let pcm = sine_pcm_16k(2.0, 440.0);
+        let baseline = generic_reference_baseline();
+        let codebook = fse::default_codebook();
+        let cfg = StreamingConfig {
+            chunk_secs: 0.5,
+            max_secs: 2.0,
+            window_width: 0,
+        };
+        let out = run_streaming_pipeline(&pcm, &baseline, &codebook, test_session(), &cfg)
+            .expect("clean stream");
+        assert!(out.repairs.is_empty(), "no repairs on the clean path");
+        let finals: Vec<String> = out
+            .transcript
+            .words
+            .iter()
+            .map(|w| w.text.clone())
+            .collect();
+        assert_eq!(out.events.len(), finals.len(), "one event per chunk");
+        assert_eq!(
+            provisional_words(&out.events),
+            finals,
+            "provisional == final with no repair"
+        );
+        assert!(
+            out.events
+                .iter()
+                .all(|e| e.kind == ProvisionalKind::Provisional),
+            "no revision event without a repair"
+        );
+        assert!(
+            out.audit.iter().all(|line| !line.contains("repair")),
+            "audit has no repair line"
+        );
     }
 }
 
