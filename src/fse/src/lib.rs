@@ -10,6 +10,7 @@
 //! The ARPABET 39-phone alphabet is re-exported here so Stage 1 emission
 //! (d5n.2) keys candidates on it.
 
+pub mod boundaries;
 pub mod nbest;
 
 use std::f64::consts::PI;
