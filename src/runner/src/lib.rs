@@ -287,6 +287,8 @@ use output::{
     Node, ProvenanceChain, SessionMeta, Transcript, WordRecord,
 };
 use sequence::BigramTable;
+use sequence::trigram::TrigramTable;
+use sequence::verify::{DEFAULT_VERIFY_THRESHOLD, verify_committed_word_sequence};
 
 /// Configuration for [`run_full_pipeline`].
 #[derive(Debug, Clone)]
@@ -400,6 +402,13 @@ pub fn run_full_pipeline(
     let mut table = BigramTable::new();
     table.seed_vocabulary(&CLOSED_VOCABULARY_WORDS);
 
+    // C2 (bead hearsay-four-ea3): upper-level verification KS — a counted
+    // trigram table over the same closed vocabulary (uniform fallback, no
+    // evidence against any sequence until trained, mirroring the bigram
+    // table above).
+    let mut verify_table = TrigramTable::new();
+    verify_table.seed_vocabulary(&CLOSED_VOCABULARY_WORDS);
+
     // Truncate to the processing cap (demo scope; the transcript covers the
     // processed span, which the caller names in `session.recording_ref`).
     let mut total_samples = pcm.frames.len();
@@ -421,6 +430,7 @@ pub fn run_full_pipeline(
 
     let mut records: Vec<WordRecord> = Vec::new();
     let mut committed_words: Vec<String> = Vec::new();
+    let mut committed_word_facts: Vec<FactId> = Vec::new();
     let mut total_frames = 0usize;
     let mut chunk_count = 0usize;
 
@@ -577,9 +587,25 @@ pub fn run_full_pipeline(
         shared_fabric.assert(word_fact, premises, false);
         shared_fabric.commit(word_fact);
 
+        // C2 (bead hearsay-four-ea3): verification hook — after the
+        // lexicon align above, before sequence scoring. The committed
+        // word sequence is checked against trigram plausibility with the
+        // veto/flag threshold. Flagged sequences are marked, never
+        // dropped: the record below keeps full provenance.
+        committed_words.push(winner_word.clone());
+        committed_word_facts.push(word_fact);
+        let verify_note = verify_committed_word_sequence(
+            &mut shared_fabric,
+            &committed_word_facts,
+            &committed_words,
+            &verify_table,
+            DEFAULT_VERIFY_THRESHOLD,
+        )
+        .map(|verdict| verdict.note())
+        .unwrap_or_else(|| "VERIFY-SKIP no committed word facts".to_string());
+
         // Stage 5: bigram plausibility over the committed word sequence;
         // the score fact is justified by the word fact.
-        committed_words.push(winner_word.clone());
         let joint = table.sequence_prob(&committed_words);
         let score_fact = shared_fabric.intern();
         let mut seq_premises = BTreeSet::new();
@@ -743,7 +769,7 @@ pub fn run_full_pipeline(
             format!(
                 "nearest-pronunciation alignment: {winner_word} edit distance \
                  {winner_dist} over {} phones; stage-3 commit winner backs the \
-                 acoustic span; bigram p={joint:.4}",
+                 acoustic span; bigram p={joint:.4}; {verify_note}",
                 phones.len()
             ),
             clamp01((winner_sim - runner_best + 1.0) / 2.0),
@@ -753,7 +779,7 @@ pub fn run_full_pipeline(
         let evidence_summary = format!(
             "stage-3 commit winner rating {source_rating:.2} over {} frames; \
              {} phones; nearest-pronunciation {winner_word} sim {winner_sim:.4}; \
-             bigram p={joint:.4}",
+             bigram p={joint:.4}; {verify_note}",
             per_frame_facts.len(),
             phones.len(),
         );
