@@ -19,9 +19,33 @@ use fabric::{Fabric, FactId};
 pub const WINDOW: usize = 5;
 /// Utterances that must deviate to fire the trigger.
 pub const TRIGGER_COUNT: usize = 3;
-/// Pre-registered deviation threshold (feature units) — placeholder here,
-/// a Stage-10 empirical dial (aem.6 §7).
-pub const DEFAULT_TOLERANCE: f64 = 2.0;
+/// Pre-registered deviation threshold (feature units), calibrated dial
+/// (bead hearsay-four-dib; Stage-10 empirical dial, aem.6 §7).
+///
+/// Derivation (model-free guard band from the D1 enrolled baseline
+/// distribution — no fitted model, no distributional assumption):
+/// 1. Fit the D1 enrollment baseline over the synthetic enrollment fixture
+///    (the same `tone` PCM generator D1's `enroll_baseline_tests` uses:
+///    `(i % 97) as i16 * 173`, 48_000 samples @ 48 kHz, through the real
+///    front-end path `baseline_from_frames` = window → extract → fit).
+/// 2. Read off the worst-case per-dimension frame spread of that enrolled
+///    distribution: σ_max = max per-dim std = 0.029158 (98 frames; per-dim
+///    std min 0.000041, median 0.004304, mean 0.007195).
+/// 3. Freeze τ = 3 × σ_max = 0.087473 → 0.0875 (rounded up: the conservative
+///    side, fewer false triggers). The multiplier k = 3 is a fixed
+///    guard-band constant, not a fitted parameter: by Chebyshev, any
+///    distribution keeps ≥8/9 of its mass within 3σ, so enrollment-like
+///    utterances (≈1σ-scale displacements) sit an order of magnitude inside
+///    τ while a genuine distribution shift (≫ σ) exceeds it on 3 of 5.
+///
+///   TOLERANCE provenance note: τ = 0.0875 frozen 2026-10-27 (bead
+///   hearsay-four-dib, branch bead/dib-drift-dial). Measured with a throwaway
+///   probe bin over the synthetic `tone` fixture (probe deleted after
+///   measurement; fixtures only, no network, no real audio). Re-derive by
+///   re-running `baseline_from_frames` on the enrollment fixture and taking
+///   3 × max per-dim std. Replaces the 2.0 placeholder; `retrain_after_drift`
+///   retract-and-recascade semantics below are unchanged.
+pub const DEFAULT_TOLERANCE: f64 = 0.0875;
 
 /// A per-utterance displacement measurement (which phoneme drifted how far).
 #[derive(Debug, Clone, PartialEq)]
