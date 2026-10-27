@@ -86,6 +86,43 @@ pub fn ingest_sample(text: &str) -> HashMap<String, Vec<Vec<String>>> {
     table
 }
 
+/// Ingest a full CMUdict-shaped file into the word -> pronunciations lookup
+/// table (same line format as [`parse_cmudict_line`] / [`ingest_sample`]).
+///
+/// Blank lines and `;;;` comment lines are skipped. Any other line that does
+/// not parse (e.g. a word with no phones) is an `InvalidData` error — the
+/// loader fails loudly instead of panicking or silently skipping the line.
+/// The default vocabulary stays the 30-word [`CLOSED_VOCABULARY_CMUDICT`]
+/// subset; call this only when a full-dictionary path is supplied.
+pub fn ingest_full_cmudict(
+    path: impl AsRef<std::path::Path>,
+) -> std::io::Result<HashMap<String, Vec<Vec<String>>>> {
+    let text = std::fs::read_to_string(path.as_ref())?;
+    let mut table: HashMap<String, Vec<Vec<String>>> = HashMap::new();
+    for (index, line) in text.lines().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with(";;;") {
+            continue;
+        }
+        match parse_cmudict_line(line) {
+            Some(entry) => {
+                table.entry(entry.word).or_default().push(entry.phones);
+            }
+            None => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!(
+                        "malformed CMUdict line {} in {}: {line:?}",
+                        index + 1,
+                        path.as_ref().display()
+                    ),
+                ));
+            }
+        }
+    }
+    Ok(table)
+}
+
 /// The closed ~30-word experiment vocabulary (uppercased), mirroring
 /// `CLOSED_VOCABULARY` in `src/fse` (`fse/src/lib.rs`, 39c.1).
 ///
