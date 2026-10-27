@@ -82,3 +82,9 @@ classical techniques throughout. Full thesis in [the whitepaper](OPENSTATE-WHITE
 - Beads are the work queue; every bead carries a green/red gate.
 - No-model constraint is load-bearing: run the guard before any submission.
 - Patent internals stay out of git and beads (repo will go public).
+- Data-source rule (added 2026-10-27 after the `jhn` void): no lane
+  launches on a data source the owner has not explicitly approved. Every
+  data bead states cost, account, and signup requirements as a gate
+  precondition, verified by live probe in the research spike before any
+  pipeline code. Approved source: Oyez only, until the owner approves
+  otherwise. Mid-wave source proposals are not permitted.
