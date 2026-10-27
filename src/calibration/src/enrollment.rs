@@ -42,8 +42,9 @@ impl Enrollment {
     }
 }
 
-/// A capture backend seam. The prototype uses a stub that synthesizes frames;
-/// the real system implements this with the actual mic + FSE front end.
+/// A capture backend seam. Backends that synthesize frames are test-only
+/// (`StubCapture`, behind the `test-utils` feature); the real system
+/// implements this with the actual mic + FSE front end.
 /// The real implementation lives in the `capture` crate (`MicCapture`, behind
 /// its `mic` feature); this trait is the stable contract both satisfy.
 pub trait CaptureBackend {
@@ -51,13 +52,19 @@ pub trait CaptureBackend {
     fn capture(&mut self, prompt: &str) -> Vec<[f64; FEATURE_DIM]>;
 }
 
-/// Stub backend for headless/prototype use: synthesizes deterministic frames
-/// so the enrollment flow is exercisable without hardware.
+/// Stub backend for hermetic tests: synthesizes deterministic frames so the
+/// enrollment flow is exercisable without hardware.
+///
+/// Test-only (bead hearsay-four-7eh, D3): compiled only under the
+/// `test-utils` feature or the crate's own `cfg(test)`. The default
+/// enrollment path carries real front-end frames, never synthesised ones.
+#[cfg(any(test, feature = "test-utils"))]
 pub struct StubCapture {
     pub frame_count: usize,
     pub base_value: f64,
 }
 
+#[cfg(any(test, feature = "test-utils"))]
 impl Default for StubCapture {
     fn default() -> Self {
         StubCapture {
@@ -67,6 +74,7 @@ impl Default for StubCapture {
     }
 }
 
+#[cfg(any(test, feature = "test-utils"))]
 impl CaptureBackend for StubCapture {
     fn capture(&mut self, _prompt: &str) -> Vec<[f64; FEATURE_DIM]> {
         (0..self.frame_count)

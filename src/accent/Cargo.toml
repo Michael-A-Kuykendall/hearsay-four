@@ -4,7 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-calibration = { path = "../calibration" }
+# test-utils: accent's hermetic tests use calibration's StubCapture (D3, bead
+# hearsay-four-7eh gates the stub behind this feature). Production path uses
+# real FSE frames via capture/fse; the stub never feeds a real fit.
+calibration = { path = "../calibration", features = ["test-utils"] }
 hound = "3.5"
 corpus = { path = "../corpus" }
 fabric = { path = "../fabric" }

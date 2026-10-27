@@ -7,8 +7,20 @@ edition = "2024"
 fabric = { path = "../fabric" }
 invariant_ppt = { path = "../invariant_ppt" }
 
+[features]
+# Test-only capture stub (bead hearsay-four-7eh, D3): `StubCapture` is
+# compiled only under this feature (or the crate's own `cfg(test)`), so the
+# default build path carries no synthesised-frame backend. Hermetic tests
+# that need the stub enable this feature.
+test-utils = []
+
 [dev-dependencies]
 proptest = "1.11.0"
+# D3 (bead hearsay-four-7eh): front-end feed tests run real Stage-1 FSE
+# features into `fit_baseline_checked`. Dev-only cycle (fse depends on
+# calibration normally); corpus decodes the in-repo Oyez-derived clip.
+fse = { path = "../fse" }
+corpus = { path = "../corpus" }
 # D1 (bead hearsay-four-cz0): enrollment-wiring tests assert the wired Tier-2
 # fact is accepted by accent's derive_and_assert. Cycle is via dev-deps only
 # (accent still depends on calibration normally).
