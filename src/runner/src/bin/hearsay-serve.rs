@@ -27,7 +27,8 @@ use std::path::PathBuf;
 use corpus::audio::Pcm16kAudio;
 use output::SessionMeta;
 use runner::{
-    StreamingConfig, StreamingOutput, generic_reference_baseline, run_streaming_pipeline,
+    ProvisionalEvent, ProvisionalKind, StreamingConfig, StreamingOutput,
+    generic_reference_baseline, run_streaming_pipeline,
 };
 
 /// Usage text, printed by `--help` (stdout, exit 0) and appended to every
@@ -45,10 +46,15 @@ usage: hearsay-serve [--input <audio.mp3|wav|->] [--enroll <enroll.mp3|wav>] \\\
                    the front-end path instead of the generic reference\n\
                    baseline\n\
   --max-secs N     cap on audio processed, seconds (default 12, 0 = no cap)\n\
-  --chunk-secs N   audio seconds per committed word (default 2)\n\
+  --chunk-secs N   audio seconds per committed word (default 2)
+  --provisional    NDJSON provisional-hypothesis events on stdout (one
+                   JSON object per line: per-chunk `provisional` words,
+                   `revised` repair events, then settled `final` words)
+                   instead of transcript JSON\n\
 \n\
 defaults: --max-secs 12 --chunk-secs 2 (one committed word per chunk)\n\
-stdout: transcript JSON (`transcript` + `stats`); stderr: errors only.\n\
+stdout: transcript JSON (`transcript` + `stats`), or NDJSON events with\n\
+--provisional; stderr: errors only.\n\
 offline: no sockets, no network crates, vendored dictionary only.";
 
 /// Parsed CLI request.
@@ -60,6 +66,9 @@ struct ServeRequest {
     enroll: Option<PathBuf>,
     max_secs: f64,
     chunk_secs: f64,
+    /// PART-1 (bead hearsay-four-2bs): NDJSON provisional-hypothesis events
+    /// on stdout instead of transcript JSON.
+    provisional: bool,
 }
 
 /// `--help` vs a runnable request.
@@ -115,6 +124,7 @@ fn parse_args(args: &[String]) -> Result<ServeAction, ServeFailure> {
     let mut enroll: Option<PathBuf> = None;
     let mut max_secs = 12.0f64;
     let mut chunk_secs = 2.0f64;
+    let mut provisional = false;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -153,6 +163,9 @@ fn parse_args(args: &[String]) -> Result<ServeAction, ServeFailure> {
                     ));
                 }
             }
+            "--provisional" => {
+                provisional = true;
+            }
             "--help" | "-h" => {
                 return Ok(ServeAction::Help);
             }
@@ -167,6 +180,7 @@ fn parse_args(args: &[String]) -> Result<ServeAction, ServeFailure> {
         enroll,
         max_secs,
         chunk_secs,
+        provisional,
     }))
 }
 
@@ -225,6 +239,46 @@ fn render_json(out: &StreamingOutput) -> Result<String, String> {
         },
     });
     serde_json::to_string_pretty(&value).map_err(|e| format!("JSON serialization failed: {e}"))
+}
+
+/// Render the PART-1 provisional-hypothesis event stream (bead
+/// hearsay-four-2bs): one NDJSON object per line — the per-chunk
+/// `provisional` words in chunk order, then `revised` repair events, then
+/// the settled `final` words. Chains are validated first under the same
+/// contract as [`render_json`]: a violation is `Err` (caller exits 1 with
+/// empty stdout, never partial NDJSON).
+fn render_provisional_ndjson(out: &StreamingOutput) -> Result<String, String> {
+    for word in &out.transcript.words {
+        word.validate().map_err(|failure| {
+            format!(
+                "provenance contract failed for {:?}: {failure:?}",
+                word.text
+            )
+        })?;
+    }
+    let mut lines = String::new();
+    for event in &out.events {
+        let line = serde_json::to_string(&event.to_json())
+            .map_err(|e| format!("NDJSON serialization failed: {e}"))?;
+        lines.push_str(&line);
+        lines.push('\n');
+    }
+    for (chunk_idx, word) in out.transcript.words.iter().enumerate() {
+        let settled = ProvisionalEvent {
+            kind: ProvisionalKind::Final,
+            chunk_idx,
+            word: word.text.clone(),
+            provisional: false,
+            old_word: None,
+            reason: None,
+            audit: format!("final chunk {chunk_idx}: {:?}", word.text),
+        };
+        let line = serde_json::to_string(&settled.to_json())
+            .map_err(|e| format!("NDJSON serialization failed: {e}"))?;
+        lines.push_str(&line);
+        lines.push('\n');
+    }
+    Ok(lines)
 }
 
 /// Finalize one validated output: `(stdout, stderr, exit_code)`. `Ok` render
@@ -322,8 +376,18 @@ fn serve(req: &ServeRequest, stdin_bytes: Option<&[u8]>) -> (String, String, i32
     };
 
     // Re-validate every chain before print: a violation exits 1 with empty
-    // stdout, never partial JSON.
-    emit(&out)
+    // stdout, never partial JSON (or partial NDJSON under --provisional).
+    if req.provisional {
+        match render_provisional_ndjson(&out) {
+            Ok(rendered) => (rendered, String::new(), 0),
+            Err(e) => {
+                let failure = ServeFailure::failed(e);
+                (String::new(), failure.stderr, failure.code)
+            }
+        }
+    } else {
+        emit(&out)
+    }
 }
 
 fn main() {
@@ -389,6 +453,7 @@ mod serve_tests {
             // without paying for the full 8 s clip in every gate run.
             max_secs: 4.0,
             chunk_secs: 2.0,
+            provisional: false,
         }
     }
 
@@ -482,6 +547,7 @@ mod serve_tests {
             enroll: None,
             max_secs: 4.0,
             chunk_secs: 2.0,
+            provisional: false,
         };
         let (stdout, stderr, code) = serve(&req, None);
         assert_eq!(code, 2, "missing input exits 2");
@@ -552,6 +618,7 @@ mod serve_tests {
             // First 4 s (2 chunks): enough to prove end-to-end parity.
             max_secs: 4.0,
             chunk_secs: 2.0,
+            provisional: false,
         }
     }
 
@@ -720,5 +787,103 @@ mod serve_tests {
             stderr.contains("provenance contract failed"),
             "stderr names the contract (got {stderr:?})"
         );
+    }
+
+    /// PART-1 (bead hearsay-four-2bs): `--provisional` parses, and the
+    /// NDJSON event stream on the clean courtroom fixture shows
+    /// provisional==final — one `provisional` event per chunk plus the
+    /// settled `final` words, no `revised` event without a repair.
+    #[test]
+    fn serve_provisional_flag_parses() {
+        match parse_args(&["--provisional".to_string()]) {
+            Ok(ServeAction::Run(req)) => assert!(req.provisional, "--provisional sets the flag"),
+            _ => panic!("--provisional must parse to a run"),
+        }
+        match parse_args(&[]) {
+            Ok(ServeAction::Run(req)) => assert!(!req.provisional, "flag defaults off"),
+            _ => panic!("empty args must parse to a run"),
+        }
+    }
+
+    /// Parse NDJSON stdout into one `serde_json::Value` per line (every
+    /// line must be a complete JSON object — never partial output).
+    fn ndjson_lines(stdout: &str) -> Vec<serde_json::Value> {
+        assert!(!stdout.is_empty(), "NDJSON stdout non-empty");
+        stdout
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("every NDJSON line parses"))
+            .collect()
+    }
+
+    #[test]
+    fn serve_provisional_ndjson_clean_fixture_provisional_equals_final() {
+        let req = ServeRequest {
+            provisional: true,
+            ..fixture_request()
+        };
+        let (stdout, stderr, code) = serve(&req, None);
+        assert_eq!(
+            code, 0,
+            "provisional run transcribes clean (stderr: {stderr})"
+        );
+        assert!(stderr.is_empty(), "no stderr on success (got {stderr:?})");
+        let events = ndjson_lines(&stdout);
+        let words_of_kind = |kind: &str| -> Vec<String> {
+            events
+                .iter()
+                .filter(|v| v["kind"].as_str() == Some(kind))
+                .map(|v| v["word"].as_str().expect("word string").to_string())
+                .collect()
+        };
+        let provisionals = words_of_kind("provisional");
+        let finals = words_of_kind("final");
+        assert!(!provisionals.is_empty(), "provisional events present");
+        assert_eq!(
+            provisionals, finals,
+            "no-repair fixture shows provisional==final"
+        );
+        assert!(
+            events.iter().all(|v| v["kind"].as_str() != Some("revised")),
+            "no revision event without a repair"
+        );
+        // Event shape: every line carries chunk order + the provisional
+        // flag + its audit line; provisionals are flagged, finals settled.
+        for (i, v) in events.iter().enumerate() {
+            assert!(v.get("chunk_idx").is_some(), "line {i} carries chunk_idx");
+            assert!(
+                v.get("provisional").is_some(),
+                "line {i} carries the provisional flag"
+            );
+            assert!(
+                v["audit"].as_str().is_some_and(|a| !a.is_empty()),
+                "line {i} carries its audit line"
+            );
+        }
+        for v in events
+            .iter()
+            .filter(|v| v["kind"].as_str() == Some("provisional"))
+        {
+            assert_eq!(v["provisional"], true, "commits display as provisional");
+        }
+        for v in events
+            .iter()
+            .filter(|v| v["kind"].as_str() == Some("final"))
+        {
+            assert_eq!(v["provisional"], false, "finals display as settled");
+        }
+        // Same words as the transcript-JSON run over the same fixture.
+        let (json_out, _, json_code) = serve(&fixture_request(), None);
+        assert_eq!(json_code, 0, "transcript-JSON run clean");
+        let transcript = transcript_of(&json_out);
+        let transcript_words: Vec<String> =
+            transcript.words.iter().map(|w| w.text.clone()).collect();
+        assert_eq!(
+            provisionals, transcript_words,
+            "events agree with transcript JSON"
+        );
+        for word in &transcript.words {
+            word.validate()
+                .expect("chain terminates at frame-level acoustic evidence");
+        }
     }
 }
