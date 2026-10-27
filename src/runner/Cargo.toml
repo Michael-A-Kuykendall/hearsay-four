@@ -16,3 +16,9 @@ invariant_ppt = { path = "../invariant_ppt" }
 lexicon = { path = "../lexicon" }
 sequence = { path = "../sequence" }
 output = { path = "../output" }
+
+[dev-dependencies]
+# MIC-1 (bead hearsay-four-4zx): the hermetic live gate exercises the
+# CaptureBackend stub (`StubCapture`) without hardware. Dev-only: the default
+# build carries no synthesised-frame backend.
+calibration = { path = "../calibration", features = ["test-utils"] }
