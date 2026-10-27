@@ -626,6 +626,7 @@ impl WordRecord {
 // TXT-1): classical casing/punctuation restoration and subtitle exports.
 // ---------------------------------------------------------------------------
 pub mod readable;
+pub mod why;
 
 // ---------------------------------------------------------------------------
 // Word-level WER scorer (bead hearsay-four-chd, lane A2).
