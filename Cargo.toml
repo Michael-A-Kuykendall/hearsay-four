@@ -1,11 +1,21 @@
-# Track A workspace root (bead hearsay-four-5qc): exposes the runner's
-# `hearsay-demo` bin as `cargo run --bin hearsay-demo` from this directory.
-# Only the runner is a member; every other stage crate stays a standalone
-# package reached through the runner's path dependencies, so their existing
-# per-crate gates (`cd src/<crate> && cargo test ...`) are unchanged.
+# Unified workspace root (beads hearsay-four-5qc, hearsay-four-pbq E2):
+# every pipeline crate is a workspace member, so `cargo test --workspace`
+# is the regression gate and `cargo build --bin hearsay-demo` covers the
+# release matrix. `src/wasm-demo` stays excluded: it declares its own
+# `[workspace]` (wasm-only, pinned wasm-bindgen) and is not part of the
+# host test/release matrix.
+#
+# Feature-unification contract (E2):
+# - `capture`'s `mic` feature (cpal) stays OPTIONAL and off by default, so
+#   the default workspace build/test needs no cpal system deps.
+# - `capture`'s `record-session` bin keeps `required-features = ["mic"]`,
+#   so it is skipped by default builds and compiled only under
+#   `cargo build -p capture --features mic`.
+# - `hearsay-demo` / `hearsay-serve` (runner) must NOT require `mic`: the
+#   runner takes file/stdin WAV input only and has no capture dependency,
+#   so the release matrix stays green without system audio libs.
 [workspace]
-members = ["src/runner"]
-exclude = [
+members = [
     "src/accent",
     "src/arena",
     "src/calibration",
@@ -17,8 +27,11 @@ exclude = [
     "src/invariant_ppt",
     "src/lexicon",
     "src/output",
+    "src/runner",
     "src/sequence",
     "src/stage3",
+]
+exclude = [
     "src/wasm-demo",
 ]
 resolver = "2"
