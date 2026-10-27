@@ -18,6 +18,8 @@ use arena::Arena;
 use fabric::FactId;
 use invariant_ppt::assert_invariant;
 
+pub mod trigram;
+
 /// N-gram order: exactly bigram (INV `bigram_order`, ngram-sequence.md §1).
 pub const NGRAM_ORDER: usize = 2;
 
