@@ -545,6 +545,7 @@ dependencies = [
  "corpus",
  "fse",
  "lexicon",
+ "output",
  "serde",
  "serde_json",
 ]
