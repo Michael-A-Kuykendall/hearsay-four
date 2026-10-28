@@ -117,6 +117,20 @@ pub struct KnTrigram {
     unigram_cont_total: u64,
     tri_discounts: Discounts,
     bi_discounts: Discounts,
+    // Per-history (total, n1, n2, n3plus) follower-type stats, rebuilt in
+    // finalize(). Caches only: prob()/bigram_prob() arithmetic is unchanged.
+    tri_hist_stats: HashMap<(String, String), (u64, u64, u64, u64)>,
+    bi_hist_stats: HashMap<String, (u64, u64, u64, u64)>,
+}
+
+/// Perplexity of a model on held-out normalized sentences.
+/// `predicted_tokens` counts every predicted token including `</s>`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PerplexityReport {
+    pub sentences: usize,
+    pub predicted_tokens: u64,
+    pub log_prob: f64,
+    pub perplexity: f64,
 }
 
 fn key2(a: &str, b: &str) -> String {
@@ -188,11 +202,35 @@ impl KnTrigram {
         self.tri_discounts = estimate_discounts(&counts_of_counts(self.trigram.values().copied()));
         self.bi_discounts =
             estimate_discounts(&counts_of_counts(self.bigram_cont.values().copied()));
+        // History follower-type stats (same buckets prob() used to rescan for).
+        let mut tri_stats: HashMap<(String, String), (u64, u64, u64, u64)> = HashMap::new();
+        for ((a, b, _), &c) in &self.trigram {
+            let e = tri_stats.entry((a.clone(), b.clone())).or_default();
+            e.0 += c;
+            match c {
+                1 => e.1 += 1,
+                2 => e.2 += 1,
+                _ => e.3 += 1,
+            }
+        }
+        self.tri_hist_stats = tri_stats;
+        let mut bi_stats: HashMap<String, (u64, u64, u64, u64)> = HashMap::new();
+        for ((u, _), &cc) in &self.bigram_cont {
+            let e = bi_stats.entry(u.clone()).or_default();
+            e.0 += cc;
+            match cc {
+                1 => e.1 += 1,
+                2 => e.2 += 1,
+                _ => e.3 += 1,
+            }
+        }
+        self.bi_hist_stats = bi_stats;
     }
 
     pub fn vocabulary(&self) -> &BTreeSet<String> {
         &self.vocab
     }
+
     /// Prediction vocabulary: vocab without `<s>` (never predicted).
     pub fn prediction_vocabulary(&self) -> Vec<&str> {
         self.vocab
@@ -244,20 +282,7 @@ impl KnTrigram {
         let w = self.map_word(w);
         let lower = self.unigram_prob(w);
         // cc(u,.) total and follower type counts by continuation count.
-        let mut total: u64 = 0;
-        let mut n1 = 0u64;
-        let mut n2 = 0u64;
-        let mut n3 = 0u64;
-        for ((uu, _), &cc) in &self.bigram_cont {
-            if uu == u {
-                total += cc;
-                match cc {
-                    1 => n1 += 1,
-                    2 => n2 += 1,
-                    _ => n3 += 1,
-                }
-            }
-        }
+        let (total, n1, n2, n3) = self.bi_hist_stats.get(u).copied().unwrap_or((0, 0, 0, 0));
         if total == 0 {
             return lower;
         }
@@ -280,20 +305,11 @@ impl KnTrigram {
         let w2 = self.map_word(w2).to_string();
         let w = self.map_word(w).to_string();
         let lower = self.bigram_prob(&w2, &w);
-        let mut total: u64 = 0;
-        let mut n1 = 0u64;
-        let mut n2 = 0u64;
-        let mut n3 = 0u64;
-        for ((a, b, _), &c) in &self.trigram {
-            if *a == w1 && *b == w2 {
-                total += c;
-                match c {
-                    1 => n1 += 1,
-                    2 => n2 += 1,
-                    _ => n3 += 1,
-                }
-            }
-        }
+        let (total, n1, n2, n3) = self
+            .tri_hist_stats
+            .get(&(w1.clone(), w2.clone()))
+            .copied()
+            .unwrap_or((0, 0, 0, 0));
         if total == 0 {
             return lower;
         }
@@ -342,5 +358,109 @@ impl KnTrigram {
             bigram_discounts: self.bi_discounts,
             total_tokens: self.total_tokens,
         }
+    }
+
+    /// Rebuild a model from an inspectable snapshot (persistence reload).
+    /// Keys are space-joined tokens; normalized tokens never contain a
+    /// space, so the split is unambiguous. Continuation counts, discounts,
+    /// and history stats are re-derived by `finalize()`, which reproduces
+    /// the snapshot's stored values for any snapshot taken from a model.
+    pub fn from_inspectable(snap: &InspectableModel) -> Result<Self, String> {
+        let mut m = Self::new();
+        m.vocab = snap.vocabulary.iter().cloned().collect();
+        m.total_tokens = snap.total_tokens;
+        for (k, &v) in &snap.unigram_counts {
+            m.unigram.insert(k.clone(), v);
+        }
+        for (k, &v) in &snap.bigram_counts {
+            let p: Vec<&str> = k.split(' ').collect();
+            if p.len() != 2 {
+                return Err(format!("bad bigram key {k:?}"));
+            }
+            m.bigram.insert((p[0].into(), p[1].into()), v);
+        }
+        for (k, &v) in &snap.trigram_counts {
+            let p: Vec<&str> = k.split(' ').collect();
+            if p.len() != 3 {
+                return Err(format!("bad trigram key {k:?}"));
+            }
+            m.trigram.insert((p[0].into(), p[1].into(), p[2].into()), v);
+        }
+        m.finalize();
+        Ok(m)
+    }
+
+    /// Number of stored trigram entries (the prunable size).
+    pub fn trigram_entry_count(&self) -> usize {
+        self.trigram.len()
+    }
+
+    /// Perplexity on held-out normalized sentences (R1b gate metric).
+    /// Empty input yields infinite perplexity.
+    pub fn perplexity(&self, sentences: &[Vec<String>]) -> PerplexityReport {
+        let mut log_prob = 0.0;
+        let mut tokens: u64 = 0;
+        for s in sentences {
+            log_prob += self.sentence_log_prob(s);
+            tokens += s.len() as u64 + 1; // +1 for predicted </s>
+        }
+        let perplexity = if tokens == 0 {
+            f64::INFINITY
+        } else {
+            (-log_prob / tokens as f64).exp()
+        };
+        PerplexityReport {
+            sentences: sentences.len(),
+            predicted_tokens: tokens,
+            log_prob,
+            perplexity,
+        }
+    }
+
+    /// Entropy pruning to a trigram-entry budget (Stolcke-style, R1b).
+    ///
+    /// Each trigram `(w1,w2,w)` with count `c` is scored by its total
+    /// log-likelihood gain over its backed-off bigram probability on the
+    /// training counts themselves:
+    /// `score = c * (ln P(w|w1,w2) - ln P(w|w2))`. Entries with the
+    /// lowest score (rare, or no better than backoff) are removed first;
+    /// ties break on the token key, so pruning is deterministic. Only
+    /// trigram entries are removed: unigram/bigram raw counts stay, and
+    /// continuation counts, discounts, and history stats are re-estimated
+    /// by `finalize()`. A budget at or above the current entry count
+    /// returns an unchanged clone.
+    pub fn entropy_pruned(&self, max_trigram_entries: usize) -> Self {
+        if self.trigram.len() <= max_trigram_entries {
+            return self.clone();
+        }
+        let mut scored: Vec<(f64, String, String, String)> = self
+            .trigram
+            .iter()
+            .map(|((a, b, c), &cnt)| {
+                let p = self.prob(a, b, c).max(1e-12);
+                let pb = self.bigram_prob(b, c).max(1e-12);
+                (
+                    cnt as f64 * (p.ln() - pb.ln()),
+                    a.clone(),
+                    b.clone(),
+                    c.clone(),
+                )
+            })
+            .collect();
+        scored.sort_by(|x, y| {
+            x.0.partial_cmp(&y.0)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| (&x.1, &x.2, &x.3).cmp(&(&y.1, &y.2, &y.3)))
+        });
+        let remove = self.trigram.len() - max_trigram_entries;
+        let drop_set: HashSet<(String, String, String)> = scored
+            .iter()
+            .take(remove)
+            .map(|(_, a, b, c)| (a.clone(), b.clone(), c.clone()))
+            .collect();
+        let mut m = self.clone();
+        m.trigram.retain(|k, _| !drop_set.contains(k));
+        m.finalize();
+        m
     }
 }
