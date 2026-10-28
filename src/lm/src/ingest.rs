@@ -88,6 +88,63 @@ pub fn extract_text_lines(path: &Path) -> Result<Vec<String>, String> {
     Ok(lines)
 }
 
+/// DEV evaluation text (evaluation only — never pass these sentences to
+/// `KnTrigram::train`). Selected from `data/partitions/dev.json`: the DEV
+/// Oyez case transcript(s) plus the `quality_test` TSVs. `data/session/
+/// session.tsv` is the same DEV case segmented and is not selected, so no
+/// sentence is double-counted. Errors if a selected path also appears in
+/// `lm-train-text.json`.
+pub fn load_dev_evaluation_lines(
+    repo_root: &Path,
+    better_voice_root: &Path,
+) -> Result<Vec<IngestedSource>, String> {
+    let part_dir = repo_root.join("data/partitions");
+    let read_entries = |name: &str| -> Result<Vec<serde_json::Value>, String> {
+        let raw = std::fs::read_to_string(part_dir.join(name))
+            .map_err(|e| format!("read {name}: {e}"))?;
+        let v: serde_json::Value =
+            serde_json::from_str(&raw).map_err(|e| format!("parse {name}: {e}"))?;
+        v.get("entries")
+            .and_then(|e| e.as_array())
+            .cloned()
+            .ok_or_else(|| format!("{name}: missing entries"))
+    };
+    let lm_paths: BTreeSet<String> = read_entries("lm-train-text.json")?
+        .iter()
+        .filter_map(|e| e.get("path").and_then(|p| p.as_str()).map(String::from))
+        .collect();
+    let mut out = Vec::new();
+    for e in read_entries("dev.json")? {
+        let path = e.get("path").and_then(|p| p.as_str()).unwrap_or("");
+        let dataset = e.get("dataset").and_then(|d| d.as_str()).unwrap_or("");
+        let selected = path.ends_with("transcript.json")
+            || (dataset == "quality_test" && path.ends_with(".tsv"));
+        if !selected {
+            continue;
+        }
+        if lm_paths.contains(path) {
+            return Err(format!(
+                "DEV evaluation entry {path} also appears in lm-train-text.json"
+            ));
+        }
+        let root = e.get("root").and_then(|r| r.as_str()).unwrap_or("repo");
+        let full: PathBuf = match root {
+            "better-voice" => better_voice_root.join(path),
+            _ => repo_root.join(path),
+        };
+        let lines = extract_text_lines(&full)?;
+        out.push(IngestedSource {
+            path: path.to_string(),
+            dataset: dataset.to_string(),
+            lines,
+        });
+    }
+    if out.is_empty() {
+        return Err("dev.json: no evaluation text entries selected".into());
+    }
+    Ok(out)
+}
+
 /// Load every LM-train text source allowed by D1.
 /// `repo_root` holds `data/partitions/` and `sessions/`; `better_voice_root`
 /// holds `data/...` for `root == "better-voice"` entries.
