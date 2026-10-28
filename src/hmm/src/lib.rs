@@ -215,7 +215,28 @@ fn ltr_trans(n: usize) -> Vec<Vec<f64>> {
     }
     t
 }
-
+fn log_sum_exp(a: f64, b: f64) -> f64 {
+    if a == f64::NEG_INFINITY {
+        return b;
+    }
+    if b == f64::NEG_INFINITY {
+        return a;
+    }
+    let m = a.max(b);
+    m + ((a - m).exp() + (b - m).exp()).ln()
+}
+fn log_sum_exp_slice(xs: &[f64]) -> f64 {
+    let mut mx = f64::NEG_INFINITY;
+    for &x in xs {
+        if x > mx {
+            mx = x;
+        }
+    }
+    if mx == f64::NEG_INFINITY {
+        return mx;
+    }
+    mx + xs.iter().map(|x| (x - mx).exp()).sum::<f64>().ln()
+}
 impl HmmSet {
     pub fn flat_start(
         phones: &[&str],
@@ -437,24 +458,18 @@ impl HmmSet {
             utts: BTreeSet<String>,
             frames: u64,
         }
-        #[derive(Default, Clone)]
-        struct Acc {
-            trans: Vec<Vec<f64>>,
-            trans_occ: Vec<f64>,
-        }
+        // Transition choice (hearsay-four-bwf--baum-welch-underflow-fix): the
+        // old M-step split every state's occupancy 50/50 between self-loop
+        // and forward arc, so estimated transitions were always 0.5/0.5 (dead
+        // estimator). Deleted; the E-step uses fixed ln(0.5), matching
+        // forced_align and decode_phones. Proper xi-based transition training
+        // is follow-up work, not needed for the underflow fix.
+        let log_half = 0.5f64.ln();
         let mut total_ll = 0.0;
         for _iter in 0..cfg.bw_iterations.max(1) {
-            let mut accs: BTreeMap<String, Acc> = BTreeMap::new();
             let mut cacc: BTreeMap<(String, usize, usize), CAcc> = BTreeMap::new();
             for (name, h) in &self.phones {
                 if h.tied_to.is_none() {
-                    accs.insert(
-                        name.clone(),
-                        Acc {
-                            trans: vec![vec![0.0; h.n_states + 2]; h.n_states + 2],
-                            trans_occ: vec![0.0; h.n_states + 2],
-                        },
-                    );
                     for s in 0..h.n_states {
                         for c in 0..h.emissions[s].components.len() {
                             cacc.insert(
@@ -469,7 +484,6 @@ impl HmmSet {
                     }
                 }
             }
-            let mut occ: BTreeMap<(String, usize), f64> = BTreeMap::new();
             total_ll = 0.0;
             for (utt_id, seq, obs) in data {
                 if obs.is_empty() {
@@ -478,69 +492,100 @@ impl HmmSet {
                 let states = self.composite(seq)?;
                 let n = states.len();
                 let t_len = obs.len();
-                let emit: Vec<Vec<f64>> = obs
+                // Log-domain emits: never exp() here (39 dims underflow to 0).
+                let log_emit: Vec<Vec<f64>> = obs
                     .iter()
                     .map(|o| {
                         states
                             .iter()
-                            .map(|(p, s)| self.emission(p, *s).map(|m| m.log_prob(o).exp()))
+                            .map(|(p, s)| self.emission(p, *s).map(|m| m.log_prob(o)))
                             .collect::<Result<Vec<_>>>()
                     })
                     .collect::<Result<Vec<_>>>()?;
-                let mut alpha = vec![vec![0.0; n]; t_len];
-                let mut scale = vec![1.0; t_len];
-                alpha[0][0] = emit[0][0];
-                let s0: f64 = alpha[0].iter().sum();
-                scale[0] = if s0 > 0.0 { 1.0 / s0 } else { 1.0 };
-                for v in &mut alpha[0] {
-                    *v *= scale[0];
+                // Forward pass in log domain with per-frame normalization.
+                // log_c[t] = log(sum_j exp(unnorm[t][j])); total LL = sum log_c.
+                let mut log_alpha = vec![vec![f64::NEG_INFINITY; n]; t_len];
+                let mut log_c = vec![0.0; t_len];
+                log_alpha[0][0] = log_emit[0][0];
+                log_c[0] = log_sum_exp_slice(&log_alpha[0]);
+                for v in &mut log_alpha[0] {
+                    *v -= log_c[0];
                 }
                 for t in 1..t_len {
+                    let mut unnorm = vec![f64::NEG_INFINITY; n];
+                    for (j, u) in unnorm.iter_mut().enumerate() {
+                        let stay = log_alpha[t - 1][j] + log_half;
+                        let enter = if j > 0 {
+                            log_alpha[t - 1][j - 1] + log_half
+                        } else {
+                            f64::NEG_INFINITY
+                        };
+                        *u = log_emit[t][j] + log_sum_exp(stay, enter);
+                    }
+                    log_c[t] = log_sum_exp_slice(&unnorm);
                     for j in 0..n {
-                        let mut v = alpha[t - 1][j] * 0.5;
-                        if j > 0 {
-                            v += alpha[t - 1][j - 1] * 0.5;
-                        }
-                        alpha[t][j] = v * emit[t][j];
-                    }
-                    let s: f64 = alpha[t].iter().sum();
-                    scale[t] = if s > 0.0 { 1.0 / s } else { 1.0 };
-                    for v in &mut alpha[t] {
-                        *v *= scale[t];
+                        log_alpha[t][j] = unnorm[j] - log_c[t];
                     }
                 }
-                let mut beta = vec![vec![0.0; n]; t_len];
-                for v in &mut beta[t_len - 1] {
-                    *v = scale[t_len - 1];
+                // Backward pass in log domain (scaled to match forward).
+                let mut log_beta = vec![vec![f64::NEG_INFINITY; n]; t_len];
+                for v in &mut log_beta[t_len - 1] {
+                    *v = -log_c[t_len - 1];
                 }
-                for t in (0..t_len - 1).rev() {
+                for t in (0..t_len.saturating_sub(1)).rev() {
                     for i in 0..n {
-                        let mut v = beta[t + 1][i] * emit[t + 1][i] * 0.5;
-                        if i + 1 < n {
-                            v += beta[t + 1][i + 1] * emit[t + 1][i + 1] * 0.5;
-                        }
-                        beta[t][i] = scale[t] * v;
+                        let stay = log_half + log_emit[t + 1][i] + log_beta[t + 1][i];
+                        let next = if i + 1 < n {
+                            log_half + log_emit[t + 1][i + 1] + log_beta[t + 1][i + 1]
+                        } else {
+                            f64::NEG_INFINITY
+                        };
+                        log_beta[t][i] = -log_c[t] + log_sum_exp(stay, next);
                     }
                 }
-                total_ll += -scale.iter().map(|s| s.ln()).sum::<f64>();
+                total_ll += log_c.iter().sum::<f64>();
+                // Gammas: renormalize per frame, assert they sum to ~1.
                 for t in 0..t_len {
+                    let mut lg = vec![f64::NEG_INFINITY; n];
                     for j in 0..n {
-                        let g = alpha[t][j] * beta[t][j];
+                        lg[j] = log_alpha[t][j] + log_beta[t][j];
+                    }
+                    let lse = log_sum_exp_slice(&lg);
+                    if !lse.is_finite() {
+                        continue;
+                    }
+                    let mut gammas = vec![0.0; n];
+                    let mut gsum = 0.0;
+                    for j in 0..n {
+                        let g = (lg[j] - lse).exp();
+                        gammas[j] = g;
+                        gsum += g;
+                    }
+                    debug_assert!(
+                        (gsum - 1.0).abs() < 1e-6,
+                        "gamma row must sum to 1, got {gsum}"
+                    );
+                    for j in 0..n {
+                        let g = gammas[j];
                         if g <= 0.0 {
                             continue;
                         }
                         let (p, s) = &states[j];
                         let kp = if p == SP { SIL.to_string() } else { p.clone() };
                         let ks = if p == SP { 1 } else { *s };
-                        *occ.entry((kp.clone(), ks)).or_default() += g;
                         let mix = self.emission(p, *s)?.clone();
-                        let denom = mix.log_prob(&obs[t]).exp();
+                        // Mixture responsibilities in log domain.
+                        let log_denom = mix.log_prob(&obs[t]);
+                        if !log_denom.is_finite() {
+                            continue;
+                        }
+                        let log_g = g.ln();
                         for (ci, comp) in mix.components.iter().enumerate() {
-                            let r = if denom > 0.0 {
-                                g * comp.weight * comp.gaussian.log_prob(&obs[t]).exp() / denom
-                            } else {
-                                0.0
-                            };
+                            let log_r = log_g
+                                + comp.weight.max(1e-300).ln()
+                                + comp.gaussian.log_prob(&obs[t])
+                                - log_denom;
+                            let r = log_r.exp();
                             if r <= 1e-12 {
                                 continue;
                             }
@@ -556,30 +601,14 @@ impl HmmSet {
                         }
                     }
                 }
-                for t in 0..t_len - 1 {
-                    for j in 0..n {
-                        let g = alpha[t][j] * beta[t][j];
-                        let (p, s) = &states[j];
-                        let kp = if p == SP { SIL.to_string() } else { p.clone() };
-                        let ks = if p == SP { 1 } else { *s };
-                        if let Some(a) = accs.get_mut(&kp) {
-                            a.trans[ks + 1][ks + 1] += g * 0.5;
-                            if ks + 2 < a.trans[ks + 1].len() {
-                                a.trans[ks + 1][ks + 2] += g * 0.5;
-                            }
-                            a.trans_occ[ks + 1] += g;
-                        }
-                    }
-                }
             }
+            // M-step (means/variances/mixture weights only; transitions fixed).
             for (name, h) in self.phones.clone() {
                 if h.tied_to.is_some() {
                     continue;
                 }
-                let a = &accs[&name];
                 let mut nh = h.clone();
                 for s in 0..h.n_states {
-                    let o = occ.get(&(name.clone(), s)).copied().unwrap_or(0.0);
                     let mut wsum = 0.0;
                     for c in 0..nh.emissions[s].components.len() {
                         if let Some(ca) = cacc.get(&(name.clone(), s, c))
@@ -611,14 +640,6 @@ impl HmmSet {
                                     frames: ca.frames,
                                 },
                             };
-                        }
-                    }
-                    let _ = o;
-                    let row = &a.trans[s + 1];
-                    let tot: f64 = row.iter().sum();
-                    if tot > 1e-8 {
-                        for (j, v) in row.iter().enumerate() {
-                            nh.trans[s + 1][j] = v / tot;
                         }
                     }
                 }
