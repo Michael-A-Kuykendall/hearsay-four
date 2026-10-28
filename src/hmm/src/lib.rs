@@ -30,6 +30,9 @@ impl fmt::Display for HmmError {
 impl std::error::Error for HmmError {}
 pub type Result<T> = std::result::Result<T, HmmError>;
 
+/// Training/dev utterance with a stable id: (id, phone sequence, frames).
+pub type UttData = (String, Vec<String>, Vec<Vec<f64>>);
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Gaussian {
     pub mean: Vec<f64>,
@@ -47,11 +50,127 @@ impl Gaussian {
     }
 }
 
+/// Provenance pointer: source utterances and frame count behind a parameter.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct Provenance {
+    pub utterances: Vec<String>,
+    pub frames: u64,
+}
+
+/// Sufficient statistics stored with every estimated parameter (R2b).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ParamStats {
+    pub count: f64,
+    pub sum: Vec<f64>,
+    pub sum_sq: Vec<f64>,
+    pub provenance: Provenance,
+}
+impl ParamStats {
+    pub fn zeros(dim: usize) -> Self {
+        Self {
+            count: 0.0,
+            sum: vec![0.0; dim],
+            sum_sq: vec![0.0; dim],
+            provenance: Provenance::default(),
+        }
+    }
+    pub fn global(
+        count: f64,
+        sum: Vec<f64>,
+        sum_sq: Vec<f64>,
+        utterances: Vec<String>,
+        frames: u64,
+    ) -> Self {
+        Self {
+            count,
+            sum,
+            sum_sq,
+            provenance: Provenance { utterances, frames },
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MixtureComponent {
+    pub weight: f64,
+    pub gaussian: Gaussian,
+    pub stats: ParamStats,
+}
+
+/// One emitting state's distribution: a Gaussian mixture (1 component pre-split).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Mixture {
+    pub components: Vec<MixtureComponent>,
+}
+impl Mixture {
+    pub fn single(gaussian: Gaussian, stats: ParamStats) -> Self {
+        Self {
+            components: vec![MixtureComponent {
+                weight: 1.0,
+                gaussian,
+                stats,
+            }],
+        }
+    }
+    pub fn log_prob(&self, x: &[f64]) -> f64 {
+        let mut mx = f64::NEG_INFINITY;
+        let mut terms = Vec::with_capacity(self.components.len());
+        for c in &self.components {
+            let t = c.weight.max(1e-300).ln() + c.gaussian.log_prob(x);
+            terms.push(t);
+            if t > mx {
+                mx = t;
+            }
+        }
+        if mx == f64::NEG_INFINITY {
+            return mx;
+        }
+        mx + terms.iter().map(|t| (t - mx).exp()).sum::<f64>().ln()
+    }
+    /// Split the highest-weight component (mean perturbed +/-0.2 sigma on the max-variance dim).
+    pub fn split_largest(&mut self) {
+        if self.components.is_empty() {
+            return;
+        }
+        let mut idx = 0;
+        for (i, c) in self.components.iter().enumerate() {
+            if c.weight > self.components[idx].weight {
+                idx = i;
+            }
+        }
+        let src = self.components[idx].clone();
+        let dmax = src
+            .gaussian
+            .var
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .map(|(i, _)| i)
+            .unwrap_or(0);
+        let off = 0.2 * src.gaussian.var[dmax].max(1e-12).sqrt();
+        let mut a = src.clone();
+        let mut b = src.clone();
+        a.weight /= 2.0;
+        b.weight /= 2.0;
+        a.gaussian.mean[dmax] += off;
+        b.gaussian.mean[dmax] -= off;
+        for s in [&mut a.stats, &mut b.stats] {
+            s.count /= 2.0;
+            for v in s.sum.iter_mut().chain(s.sum_sq.iter_mut()) {
+                *v /= 2.0;
+            }
+            s.provenance.frames /= 2;
+        }
+        self.components[idx] = a;
+        self.components.push(b);
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PhoneHmm {
     pub name: String,
     pub n_states: usize,
-    pub emissions: Vec<Gaussian>,
+    pub emissions: Vec<Mixture>,
     pub trans: Vec<Vec<f64>>,
     pub tied_to: Option<String>,
 }
@@ -111,6 +230,7 @@ impl HmmSet {
             return Err(HmmError::EmptyData);
         }
         let (mut mean, mut var, mut count) = (vec![0.0; dim], vec![0.0; dim], 0f64);
+        let mut sum_sq = vec![0.0; dim];
         for f in utterances.iter().flatten() {
             if f.len() != dim {
                 return Err(HmmError::DimensionMismatch);
@@ -118,8 +238,10 @@ impl HmmSet {
             count += 1.0;
             for d in 0..dim {
                 mean[d] += f[d];
+                sum_sq[d] += f[d] * f[d];
             }
         }
+        let raw_sum = mean.clone();
         for d in 0..dim {
             mean[d] /= count;
         }
@@ -131,6 +253,17 @@ impl HmmSet {
         for d in 0..dim {
             var[d] = (var[d] / count).max(1e-6);
         }
+        let ids: Vec<String> = (0..utterances.len()).map(|i| format!("utt:{i}")).collect();
+        let stats = ParamStats::global(count, raw_sum, sum_sq, ids, count as u64);
+        let mk = |m: &Vec<f64>, v: &Vec<f64>| {
+            Mixture::single(
+                Gaussian {
+                    mean: m.clone(),
+                    var: v.clone(),
+                },
+                stats.clone(),
+            )
+        };
         let mut map = BTreeMap::new();
         for &p in phones {
             map.insert(
@@ -138,12 +271,7 @@ impl HmmSet {
                 PhoneHmm {
                     name: p.into(),
                     n_states: 3,
-                    emissions: (0..3)
-                        .map(|_| Gaussian {
-                            mean: mean.clone(),
-                            var: var.clone(),
-                        })
-                        .collect(),
+                    emissions: (0..3).map(|_| mk(&mean, &var)).collect(),
                     trans: ltr_trans(3),
                     tied_to: None,
                 },
@@ -152,12 +280,7 @@ impl HmmSet {
         map.entry(SIL.into()).or_insert_with(|| PhoneHmm {
             name: SIL.into(),
             n_states: 3,
-            emissions: (0..3)
-                .map(|_| Gaussian {
-                    mean: mean.clone(),
-                    var: var.clone(),
-                })
-                .collect(),
+            emissions: (0..3).map(|_| mk(&mean, &var)).collect(),
             trans: ltr_trans(3),
             tied_to: None,
         });
@@ -185,7 +308,7 @@ impl HmmSet {
         })
     }
 
-    pub fn emission(&self, phone: &str, state: usize) -> Result<&Gaussian> {
+    pub fn emission(&self, phone: &str, state: usize) -> Result<&Mixture> {
         let h = self
             .phones
             .get(phone)
@@ -297,32 +420,58 @@ impl HmmSet {
         data: &[(Vec<String>, Vec<Vec<f64>>)],
         cfg: &TrainConfig,
     ) -> Result<f64> {
+        let with_ids: Vec<(String, Vec<String>, Vec<Vec<f64>>)> = data
+            .iter()
+            .enumerate()
+            .map(|(i, (s, o))| (format!("utt:{i}"), s.clone(), o.clone()))
+            .collect();
+        self.baum_welch_ids(&with_ids, cfg)
+    }
+    pub fn baum_welch_ids(&mut self, data: &[UttData], cfg: &TrainConfig) -> Result<f64> {
+        use std::collections::BTreeSet;
+        #[derive(Default, Clone)]
+        struct CAcc {
+            count: f64,
+            sum: Vec<f64>,
+            sumsq: Vec<f64>,
+            utts: BTreeSet<String>,
+            frames: u64,
+        }
         #[derive(Default, Clone)]
         struct Acc {
-            mean: Vec<f64>,
-            var: Vec<f64>,
             trans: Vec<Vec<f64>>,
             trans_occ: Vec<f64>,
         }
         let mut total_ll = 0.0;
         for _iter in 0..cfg.bw_iterations.max(1) {
             let mut accs: BTreeMap<String, Acc> = BTreeMap::new();
+            let mut cacc: BTreeMap<(String, usize, usize), CAcc> = BTreeMap::new();
             for (name, h) in &self.phones {
                 if h.tied_to.is_none() {
                     accs.insert(
                         name.clone(),
                         Acc {
-                            mean: vec![0.0; self.dim * h.n_states],
-                            var: vec![0.0; self.dim * h.n_states],
                             trans: vec![vec![0.0; h.n_states + 2]; h.n_states + 2],
                             trans_occ: vec![0.0; h.n_states + 2],
                         },
                     );
+                    for s in 0..h.n_states {
+                        for c in 0..h.emissions[s].components.len() {
+                            cacc.insert(
+                                (name.clone(), s, c),
+                                CAcc {
+                                    sum: vec![0.0; self.dim],
+                                    sumsq: vec![0.0; self.dim],
+                                    ..Default::default()
+                                },
+                            );
+                        }
+                    }
                 }
             }
             let mut occ: BTreeMap<(String, usize), f64> = BTreeMap::new();
             total_ll = 0.0;
-            for (seq, obs) in data {
+            for (utt_id, seq, obs) in data {
                 if obs.is_empty() {
                     continue;
                 }
@@ -334,7 +483,7 @@ impl HmmSet {
                     .map(|o| {
                         states
                             .iter()
-                            .map(|(p, s)| self.emission(p, *s).map(|g| g.log_prob(o).exp()))
+                            .map(|(p, s)| self.emission(p, *s).map(|m| m.log_prob(o).exp()))
                             .collect::<Result<Vec<_>>>()
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -384,10 +533,25 @@ impl HmmSet {
                         let kp = if p == SP { SIL.to_string() } else { p.clone() };
                         let ks = if p == SP { 1 } else { *s };
                         *occ.entry((kp.clone(), ks)).or_default() += g;
-                        if let Some(a) = accs.get_mut(&kp) {
-                            for d in 0..self.dim {
-                                a.mean[ks * self.dim + d] += g * obs[t][d];
-                                a.var[ks * self.dim + d] += g * obs[t][d] * obs[t][d];
+                        let mix = self.emission(p, *s)?.clone();
+                        let denom = mix.log_prob(&obs[t]).exp();
+                        for (ci, comp) in mix.components.iter().enumerate() {
+                            let r = if denom > 0.0 {
+                                g * comp.weight * comp.gaussian.log_prob(&obs[t]).exp() / denom
+                            } else {
+                                0.0
+                            };
+                            if r <= 1e-12 {
+                                continue;
+                            }
+                            if let Some(a) = cacc.get_mut(&(kp.clone(), ks, ci)) {
+                                a.count += r;
+                                for d in 0..self.dim {
+                                    a.sum[d] += r * obs[t][d];
+                                    a.sumsq[d] += r * obs[t][d] * obs[t][d];
+                                }
+                                a.utts.insert(utt_id.clone());
+                                a.frames += 1;
                             }
                         }
                     }
@@ -416,15 +580,40 @@ impl HmmSet {
                 let mut nh = h.clone();
                 for s in 0..h.n_states {
                     let o = occ.get(&(name.clone(), s)).copied().unwrap_or(0.0);
-                    if o > 1e-8 {
-                        for d in 0..self.dim {
-                            let m = a.mean[s * self.dim + d] / o;
-                            let v = (a.var[s * self.dim + d] / o - m * m)
-                                .max(self.global_var[d] * cfg.var_floor_ratio);
-                            nh.emissions[s].mean[d] = m;
-                            nh.emissions[s].var[d] = v;
+                    let mut wsum = 0.0;
+                    for c in 0..nh.emissions[s].components.len() {
+                        if let Some(ca) = cacc.get(&(name.clone(), s, c))
+                            && ca.count > 1e-8
+                        {
+                            wsum += ca.count;
                         }
                     }
+                    for c in 0..nh.emissions[s].components.len() {
+                        if let Some(ca) = cacc.get(&(name.clone(), s, c))
+                            && ca.count > 1e-8
+                        {
+                            let comp = &mut nh.emissions[s].components[c];
+                            for d in 0..self.dim {
+                                let m = ca.sum[d] / ca.count;
+                                comp.gaussian.mean[d] = m;
+                                comp.gaussian.var[d] = (ca.sumsq[d] / ca.count - m * m)
+                                    .max(self.global_var[d] * cfg.var_floor_ratio);
+                            }
+                            if wsum > 1e-8 {
+                                comp.weight = ca.count / wsum;
+                            }
+                            comp.stats = ParamStats {
+                                count: ca.count,
+                                sum: ca.sum.clone(),
+                                sum_sq: ca.sumsq.clone(),
+                                provenance: Provenance {
+                                    utterances: ca.utts.iter().cloned().collect(),
+                                    frames: ca.frames,
+                                },
+                            };
+                        }
+                    }
+                    let _ = o;
                     let row = &a.trans[s + 1];
                     let tot: f64 = row.iter().sum();
                     if tot > 1e-8 {
@@ -439,7 +628,6 @@ impl HmmSet {
         }
         Ok(total_ll)
     }
-
     fn refresh_sp(&mut self) {
         if let Some(sil) = self.phones.get(SIL).cloned()
             && let Some(sp) = self.phones.get_mut(SP)
@@ -481,8 +669,8 @@ impl HmmSet {
                 {
                     for d in 0..self.dim {
                         let m = sum[d] / count;
-                        h.emissions[*s].mean[d] = m;
-                        h.emissions[*s].var[d] =
+                        h.emissions[*s].components[0].gaussian.mean[d] = m;
+                        h.emissions[*s].components[0].gaussian.var[d] =
                             (sq[d] / count - m * m).max(self.global_var[d] * cfg.var_floor_ratio);
                     }
                 }
@@ -499,6 +687,263 @@ impl HmmSet {
         Ok(history)
     }
 
+    /// Free phone-loop Viterbi decoding (for DEV PER). SIL/SP included in output.
+    pub fn decode_phones(&self, obs: &[Vec<f64>]) -> Result<Vec<String>> {
+        if obs.is_empty() {
+            return Err(HmmError::EmptyData);
+        }
+        let mut phones: Vec<String> = self.phones.keys().cloned().collect();
+        phones.sort();
+        let mut states: Vec<(String, usize)> = Vec::new();
+        for p in &phones {
+            let h = &self.phones[p];
+            for s in 0..h.n_states {
+                states.push((p.clone(), s));
+            }
+        }
+        let n = states.len();
+        let np = phones.len() as f64;
+        let neg = f64::NEG_INFINITY;
+        let start_log = -(np.ln());
+        let jump_log = 0.5f64.ln() - np.ln();
+        let mut delta = vec![neg; n];
+        for (j, (_, s)) in states.iter().enumerate() {
+            if *s == 0 {
+                delta[j] = start_log + self.emission(&states[j].0, states[j].1)?.log_prob(&obs[0]);
+            }
+        }
+        let mut psi = vec![vec![0usize; n]; obs.len()];
+        for t in 1..obs.len() {
+            let mut nd = vec![neg; n];
+            for j in 0..n {
+                let e = self.emission(&states[j].0, states[j].1)?.log_prob(&obs[t]);
+                let mut best = neg;
+                let mut arg = j;
+                for (i, (ip, is)) in states.iter().enumerate() {
+                    if delta[i] == neg {
+                        continue;
+                    }
+                    let tr = if i == j || (*is + 1 == states[j].1 && ip == &states[j].0) {
+                        0.5f64.ln()
+                    } else if states[j].1 == 0 && *is == self.phones[ip].n_states - 1 {
+                        jump_log
+                    } else {
+                        continue;
+                    };
+                    let v = delta[i] + tr;
+                    if v > best {
+                        best = v;
+                        arg = i;
+                    }
+                }
+                nd[j] = best + e;
+                psi[t][j] = arg;
+            }
+            delta = nd;
+        }
+        let (mut best, mut last) = (neg, 0usize);
+        for j in 0..n {
+            if delta[j] > best {
+                best = delta[j];
+                last = j;
+            }
+        }
+        let mut path = vec![0usize; obs.len()];
+        path[obs.len() - 1] = last;
+        for t in (1..obs.len()).rev() {
+            path[t - 1] = psi[t][path[t]];
+        }
+        let mut out: Vec<String> = Vec::new();
+        for &idx in &path {
+            let p = states[idx].0.clone();
+            if out.last() != Some(&p) {
+                out.push(p);
+            }
+        }
+        Ok(out)
+    }
+    /// DEV phone error rate. SIL/SP stripped from both reference and hypothesis.
+    pub fn phone_error_rate(&self, data: &[(Vec<String>, Vec<Vec<f64>>)]) -> Result<PerReport> {
+        let strip = |seq: &[String]| -> Vec<String> {
+            seq.iter()
+                .filter(|p| *p != SIL && *p != SP)
+                .cloned()
+                .collect()
+        };
+        let mut per_utterance = Vec::with_capacity(data.len());
+        let (mut errors, mut total) = (0usize, 0usize);
+        for (seq, obs) in data {
+            let reference = strip(seq);
+            let hyp = strip(&self.decode_phones(obs)?);
+            let e = phone_edit_distance(&reference, &hyp);
+            errors += e;
+            total += reference.len();
+            per_utterance.push(if reference.is_empty() {
+                0.0
+            } else {
+                e as f64 / reference.len() as f64
+            });
+        }
+        Ok(PerReport {
+            per: if total == 0 {
+                0.0
+            } else {
+                errors as f64 / total as f64
+            },
+            per_utterance,
+            total_errors: errors,
+            total_ref_phones: total,
+        })
+    }
+    /// Every estimated parameter must carry sufficient statistics + a provenance pointer.
+    pub fn validate_provenance(&self) -> Result<()> {
+        let mut missing: Vec<String> = Vec::new();
+        for (name, h) in &self.phones {
+            if h.tied_to.is_some() {
+                continue;
+            }
+            for (s, mix) in h.emissions.iter().enumerate() {
+                if mix.components.is_empty() {
+                    missing.push(format!("{name}:{s} (no components)"));
+                    continue;
+                }
+                for (c, comp) in mix.components.iter().enumerate() {
+                    let st = &comp.stats;
+                    if st.sum.len() != self.dim
+                        || st.sum_sq.len() != self.dim
+                        || st.provenance.utterances.is_empty()
+                    {
+                        missing.push(format!("{name}:{s}/{c}"));
+                    }
+                }
+            }
+        }
+        if missing.is_empty() {
+            Ok(())
+        } else {
+            Err(HmmError::InvalidModel(format!(
+                "parameters missing provenance: {}",
+                missing.join(", ")
+            )))
+        }
+    }
+    /// Grow every non-tied state's mixture to `target` components by repeated splitting.
+    pub fn split_mixtures_to(&mut self, target: usize) {
+        for h in self.phones.values_mut() {
+            if h.tied_to.is_some() {
+                continue;
+            }
+            for mix in h.emissions.iter_mut() {
+                while !mix.components.is_empty() && mix.components.len() < target {
+                    mix.split_largest();
+                }
+                let w: f64 = mix.components.iter().map(|c| c.weight).sum();
+                if w > 0.0 {
+                    for c in mix.components.iter_mut() {
+                        c.weight /= w;
+                    }
+                }
+            }
+        }
+        self.refresh_sp();
+    }
+    /// Checkpoint every BW iteration; select the best DEV-PER checkpoint.
+    /// Likelihood is recorded as a diagnostic only. Splitting stages in
+    /// `split_targets` (e.g. [2, 4, 8]) are attempted from the best model so
+    /// far; each decision is recorded from DEV PER.
+    pub fn train_checkpoints(
+        &mut self,
+        train: &[UttData],
+        dev: &[(Vec<String>, Vec<Vec<f64>>)],
+        cfg: &TrainConfig,
+        split_targets: &[usize],
+    ) -> Result<CheckpointRun> {
+        let one = TrainConfig {
+            bw_iterations: 1,
+            ..*cfg
+        };
+        let train_plain: Vec<(Vec<String>, Vec<Vec<f64>>)> = train
+            .iter()
+            .map(|(_, s, o)| (s.clone(), o.clone()))
+            .collect();
+        let _ = train_plain;
+        let mut checkpoints: Vec<Checkpoint> = Vec::new();
+        let eval = |m: &HmmSet| -> Result<(f64, f64)> {
+            let per = m.phone_error_rate(dev)?.per;
+            let mut ll = 0.0;
+            for (_, seq, obs) in train.iter().take(64) {
+                ll += m.forced_align(seq, obs)?.1;
+            }
+            Ok((ll, per))
+        };
+        let (ll0, per0) = eval(self)?;
+        checkpoints.push(Checkpoint {
+            iteration: 0,
+            mixtures: 1,
+            train_ll: ll0,
+            dev_per: per0,
+            model: self.clone(),
+        });
+        let mut mixtures = 1usize;
+        for iter in 1..=cfg.bw_iterations.max(1) {
+            self.baum_welch_ids(train, &one)?;
+            let (ll, per) = eval(self)?;
+            checkpoints.push(Checkpoint {
+                iteration: iter,
+                mixtures,
+                train_ll: ll,
+                dev_per: per,
+                model: self.clone(),
+            });
+        }
+        let mut split_decisions: Vec<SplitDecision> = Vec::new();
+        let mut best_idx = 0usize;
+        for (i, c) in checkpoints.iter().enumerate() {
+            if c.dev_per < checkpoints[best_idx].dev_per {
+                best_idx = i;
+            }
+        }
+        for &target in split_targets {
+            if target <= mixtures {
+                continue;
+            }
+            let before = checkpoints[best_idx].dev_per;
+            let mut cand = checkpoints[best_idx].model.clone();
+            cand.split_mixtures_to(target);
+            for _ in 0..cfg.bw_iterations.max(1) {
+                cand.baum_welch_ids(train, &one)?;
+            }
+            let (ll, per) = eval(&cand)?;
+            let accepted = per < before;
+            split_decisions.push(SplitDecision {
+                from_mixtures: mixtures,
+                to_mixtures: target,
+                dev_per_before: before,
+                dev_per_after: per,
+                accepted,
+            });
+            if accepted {
+                mixtures = target;
+                checkpoints.push(Checkpoint {
+                    iteration: checkpoints.len(),
+                    mixtures: target,
+                    train_ll: ll,
+                    dev_per: per,
+                    model: cand,
+                });
+                best_idx = checkpoints.len() - 1;
+            }
+        }
+        let selected = best_idx;
+        let flat_dev_per = checkpoints[0].dev_per;
+        *self = checkpoints[selected].model.clone();
+        Ok(CheckpointRun {
+            checkpoints,
+            selected,
+            split_decisions,
+            flat_dev_per,
+        })
+    }
     pub fn to_text(&self) -> String {
         serde_json::to_string_pretty(self).unwrap_or_default()
     }
@@ -533,6 +978,76 @@ impl HmmSet {
     }
 }
 
+/// Per-utterance and aggregate phone error rate on DEV (R2b selection metric).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PerReport {
+    pub per: f64,
+    pub per_utterance: Vec<f64>,
+    pub total_errors: usize,
+    pub total_ref_phones: usize,
+}
+
+/// One checkpoint per BW iteration (iteration 0 = flat start).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Checkpoint {
+    pub iteration: usize,
+    pub mixtures: usize,
+    pub train_ll: f64,
+    pub dev_per: f64,
+    pub model: HmmSet,
+}
+
+/// Mixture-splitting decision, recorded from DEV PER (R2b).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SplitDecision {
+    pub from_mixtures: usize,
+    pub to_mixtures: usize,
+    pub dev_per_before: f64,
+    pub dev_per_after: f64,
+    pub accepted: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckpointRun {
+    pub checkpoints: Vec<Checkpoint>,
+    pub selected: usize,
+    pub split_decisions: Vec<SplitDecision>,
+    pub flat_dev_per: f64,
+}
+
+/// Paired mean difference with a normal-approximation 95% CI.
+pub fn paired_ci(diffs: &[f64]) -> (f64, f64, f64) {
+    if diffs.is_empty() {
+        return (0.0, 0.0, 0.0);
+    }
+    let n = diffs.len() as f64;
+    let mean = diffs.iter().sum::<f64>() / n;
+    if diffs.len() < 2 {
+        return (mean, mean, mean);
+    }
+    let var = diffs.iter().map(|d| (d - mean).powi(2)).sum::<f64>() / (n - 1.0);
+    let half = 1.96 * (var / n).sqrt();
+    (mean, mean - half, mean + half)
+}
+
+/// Levenshtein distance over phone sequences.
+pub fn phone_edit_distance(a: &[String], b: &[String]) -> usize {
+    let mut prev: Vec<usize> = (0..=b.len()).collect();
+    let mut cur = vec![0usize; b.len() + 1];
+    for (i, x) in a.iter().enumerate() {
+        cur[0] = i + 1;
+        for (j, y) in b.iter().enumerate() {
+            cur[j + 1] = if x == y {
+                prev[j]
+            } else {
+                1 + prev[j].min(prev[j + 1]).min(cur[j])
+            };
+        }
+        std::mem::swap(&mut prev, &mut cur);
+    }
+    prev[b.len()]
+}
+
 pub struct Rng(u64);
 impl Rng {
     pub fn new(seed: u64) -> Self {
@@ -563,8 +1078,19 @@ pub fn generate(
     for p in seq {
         let h = &set.phones[p];
         for s in 0..h.n_states {
-            let g = set.emission(p, s).unwrap();
+            let mix = set.emission(p, s).unwrap();
             for _ in 0..frames_per_state {
+                let mut pick = rng.next_f64();
+                let mut comp = &mix.components[0];
+                for c in &mix.components {
+                    if pick < c.weight {
+                        comp = c;
+                        break;
+                    }
+                    pick -= c.weight;
+                    comp = c;
+                }
+                let g = &comp.gaussian;
                 out.push(
                     (0..set.dim)
                         .map(|d| rng.normal(g.mean[d], g.var[d]))
