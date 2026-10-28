@@ -20,8 +20,9 @@
 //! math is identical.
 
 use crate::{HmmError, HmmSet, Provenance, Result, SIL, SP, paired_ci};
-use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use fabric::{Fabric, FactId};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::collections::{BTreeMap, BTreeSet};
 
 /// One Gaussian in the overlay: phone, emitting-state index, mixture index.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -109,13 +110,214 @@ pub enum AdaptStage {
     MeansAndVariances,
 }
 
+/// Fabric-backed enrollment fact store: each contribution is a fabric fact.
+///
+/// Payloads live in `payloads` keyed by enrollment id (`enroll:<utt>`); the
+/// [`Fabric`] is the source of truth for liveness. Assert interns a type fact
+/// and asserts it as an assumption; retract calls [`Fabric::retract`] so the
+/// deliberate-retraction marker sticks and justifications are preserved.
+/// Totals and adapted models fold only fabric-active payloads, so
+/// retract-subtract-recompute flows through the fabric substrate while the
+/// base model stays immutable.
+///
+/// `Fabric` carries no `Clone`/`Debug`/`PartialEq`/`Serialize` impls, so this
+/// store implements those over logical state (payloads + active set) and
+/// rebuilds an equivalent fabric on clone and deserialize.
+pub struct AdaptFactStore {
+    fabric: Fabric,
+    payloads: BTreeMap<String, AdaptFact>,
+    ids: BTreeMap<String, FactId>,
+}
+
+/// Serializable logical state of [`AdaptFactStore`]: all payloads plus the
+/// fabric-active id set. Retracted payloads round-trip as inactive.
+#[derive(Serialize, Deserialize)]
+struct AdaptFactStoreSerde {
+    payloads: BTreeMap<String, AdaptFact>,
+    active: Vec<String>,
+}
+
+impl std::fmt::Debug for AdaptFactStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AdaptFactStore")
+            .field("active", &self.active_ids())
+            .field("payloads", &self.payloads.len())
+            .finish()
+    }
+}
+
+impl Clone for AdaptFactStore {
+    fn clone(&self) -> Self {
+        Self::from_parts(self.payloads.clone(), self.active_ids())
+    }
+}
+
+impl PartialEq for AdaptFactStore {
+    fn eq(&self, other: &Self) -> bool {
+        self.payloads == other.payloads && self.active_ids() == other.active_ids()
+    }
+}
+
+impl Serialize for AdaptFactStore {
+    fn serialize<S: Serializer>(&self, ser: S) -> std::result::Result<S::Ok, S::Error> {
+        AdaptFactStoreSerde {
+            payloads: self.payloads.clone(),
+            active: self.active_ids(),
+        }
+        .serialize(ser)
+    }
+}
+
+impl<'de> Deserialize<'de> for AdaptFactStore {
+    fn deserialize<D: Deserializer<'de>>(de: D) -> std::result::Result<Self, D::Error> {
+        let helper = AdaptFactStoreSerde::deserialize(de)?;
+        Ok(Self::from_parts(helper.payloads, helper.active))
+    }
+}
+
+impl AdaptFactStore {
+    pub fn new() -> Self {
+        Self {
+            fabric: Fabric::new(),
+            payloads: BTreeMap::new(),
+            ids: BTreeMap::new(),
+        }
+    }
+
+    /// Rebuild a store from logical state: intern every payload, assert each
+    /// as an assumption, then retract the ones outside `active`. Unknown
+    /// active ids are ignored.
+    fn from_parts(payloads: BTreeMap<String, AdaptFact>, active: Vec<String>) -> Self {
+        let mut store = Self::new();
+        let active_set: BTreeSet<String> = active.into_iter().collect();
+        for (id, fact) in payloads {
+            let fid = store.fabric.intern_type(id.clone());
+            store.ids.insert(id.clone(), fid);
+            store.fabric.assert_assumption(fid);
+            store.payloads.insert(id.clone(), fact);
+            if !active_set.contains(&id) {
+                store.fabric.retract(fid);
+            }
+        }
+        store
+    }
+
+    /// Assert a payload as a fabric fact. Active duplicates fail; a
+    /// previously retracted id re-arms with the fresh payload.
+    pub fn assert_payload(&mut self, fact: AdaptFact) -> Result<()> {
+        let id = fact.id.clone();
+        if let Some(&fid) = self.ids.get(&id) {
+            if self.fabric.is_active(fid) {
+                return Err(HmmError::InvalidModel(format!(
+                    "duplicate enrollment fact: {id}"
+                )));
+            }
+            self.payloads.insert(id, fact);
+            self.fabric.assert_assumption(fid);
+            return Ok(());
+        }
+        let fid = self.fabric.intern_type(id.clone());
+        self.ids.insert(id.clone(), fid);
+        self.fabric.assert_assumption(fid);
+        self.payloads.insert(id, fact);
+        debug_assert!(self.fabric.is_active(fid));
+        Ok(())
+    }
+
+    /// Retract a payload through the fabric. The payload is kept for
+    /// provenance; only fabric-active payloads fold into totals.
+    pub fn retract_payload(&mut self, id: &str) -> Result<AdaptFact> {
+        let Some(&fid) = self.ids.get(id) else {
+            return Err(HmmError::InvalidModel(format!(
+                "unknown enrollment fact: {id}"
+            )));
+        };
+        if !self.fabric.is_active(fid) {
+            return Err(HmmError::InvalidModel(format!(
+                "enrollment fact already retracted: {id}"
+            )));
+        }
+        self.fabric.retract(fid);
+        debug_assert!(!self.fabric.is_active(fid));
+        self.payloads
+            .get(id)
+            .cloned()
+            .ok_or_else(|| HmmError::InvalidModel(format!("unknown enrollment fact: {id}")))
+    }
+
+    pub fn get_active(&self, id: &str) -> Option<&AdaptFact> {
+        let fid = self.ids.get(id)?;
+        if self.fabric.is_active(*fid) {
+            self.payloads.get(id)
+        } else {
+            None
+        }
+    }
+
+    /// Fabric-active payloads in id order: the only inputs to totals.
+    pub fn active_payloads(&self) -> Vec<&AdaptFact> {
+        self.payloads
+            .iter()
+            .filter(|(id, _)| self.is_active(id))
+            .map(|(_, fact)| fact)
+            .collect()
+    }
+
+    pub fn active_ids(&self) -> Vec<String> {
+        self.payloads
+            .keys()
+            .filter(|id| self.is_active(id))
+            .cloned()
+            .collect()
+    }
+
+    pub fn len_active(&self) -> usize {
+        self.payloads.keys().filter(|id| self.is_active(id)).count()
+    }
+
+    pub fn is_empty_active(&self) -> bool {
+        !self.payloads.keys().any(|id| self.is_active(id))
+    }
+
+    /// Fabric liveness for one enrollment id (false when unknown).
+    pub fn is_active(&self, id: &str) -> bool {
+        self.ids
+            .get(id)
+            .is_some_and(|fid| self.fabric.is_active(*fid))
+    }
+
+    /// Fabric support count for one enrollment id (0 when unknown).
+    pub fn support_count(&self, id: &str) -> usize {
+        self.ids
+            .get(id)
+            .map(|fid| self.fabric.support_count(*fid))
+            .unwrap_or(0)
+    }
+
+    /// Stored justification sets for one enrollment id (0 when unknown).
+    /// Retraction never deletes justifications, so a retracted fact still
+    /// reports its assumption here.
+    pub fn justification_count(&self, id: &str) -> usize {
+        self.ids
+            .get(id)
+            .map(|fid| self.fabric.justifications(*fid).len())
+            .unwrap_or(0)
+    }
+}
+
+impl Default for AdaptFactStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// MAP adaptation overlay: immutable base + retractable enrollment facts.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AdaptOverlay {
     base: HmmSet,
     tau: f64,
     stage: AdaptStage,
-    facts: BTreeMap<String, AdaptFact>,
+    store: AdaptFactStore,
 }
 
 impl AdaptOverlay {
@@ -128,7 +330,7 @@ impl AdaptOverlay {
             base,
             tau,
             stage,
-            facts: BTreeMap::new(),
+            store: AdaptFactStore::new(),
         })
     }
 
@@ -145,24 +347,24 @@ impl AdaptOverlay {
     }
 
     pub fn len(&self) -> usize {
-        self.facts.len()
+        self.store.len_active()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.facts.is_empty()
+        self.store.is_empty_active()
     }
 
     pub fn fact_ids(&self) -> Vec<String> {
-        self.facts.keys().cloned().collect()
+        self.store.active_ids()
     }
 
     pub fn get_fact(&self, id: &str) -> Option<&AdaptFact> {
-        self.facts.get(id)
+        self.store.get_active(id)
     }
 
     /// Assert an enrollment fact. Duplicate ids and dimension mismatches fail.
     pub fn assert_fact(&mut self, fact: AdaptFact) -> Result<()> {
-        if self.facts.contains_key(&fact.id) {
+        if self.store.is_active(&fact.id) {
             return Err(HmmError::InvalidModel(format!(
                 "duplicate enrollment fact: {}",
                 fact.id
@@ -179,24 +381,21 @@ impl AdaptOverlay {
                 )));
             }
         }
-        self.facts.insert(fact.id.clone(), fact);
-        Ok(())
+        self.store.assert_payload(fact)
     }
 
     /// Retract a fact by id, returning it. Unknown ids fail; the overlay is
-    /// recomputed from the remaining facts on the next [`Self::adapted_model`]
-    /// call, so retraction is exact.
+    /// recomputed from the remaining fabric-active facts on the next
+    /// [`Self::adapted_model`] call, so retraction is exact.
     pub fn retract_fact(&mut self, id: &str) -> Result<AdaptFact> {
-        self.facts
-            .remove(id)
-            .ok_or_else(|| HmmError::InvalidModel(format!("unknown enrollment fact: {id}")))
+        self.store.retract_payload(id)
     }
 
-    /// Fold live facts into per-Gaussian totals. Recomputed from scratch so
-    /// retraction can never drift.
+    /// Fold live facts into per-Gaussian totals. Recomputed from scratch over
+    /// the fabric-active set so retraction can never drift.
     pub fn totals(&self) -> BTreeMap<AdaptKey, AdaptStats> {
         let mut totals: BTreeMap<AdaptKey, AdaptStats> = BTreeMap::new();
-        for fact in self.facts.values() {
+        for fact in self.store.active_payloads() {
             for (key, st) in &fact.stats {
                 totals
                     .entry(key.clone())
@@ -211,13 +410,13 @@ impl AdaptOverlay {
     /// the result equals the base exactly.
     pub fn adapted_model(&self) -> HmmSet {
         let mut model = self.base.clone();
-        if self.facts.is_empty() {
+        if self.store.is_empty_active() {
             return model;
         }
         let totals = self.totals();
         // Contributing fact ids per key, for provenance on touched components.
         let mut contributors: BTreeMap<AdaptKey, Vec<String>> = BTreeMap::new();
-        for fact in self.facts.values() {
+        for fact in self.store.active_payloads() {
             for key in fact.stats.keys() {
                 contributors
                     .entry(key.clone())
@@ -286,6 +485,23 @@ impl AdaptOverlay {
             sp.emissions = vec![sil.emissions[1].clone()];
         }
         model
+    }
+
+    /// Fabric liveness for one enrollment id (false when unknown).
+    pub fn fabric_is_active(&self, id: &str) -> bool {
+        self.store.is_active(id)
+    }
+
+    /// Fabric support count for one enrollment id (0 when unknown).
+    pub fn fabric_support_count(&self, id: &str) -> usize {
+        self.store.support_count(id)
+    }
+
+    /// Stored fabric justification sets for one enrollment id (0 when
+    /// unknown). Retraction preserves justifications, so a retracted fact
+    /// still reports its assumption here.
+    pub fn fabric_justification_count(&self, id: &str) -> usize {
+        self.store.justification_count(id)
     }
 }
 

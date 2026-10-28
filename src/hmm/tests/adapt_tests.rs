@@ -185,7 +185,63 @@ fn retract_one_equals_adapt_without_it() {
     assert_eq!(full.adapted_model(), partial.adapted_model());
     assert_eq!(full.totals(), partial.totals());
 }
-
+#[test]
+fn fabric_backed_retract_restores_base_exactly() {
+    let base = truth_set();
+    let mut rng = Rng::new(13);
+    let seq_list = seqs();
+    let mut overlay = AdaptOverlay::new(base.clone(), 5.0, AdaptStage::MeansOnly).unwrap();
+    let mut ids = Vec::new();
+    for (i, seq) in seq_list.iter().enumerate() {
+        let obs = generate(&base, seq, 4, &mut rng);
+        let fact = collect_fact(&base, &format!("f{i}"), &format!("ref:f{i}"), seq, &obs).unwrap();
+        ids.push(fact.id.clone());
+        overlay.assert_fact(fact).unwrap();
+    }
+    // Every contribution is an active fabric fact.
+    for id in &ids {
+        assert!(
+            overlay.fabric_is_active(id),
+            "{id} must be active in fabric"
+        );
+        assert_eq!(overlay.fabric_support_count(id), 1);
+    }
+    assert_ne!(overlay.adapted_model(), base);
+    // Retract one: the fabric deactivates it but preserves provenance.
+    overlay.retract_fact(&ids[0]).unwrap();
+    assert!(!overlay.fabric_is_active(&ids[0]));
+    assert_eq!(
+        overlay.fabric_justification_count(&ids[0]),
+        1,
+        "retraction preserves the justification"
+    );
+    // Serialization preserves the fabric active set.
+    let text = serde_json::to_string(&overlay).unwrap();
+    let back: AdaptOverlay = serde_json::from_str(&text).unwrap();
+    assert_eq!(overlay, back);
+    assert_eq!(overlay.adapted_model(), back.adapted_model());
+    // An unrelated assert must not resurrect the retracted fact.
+    let extra_obs = generate(&base, &seq_list[0], 4, &mut rng);
+    let extra = collect_fact(&base, "fx", "ref:fx", &seq_list[0], &extra_obs).unwrap();
+    let extra_id = extra.id.clone();
+    overlay.assert_fact(extra).unwrap();
+    assert!(
+        !overlay.fabric_is_active(&ids[0]),
+        "retracted fact must stay inactive"
+    );
+    assert!(overlay.fabric_is_active(&extra_id));
+    // Retract-all restores the base bit-exactly.
+    overlay.retract_fact(&ids[1]).unwrap();
+    overlay.retract_fact(&ids[2]).unwrap();
+    overlay.retract_fact(&extra_id).unwrap();
+    assert!(overlay.is_empty());
+    assert!(overlay.totals().is_empty());
+    assert_eq!(
+        overlay.adapted_model(),
+        base,
+        "fabric-backed retract-all must restore the base exactly"
+    );
+}
 #[test]
 fn overlay_rejects_duplicates_unknown_ids_dim_mismatch_and_bad_tau() {
     let base = truth_set();
