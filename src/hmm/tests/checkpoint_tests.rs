@@ -1,10 +1,10 @@
 //! R2b gate tests (bead hearsay-four-0bv): checkpoint selection on DEV PER,
 //! mixture splitting driven by DEV, parameter provenance validator.
-//! The real-data gate consumes D1 partition manifests (use-verified sets
-//! only). Audio payloads for the better-voice root are absent on this
-//! machine, so features are generated deterministically per real utterance
-//! id from a known HMM; the checkpoint/provenance/splitting code under test
-//! is identical for caller-supplied real features.
+//! The real-partition gate consumes D1 partition manifests (use-verified
+//! sets only). Features here are generated deterministically per real
+//! utterance id from a known HMM (machinery test); the real-audio gate that
+//! extracts fse features from better-voice audio lives in
+//! real_data_gate_tests.rs.
 use hmm::{HmmSet, Rng, TrainConfig, UttData, generate, paired_ci, phone_edit_distance};
 
 fn truth_set() -> HmmSet {

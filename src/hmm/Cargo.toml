@@ -9,3 +9,7 @@ serde_json = "1"
 
 [dev-dependencies]
 serde_json = "1"
+# Real-data gate (real_data_gate_tests): existing audio/feature/lexicon paths.
+corpus = { path = "../corpus" }
+fse = { path = "../fse" }
+lexicon = { path = "../lexicon" }
