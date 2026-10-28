@@ -9,6 +9,7 @@ serde = { version = "1", features = ["derive"] }
 # after a save/load cycle still restores the base exactly (default float
 # parsing can drift by 1 ulp).
 serde_json = { version = "1", features = ["float_roundtrip"] }
+fabric = { path = "../fabric" }
 
 [dev-dependencies]
 serde_json = "1"

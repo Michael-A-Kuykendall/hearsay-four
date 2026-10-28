@@ -543,6 +543,7 @@ name = "hmm"
 version = "0.1.0"
 dependencies = [
  "corpus",
+ "fabric",
  "fse",
  "lexicon",
  "output",
