@@ -5,3 +5,8 @@ edition = "2024"
 
 [dependencies]
 invariant_ppt = { path = "../invariant_ppt" }
+
+[dev-dependencies]
+# f56 consistency tests only: production correction facts stay plain-data.
+hmm = { path = "../hmm" }
+lm = { path = "../lm" }
