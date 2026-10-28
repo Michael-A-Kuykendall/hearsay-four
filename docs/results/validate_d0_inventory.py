@@ -3,7 +3,7 @@
 
 Fails (exit 1) if any inventory row is missing any validator-enforced field:
 path/status, file count, duration, sample rate, human|TTS|unknown determination,
-speaker info, licence, checksum/status, 30-word coverage, data role, approval.
+speaker info, licence, checksum/status, 30-word coverage, data role, use-verification status.
 Usage: python3 docs/results/validate_d0_inventory.py [--self-test] [path]
 """
 import re
@@ -11,7 +11,7 @@ import sys
 
 REQUIRED = ["Dataset", "Path / Status", "Files", "Duration", "Sample rate",
             "Determination (evidence)", "Speakers", "Licence",
-            "Checksum / Status", "30-word coverage", "Data role", "Approval"]
+            "Checksum / Status", "30-word coverage", "Data role", "Use verification"]
 DETERMINATIONS = ("human", "TTS", "unknown")
 
 
@@ -58,7 +58,7 @@ def main():
     with open(path) as f:
         text = f.read()
     if "--self-test" in sys.argv:
-        broken = text.replace("| PENDING |", "|  |", 1)
+        broken = text.replace("VERIFIED — local, free, no account/key", "", 1)
         errs = validate(broken)
         if not errs:
             print("SELF-TEST FAIL: validator accepted a row with a missing field")

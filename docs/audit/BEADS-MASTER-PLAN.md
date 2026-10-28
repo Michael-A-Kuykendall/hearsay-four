@@ -11,7 +11,7 @@ superseded). Split originals closed: A4 `enu`, R1 `9pa`, R2 `3eh`, R5 `cri`,
 R8 `7uv`, P3 `xtd`. Stale-bead dispositions: APP-1 `0d5`, SUB-1 `4s6`, DIA-1
 `6if`, `say` closed superseded (fixtures/smoke migrated to P5/P1 notes);
 DIA-2 `9qy` closed deferred/out-of-scope; `5qw` folded into D0. Remaining
-non-plan open bead: human gate `hearsay-four-3ww` (owner-held, untouched).
+non-plan bead `hearsay-four-3ww` closed 2026-10-27 as inert (its blocked bead was already closed; owner-approval gates removed by owner directive, replaced with D0 use-verification).
 
 ## Current beads (28 open, 151 points)
 
@@ -93,8 +93,7 @@ DESCRIPTION
   data): record exists, file count, hours, sample rate, checksum, human-or-TTS
   determination (generation scripts/reports + listen to 10 clips per set),    
   speakers, licence, 30-word coverage, proposed data role (TRAIN/DEV per plan 
-  S4.1). Assume TTS until proven human. Output: docs/results/D0-DATA-         
-  INVENTORY.md, owner-approved before any set is used. Overlaps open bead     
+  S4.1). Assume TTS until proven human. Output: docs/results/D0-DATA-INVENTORY.md; no set is used before its use-verification is recorded. Overlaps open bead     
   hearsay-four-5qw (phrase_training provenance) — this bead is the full       
   inventory; 5qw closes when D0 records phrase_training. Data rule: inventory 
   only, no scoring, no new sources.                                           
@@ -106,9 +105,9 @@ ACCEPTANCE CRITERIA
   Gate: docs/results/D0-DATA-INVENTORY.md committed AND validator script/test 
   passes: every dataset row carries path/status, file count, duration, sample 
   rate, human|TTS|unknown determination, speaker info, licence,               
-  checksum/status, 30-word coverage, assigned data role, approval status. The 
+  checksum/status, 30-word coverage, assigned data role, use-verification status. The 
   phrase_training provenance question (ex-hearsay-four-5qw) is answered here  
-  explicitly. Owner approval recorded in bead notes. Validator fails on any   
+  explicitly. Use-verification recorded per row in D0 (free, no payment/account/password/API key, licence permits use). Validator fails on any 
   missing field so future changes cannot silently invalidate the inventory.   
 
 
@@ -128,7 +127,7 @@ Created: 2026-10-27 · Updated: 2026-10-27
 DESCRIPTION
 
   Source: HEARSAY-IV-MASTER-PLAN v3 S12 (D1) + S4.1. Committed split manifests
-  (file lists + checksums) for every D0-approved set BEFORE any scoring uses  
+  (file lists + checksums) for every D0 use-verified set BEFORE any scoring uses 
   them. Splits by recording session (owner audio) and by case chronological   
   (Oyez); never by sentence within a session/case. LM training text never     
   contains DEV/PHASE-TEST/LOCKBOX transcripts. Recording protocol doc: session
@@ -212,7 +211,7 @@ DESCRIPTION
   recording lead/trail, optional garbage state, word-insertion penalty,       
   min/max word duration, path-length normalization, SIL endpoints, beam width,
   max-live tokens, max template expansion. Data: connected 3-7-word phrases of
-  30-word vocab; DEV may use D0-approved data (TTS allowed for DEV only);     
+  30-word vocab; DEV may use D0 use-verified data (TTS allowed for DEV only);     
   PHASE-TEST is owner human speech >=100 phrases, own session. Split before   
   claim if over 8pts.                                                         
 
@@ -458,8 +457,8 @@ Created: 2026-10-27 · Updated: 2026-10-27
 
 DESCRIPTION
 
-  Split of R1 (hearsay-four-9pa). Text ingestion for owner-approved sources   
-  only (approvals recorded in bead notes; LM text never contains DEV/PHASE-   
+  Split of R1 (hearsay-four-9pa). Text ingestion for D0 use-verified sources 
+  only (use-verification recorded in D0; LM text never contains DEV/PHASE-   
   TEST/LOCKBOX transcripts); explicit normalization rules (numbers,           
   punctuation, casing) with tests; trigram counts with modified Kneser-Ney    
   discounting stored inspectably.                                             
@@ -587,22 +586,22 @@ Created: 2026-10-27 · Updated: 2026-10-27
 DESCRIPTION
 
   Source: Master Plan v3 S7 R3 (optional, recommended). ONLY if D0 confirms   
-  owner-approved HUMAN read speech (e.g. LibriSpeech subsets, CC BY 4.0):     
+  use-verified HUMAN read speech (e.g. LibriSpeech subsets, CC BY 4.0):       
   train SI base model with R2. Classical guidance: ~1h single-speaker         
   command/control, ~10h dictation; SI base + adaptation beats owner-only small
-  model. If owner rejects external audio: close as skipped, R4 goes owner-only
-  with higher recording target. No source used before owner approval with     
+  model. If no external audio passes use-verification: close as skipped, R4 goes owner-only
+  with higher recording target. No source used before D0 use-verification with
   licence + human/TTS status recorded (plan process rule 5).                  
 
 
 
 ACCEPTANCE CRITERIA
 
-  Gate (if owner approves external human audio): all expected phones          
+  Gate (if D0 use-verifies external human audio): all expected phones        
   represented in trained model; model loads; held-out utterances produce      
   finite likelihoods; decoder smoke succeeds; SI DEV WER reported in          
-  docs/results/R3-BASE-MODEL.md. If owner rejects external audio: close       
-  explicitly as SKIPPED BY OWNER / owner-only path selected, rejection        
+  docs/results/R3-BASE-MODEL.md. If no external audio passes use-verification: close
+  explicitly as SKIPPED — NO USE-VERIFIED EXTERNAL AUDIO / owner-only path, verification evidence
   recorded in bead notes — not as a pass.                                     
 
 
