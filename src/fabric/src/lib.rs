@@ -14,6 +14,7 @@ use invariant_ppt::assert_invariant;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+pub mod correction;
 pub mod decision;
 pub mod provenance;
 pub mod stats;

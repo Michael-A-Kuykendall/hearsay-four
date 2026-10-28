@@ -405,7 +405,9 @@ dependencies = [
 name = "fabric"
 version = "0.1.0"
 dependencies = [
+ "hmm",
  "invariant_ppt",
+ "lm",
 ]
 
 [[package]]
