@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
 
+pub mod adapt;
+
 pub const SIL: &str = "SIL";
 pub const SP: &str = "SP";
 pub const STATES_PER_PHONE: usize = 3;
