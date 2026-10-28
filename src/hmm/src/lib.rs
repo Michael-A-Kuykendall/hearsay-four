@@ -544,6 +544,26 @@ impl HmmSet {
                     }
                 }
                 total_ll += log_c.iter().sum::<f64>();
+                // Hoisted per-state views (perf: the gamma loop below visits
+                // every (frame, state); fetching once per utterance keeps the
+                // inner loop free of mixture clones). Values are identical to
+                // per-visit fetches: emissions are frozen during the E-step
+                // (the M-step runs after all utterances), and any missing
+                // phone/state already errored in log_emit above.
+                let mixes: Vec<&Mixture> = states
+                    .iter()
+                    .map(|(p, s)| self.emission(p, *s))
+                    .collect::<Result<Vec<_>>>()?;
+                let keys: Vec<(String, usize)> = states
+                    .iter()
+                    .map(|(p, s)| {
+                        if p == SP {
+                            (SIL.to_string(), 1)
+                        } else {
+                            (p.clone(), *s)
+                        }
+                    })
+                    .collect();
                 // Gammas: renormalize per frame, assert they sum to ~1.
                 for t in 0..t_len {
                     let mut lg = vec![f64::NEG_INFINITY; n];
@@ -570,12 +590,12 @@ impl HmmSet {
                         if g <= 0.0 {
                             continue;
                         }
-                        let (p, s) = &states[j];
-                        let kp = if p == SP { SIL.to_string() } else { p.clone() };
-                        let ks = if p == SP { 1 } else { *s };
-                        let mix = self.emission(p, *s)?.clone();
-                        // Mixture responsibilities in log domain.
-                        let log_denom = mix.log_prob(&obs[t]);
+                        let mix = mixes[j];
+                        // Mixture responsibilities in log domain. The
+                        // denominator is the forward-pass emit already
+                        // computed for this (frame, state): same mixture,
+                        // same frame, bit-identical value, no recompute.
+                        let log_denom = log_emit[t][j];
                         if !log_denom.is_finite() {
                             continue;
                         }
@@ -589,13 +609,17 @@ impl HmmSet {
                             if r <= 1e-12 {
                                 continue;
                             }
-                            if let Some(a) = cacc.get_mut(&(kp.clone(), ks, ci)) {
+                            if let Some(a) = cacc.get_mut(&(keys[j].0.clone(), keys[j].1, ci)) {
                                 a.count += r;
                                 for d in 0..self.dim {
                                     a.sum[d] += r * obs[t][d];
                                     a.sumsq[d] += r * obs[t][d] * obs[t][d];
                                 }
-                                a.utts.insert(utt_id.clone());
+                                // Same set content: insert once per
+                                // (component, utterance), not once per visit.
+                                if !a.utts.contains(utt_id.as_str()) {
+                                    a.utts.insert(utt_id.clone());
+                                }
                                 a.frames += 1;
                             }
                         }
