@@ -441,6 +441,7 @@ version = "0.1.0"
 dependencies = [
  "calibration",
  "corpus",
+ "hound",
  "invariant_ppt",
  "proptest",
 ]

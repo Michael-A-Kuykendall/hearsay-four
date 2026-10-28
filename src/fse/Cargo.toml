@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 calibration = { path = "../calibration" }
+hound = "3"
 invariant_ppt = { path = "../invariant_ppt" }
 
 [dev-dependencies]
