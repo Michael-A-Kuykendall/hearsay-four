@@ -1,0 +1,116 @@
+{
+ "bead": "hearsay-four-7ms",
+ "excluded": [
+  {
+   "d0_use_verification": "NOT-VERIFIED",
+   "dataset": "phrase_training",
+   "reason": "provenance unknown (D0/5qw)"
+  },
+  {
+   "d0_use_verification": "NOT-VERIFIED",
+   "dataset": "phrase_training_test",
+   "reason": "provenance unknown; stats mismatch"
+  },
+  {
+   "d0_use_verification": "NOT-VERIFIED",
+   "dataset": "quality_checked_tts",
+   "reason": "audio absent (manifests only)"
+  },
+  {
+   "d0_use_verification": "NOT-VERIFIED",
+   "dataset": "quality_checked_tts_full",
+   "reason": "audio absent; stale checksums"
+  },
+  {
+   "d0_use_verification": "NOT-VERIFIED",
+   "dataset": "quality_checked_tts_smoke",
+   "reason": "audio absent (manifests only)"
+  },
+  {
+   "d0_use_verification": "NOT-VERIFIED",
+   "dataset": "quality_test_gtts",
+   "reason": "audio absent (manifests only)"
+  },
+  {
+   "d0_use_verification": "NOT-VERIFIED",
+   "dataset": "tts_smoke",
+   "reason": "audio absent (manifests only)"
+  },
+  {
+   "d0_use_verification": "NOT-VERIFIED",
+   "dataset": "accent_datasets/common_voice",
+   "reason": "audio absent (not downloaded)"
+  },
+  {
+   "d0_use_verification": "NOT-VERIFIED",
+   "dataset": "accent_datasets/common_voice_actual",
+   "reason": "audio absent (script only)"
+  },
+  {
+   "d0_use_verification": "NOT-VERIFIED",
+   "dataset": "accent_datasets/english_dialects",
+   "reason": "audio absent (manifest only)"
+  },
+  {
+   "d0_use_verification": "NOT-VERIFIED",
+   "dataset": "accent_datasets/english_dialects_actual",
+   "reason": "audio absent (scripts only)"
+  },
+  {
+   "d0_use_verification": "NOT-VERIFIED",
+   "dataset": "accent_datasets/english_dialects_fixed",
+   "reason": "audio absent (script only)"
+  },
+  {
+   "d0_use_verification": "NOT-VERIFIED",
+   "dataset": "sessions/run1",
+   "reason": "owner WAVs absent in repo (gitignored)"
+  },
+  {
+   "d0_use_verification": "VERIFIED",
+   "dataset": "synthetic_audio",
+   "reason": "excluded: 47 zero-frame placeholder files, no audio payload"
+  },
+  {
+   "d0_use_verification": "VERIFIED",
+   "dataset": "combined_training_dataset",
+   "reason": "excluded: text-only Arrow shards, per-row origin unlabelled"
+  },
+  {
+   "d0_use_verification": "VERIFIED",
+   "dataset": "accent_datasets/english_dialects_simulation",
+   "reason": "excluded: labels only, audio absent"
+  },
+  {
+   "d0_use_verification": "VERIFIED",
+   "dataset": "accent_datasets/librispeech_accents",
+   "reason": "excluded: labels only, audio absent"
+  },
+  {
+   "d0_use_verification": "VERIFIED",
+   "dataset": "manifests (better-voice)",
+   "reason": "excluded: text index only, no audio payload"
+  },
+  {
+   "d0_use_verification": "VERIFIED",
+   "dataset": "phonetics + phonetic databases",
+   "reason": "excluded: lexicon text only, no audio payload"
+  },
+  {
+   "d0_use_verification": "VERIFIED",
+   "dataset": "corpus_stats / multi_domain_stats / curation_reports",
+   "reason": "excluded: statistics text only"
+  },
+  {
+   "d0_use_verification": "VERIFIED",
+   "dataset": "curated_triggers / licensing / production_integration",
+   "reason": "excluded: licensing working files only"
+  },
+  {
+   "d0_use_verification": "VERIFIED",
+   "dataset": "live_demo.wav + vocab text files",
+   "reason": "excluded: single demo clip, D0 role NONE"
+  }
+ ],
+ "rule": "sets listed here enter no partition; see D0-DATA-INVENTORY.md"
+}

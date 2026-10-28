@@ -1,0 +1,519 @@
+{
+ "bead": "hearsay-four-7ms",
+ "entries": [
+  {
+   "bytes": 503564,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0000_spaced.wav",
+   "root": "better-voice",
+   "sha256": "b1936d5833fc0fc8ae16ccdba92ed8c06d8bd7115d28d5c2db7d37801818e4fa"
+  },
+  {
+   "bytes": 593484,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0001_spaced.wav",
+   "root": "better-voice",
+   "sha256": "6e92562eb17529168469a40b71a376ec0bed8a02ceaa918bd96b6e1b5d5cd767"
+  },
+  {
+   "bytes": 515084,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0002_spaced.wav",
+   "root": "better-voice",
+   "sha256": "5ddd471cb58703bb14acd8833c668c7734b8ffc2b4c564bf290e84788cc322b2"
+  },
+  {
+   "bytes": 549164,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0003_spaced.wav",
+   "root": "better-voice",
+   "sha256": "871c770bfa3f9537f2f25ceb7ee7f2b9d12d42285423c0827f477b9f81d7ad25"
+  },
+  {
+   "bytes": 354604,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0006_spaced.wav",
+   "root": "better-voice",
+   "sha256": "16d40d187882e3a1e33d6da75e4c9b5da12b67edcbf23de5cc0b3dd9fe5860ef"
+  },
+  {
+   "bytes": 556364,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0007_spaced.wav",
+   "root": "better-voice",
+   "sha256": "6d15524439ff395218a56af5ef487fb587ddc0b08162206a5e4913a8f2272668"
+  },
+  {
+   "bytes": 572364,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0008_spaced.wav",
+   "root": "better-voice",
+   "sha256": "97364ea8fc2f05ecd7f49d9e1b271a5389fcde1079d26766adf1428b5964f37e"
+  },
+  {
+   "bytes": 377004,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0009_spaced.wav",
+   "root": "better-voice",
+   "sha256": "9c99698fb6079f89c18cf5bbe4d7cb1ef5fc7a53c519b04e7eaaf13b73ff4cfe"
+  },
+  {
+   "bytes": 549004,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0010_spaced.wav",
+   "root": "better-voice",
+   "sha256": "4f7a251e71abcce8f2e9c0c2b85f146f30c29bec0cf69723306b4810148b89dd"
+  },
+  {
+   "bytes": 542604,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0011_spaced.wav",
+   "root": "better-voice",
+   "sha256": "817ac347f26cfad0b40aec0aae9d944e6da01699ecaeb5a9e1616526306a7203"
+  },
+  {
+   "bytes": 571564,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0013_spaced.wav",
+   "root": "better-voice",
+   "sha256": "8b959b9e9f5d5e220a60a5601bab2bf8ceb15b8ba36f446145106af2d903b9ec"
+  },
+  {
+   "bytes": 515564,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0014_spaced.wav",
+   "root": "better-voice",
+   "sha256": "97cacd2abf8808a0cb9eb55de5560d2c73432560eaf772ee70b88d6608f2da83"
+  },
+  {
+   "bytes": 150764,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0015_spaced.wav",
+   "root": "better-voice",
+   "sha256": "524bd071af1c5c0c12bb952923b74e9fcd6a3c39611f2ed7fd69f4ac0565601a"
+  },
+  {
+   "bytes": 584524,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0016_spaced.wav",
+   "root": "better-voice",
+   "sha256": "b1fa2357c8b10828e50b79816ff9c71ef9678b126ded59252296e2e4dad1eaee"
+  },
+  {
+   "bytes": 566604,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0019_spaced.wav",
+   "root": "better-voice",
+   "sha256": "6411639f7cc3fe5865f061380cd0fb5e999c1744d41240ea78f3f67f41f32e38"
+  },
+  {
+   "bytes": 553964,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0021_spaced.wav",
+   "root": "better-voice",
+   "sha256": "308a4c2dc64b1657e3afb3b1bf24e3ab1487ec7743ff76174be3ba37b1aee44e"
+  },
+  {
+   "bytes": 612044,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0022_spaced.wav",
+   "root": "better-voice",
+   "sha256": "8cdd3b0f6cb1836355ea77c08fb6ce2208c6ec7fa21e763ca9ead1c1aaffa974"
+  },
+  {
+   "bytes": 570284,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0024_spaced.wav",
+   "root": "better-voice",
+   "sha256": "01a78f60c37e8ed2d4853329d6a7eca29467d7e61b715d97ed61e32f6b9a9a9d"
+  },
+  {
+   "bytes": 559084,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0025_spaced.wav",
+   "root": "better-voice",
+   "sha256": "66923b601ec0b74c2f0cbeedd68e4c7bc5060e6dd6e41c1a74bb49c20ec4aea7"
+  },
+  {
+   "bytes": 303564,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0026_spaced.wav",
+   "root": "better-voice",
+   "sha256": "c25e34839bb255c6dd0c003d603e6da4764e305efd9b6e7d105a20ccc448bb5a"
+  },
+  {
+   "bytes": 520524,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0027_spaced.wav",
+   "root": "better-voice",
+   "sha256": "44fdb5743c87993619b3f2b0331eb0b68351ae4b3cad8247dcfa2b82b087b9e6"
+  },
+  {
+   "bytes": 552684,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0029_spaced.wav",
+   "root": "better-voice",
+   "sha256": "a540b5db2a4b87483c1a461a5b827a542e59e92e723fc1292754c211635af9f4"
+  },
+  {
+   "bytes": 538284,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0030_spaced.wav",
+   "root": "better-voice",
+   "sha256": "d4c9e4f780f6ec40e3455aa7da1d61a832cadcfcebfd965c5c3b6ab1ea1aeecb"
+  },
+  {
+   "bytes": 632364,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0031_spaced.wav",
+   "root": "better-voice",
+   "sha256": "486e6390dfeb096aab2daab8d2611f2c0f53c971c4bd792022b14b2dd7f7fd7a"
+  },
+  {
+   "bytes": 541644,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0032_spaced.wav",
+   "root": "better-voice",
+   "sha256": "a13851033690ab351a9a7b4a9be133dca53d38e6f23252b81c96b03e563802cb"
+  },
+  {
+   "bytes": 538124,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0033_spaced.wav",
+   "root": "better-voice",
+   "sha256": "8d49b437cf6427646268ae77653b19900ca40ccc458cd3c09784b5300d946d83"
+  },
+  {
+   "bytes": 558604,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0034_spaced.wav",
+   "root": "better-voice",
+   "sha256": "c9682001c9fd79aa539e9c6c738afb2a9e8b7b588c99e5af8214005bafc5d13c"
+  },
+  {
+   "bytes": 588684,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0035_spaced.wav",
+   "root": "better-voice",
+   "sha256": "24e944bf899c42563208646e0d2c88c548a109c748487a1425b0b331a1fe74e4"
+  },
+  {
+   "bytes": 448684,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0036_spaced.wav",
+   "root": "better-voice",
+   "sha256": "a620b3941b9e15b72c974c72360829cab89b44bdfe0c7dcb4ed9e039f598b1c5"
+  },
+  {
+   "bytes": 539724,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0037_spaced.wav",
+   "root": "better-voice",
+   "sha256": "7475e90c47fce8742bb8e8468038ddc1519f69a812fc68f051cf5d15af2e9372"
+  },
+  {
+   "bytes": 275404,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0038_spaced.wav",
+   "root": "better-voice",
+   "sha256": "f5fa07e703ed5f76c5aed984c718621e7cbcacb815bddc8b58a769d77aebd3ef"
+  },
+  {
+   "bytes": 554444,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0039_spaced.wav",
+   "root": "better-voice",
+   "sha256": "6e0a065b46383ed10076b102337235acaf6402f801a2b71f5cce37574b8fe4a6"
+  },
+  {
+   "bytes": 555884,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0040_spaced.wav",
+   "root": "better-voice",
+   "sha256": "826182ac300a8b7b49573cadb44b7caf3c40bccd14f3f676a2e51282b51ba609"
+  },
+  {
+   "bytes": 597004,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0042_spaced.wav",
+   "root": "better-voice",
+   "sha256": "cfdc7b325231955a7d92acb1c041aedf57bd610faafa5b58e03998558eabb010"
+  },
+  {
+   "bytes": 561964,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0043_spaced.wav",
+   "root": "better-voice",
+   "sha256": "933a160654cdb930ce64dd301e48c05c2a693849544c62b76610953372d161e9"
+  },
+  {
+   "bytes": 606124,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0044_spaced.wav",
+   "root": "better-voice",
+   "sha256": "31ae002b13710c2309a28caa5ad755f1f5baea04c29bf9e5b815c5c1408adc93"
+  },
+  {
+   "bytes": 594444,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0045_spaced.wav",
+   "root": "better-voice",
+   "sha256": "98bfb03f517f1c2b4db477ee161a9b6a46686e6ebf3b89b2336acb2ccacc6ee7"
+  },
+  {
+   "bytes": 541644,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0046_spaced.wav",
+   "root": "better-voice",
+   "sha256": "349da9229879b49eee283dffd9aeabae6fd8b3828b292ae95d088641664b6402"
+  },
+  {
+   "bytes": 543084,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0048_spaced.wav",
+   "root": "better-voice",
+   "sha256": "7dc3f161a80f0282e16b12bf25daad1881343da3c336831c1263374e3aa3fc97"
+  },
+  {
+   "bytes": 581964,
+   "dataset": "libri_mini_spaced",
+   "group": "batch:libri_mini_spaced",
+   "path": "data/libri_mini_spaced/103-1240-0049_spaced.wav",
+   "root": "better-voice",
+   "sha256": "c0cdeb34e82d2396fcacb3c7dc42ae14c4b282ab8264f9568c1bbaf274991eca"
+  },
+  {
+   "bytes": 6720,
+   "dataset": "quality_test",
+   "group": "batch:quality_test",
+   "path": "data/quality_test/brune_0001.wav",
+   "root": "better-voice",
+   "sha256": "a8bc49fc2c799c5b6ac371ca50b2dd86de4195309000d53667ef373d915c0ea5"
+  },
+  {
+   "bytes": 7104,
+   "dataset": "quality_test",
+   "group": "batch:quality_test",
+   "path": "data/quality_test/charry_0005.wav",
+   "root": "better-voice",
+   "sha256": "68ec54b6936473055fc64084b3104986f1f93d2028a001692d65f4d363471673"
+  },
+  {
+   "bytes": 8640,
+   "dataset": "quality_test",
+   "group": "batch:quality_test",
+   "path": "data/quality_test/corestate_0002.wav",
+   "root": "better-voice",
+   "sha256": "dc47ef1ea8f1ee0d6de658d091ba89ff119834d78797f2fe909efefa72c20634"
+  },
+  {
+   "bytes": 8256,
+   "dataset": "quality_test",
+   "group": "batch:quality_test",
+   "path": "data/quality_test/fiefs_0008.wav",
+   "root": "better-voice",
+   "sha256": "39bb4cf19b983adc1a258072dafead445f09844300d95f733b6cb0435e51a7bb"
+  },
+  {
+   "bytes": 507,
+   "dataset": "quality_test",
+   "group": "batch:quality_test",
+   "path": "data/quality_test/generation_report.json",
+   "root": "better-voice",
+   "sha256": "52a950bdb0a7b7a4851863e8e5de855f35c46b64c39371f33d9c101d16b213bb"
+  },
+  {
+   "bytes": 9792,
+   "dataset": "quality_test",
+   "group": "batch:quality_test",
+   "path": "data/quality_test/kanazawa_0000.wav",
+   "root": "better-voice",
+   "sha256": "bd87e788cc1c1dfe6007a4de16b3d2b4bdcbf88db9a8295d525d8fda519623b0"
+  },
+  {
+   "bytes": 9408,
+   "dataset": "quality_test",
+   "group": "batch:quality_test",
+   "path": "data/quality_test/marchio_0000.wav",
+   "root": "better-voice",
+   "sha256": "7a700d58aaeb61c99d631cc96c247a9167c03d90646ac52fd49a138fd2110b21"
+  },
+  {
+   "bytes": 8064,
+   "dataset": "quality_test",
+   "group": "batch:quality_test",
+   "path": "data/quality_test/mumps_0007.wav",
+   "root": "better-voice",
+   "sha256": "10b00d8389d441a39b64e633d75a3b44b7fe22a5a5b2e3d653ad046627716193"
+  },
+  {
+   "bytes": 0,
+   "dataset": "quality_test",
+   "group": "batch:quality_test",
+   "path": "data/quality_test/oquendo_0002.wav",
+   "root": "better-voice",
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "bytes": 70794,
+   "dataset": "quality_test",
+   "group": "batch:quality_test",
+   "path": "data/quality_test/recycles_0006.wav",
+   "root": "better-voice",
+   "sha256": "c20b5eb0bed0c6c0d9a373a86194edfad35b76da10aab6605c3511b854bf144e"
+  },
+  {
+   "bytes": 8832,
+   "dataset": "quality_test",
+   "group": "batch:quality_test",
+   "path": "data/quality_test/rosado_0009.wav",
+   "root": "better-voice",
+   "sha256": "6313b303bcc78abece473e2b5ac52c78af64f422b627d0b34a6df3cd9024eb93"
+  },
+  {
+   "bytes": 8640,
+   "dataset": "quality_test",
+   "group": "batch:quality_test",
+   "path": "data/quality_test/schleicher_0004.wav",
+   "root": "better-voice",
+   "sha256": "626dee0547b907ee3355f3fdf2bdc64ec041259fdf27647cbc923c0f1f888c17"
+  },
+  {
+   "bytes": 7296,
+   "dataset": "quality_test",
+   "group": "batch:quality_test",
+   "path": "data/quality_test/strata_0003.wav",
+   "root": "better-voice",
+   "sha256": "8b568bd07a5af4840be15f2efd5ae5d79a0490ede4cc768b0489f55653371142"
+  },
+  {
+   "bytes": 475,
+   "dataset": "quality_test",
+   "group": "batch:quality_test",
+   "path": "data/quality_test/train.tsv",
+   "root": "better-voice",
+   "sha256": "17d818642d89136955d182470de7c638cf59ee66c664780744b925a415c688f6"
+  },
+  {
+   "bytes": 49,
+   "dataset": "quality_test",
+   "group": "batch:quality_test",
+   "path": "data/quality_test/val.tsv",
+   "root": "better-voice",
+   "sha256": "9f704ccb0a245584dd9fcd85a9c03dd32e4f5bb7cd1e95713da9915125cefb9f"
+  },
+  {
+   "bytes": 7488,
+   "dataset": "quality_test",
+   "group": "batch:quality_test",
+   "path": "data/quality_test/waged_0001.wav",
+   "root": "better-voice",
+   "sha256": "eb7e50301e02c5542b540f7ac12a6d149326000b8d99514ca7c5f62f7488f35c"
+  },
+  {
+   "bytes": 1034,
+   "dataset": "data/demo",
+   "group": "session:demo",
+   "path": "data/demo/corrupt.mp3",
+   "root": "repo",
+   "sha256": "d40b9fda46f379f814408c2072404c2038b4ec86ec4000ab5d98d6b78ec64030"
+  },
+  {
+   "bytes": 256044,
+   "dataset": "data/demo",
+   "group": "session:demo",
+   "path": "data/demo/sample.wav",
+   "root": "repo",
+   "sha256": "e324aad7f717ed85b8b9254234ec0c7a16b5ad574e09dab3ddc9450a14341405"
+  },
+  {
+   "bytes": 319364,
+   "dataset": "data/demo",
+   "group": "session:demo",
+   "path": "data/demo/serve-mp3-twin.wav",
+   "root": "repo",
+   "sha256": "3c9a0b3906f640a555dcd515b24cb40f19ce1002865eda9f34cadcecf3a06d4a"
+  },
+  {
+   "bytes": 40097,
+   "dataset": "data/demo",
+   "group": "session:demo",
+   "path": "data/demo/serve-mp3.mp3",
+   "root": "repo",
+   "sha256": "3110e0af5c732b2659f12c2cb6e406c1bc2b03294ef93e89ec0c9233504085aa"
+  },
+  {
+   "bytes": 227353,
+   "dataset": "case:24-889_2025",
+   "group": "case:24-889_2025",
+   "path": "data/session/oyez_media_25951.json",
+   "root": "repo",
+   "sha256": "5691575a0a8de388183d17e0d24e0269e1920c384aaf187eedc635c8711b7bd2"
+  },
+  {
+   "bytes": 17130,
+   "dataset": "case:24-889_2025",
+   "group": "case:24-889_2025",
+   "path": "data/session/session.tsv",
+   "root": "repo",
+   "sha256": "6c719e970ea38957685a59ce61a0698780d5b4cd67b289b6f1cd7fc6ece37af9"
+  },
+  {
+   "bytes": 91364,
+   "dataset": "case:24-889_2025",
+   "group": "case:24-889_2025",
+   "path": "sessions/oyez-bulk/24-889_2025/session.tsv",
+   "root": "repo",
+   "sha256": "3ee4a0d07e82103eec96650c31f10db827e1e974b1f3dcb70f187cdd8e06e8ea"
+  },
+  {
+   "bytes": 299384,
+   "dataset": "case:24-889_2025",
+   "group": "case:24-889_2025",
+   "path": "sessions/oyez-bulk/24-889_2025/transcript.json",
+   "root": "repo",
+   "sha256": "873507b023019ab42dd5225e69062238beefde722cf3eb7631f443121aa6e33c"
+  }
+ ],
+ "partition": "DEV",
+ "split_rule": "by recording session / generation batch / case (chronological); never by sentence"
+}
