@@ -26,6 +26,7 @@ members = [
     "src/groebner",
     "src/invariant_ppt",
     "src/lexicon",
+    "src/lm",
     "src/output",
     "src/runner",
     "src/sequence",
