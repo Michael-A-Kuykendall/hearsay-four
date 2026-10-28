@@ -5,7 +5,10 @@ edition = "2024"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+# float_roundtrip: enrollment facts must persist bit-exactly so retraction
+# after a save/load cycle still restores the base exactly (default float
+# parsing can drift by 1 ulp).
+serde_json = { version = "1", features = ["float_roundtrip"] }
 
 [dev-dependencies]
 serde_json = "1"
