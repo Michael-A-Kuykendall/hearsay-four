@@ -1,0 +1,31 @@
+{
+ "bead": "hearsay-four-7ms",
+ "counts": {
+  "DEV": 64,
+  "LOCKBOX": 6,
+  "PHASE-TEST": 9,
+  "TRAIN": 3216
+ },
+ "lockbox_seal": {
+  "cases": [
+   "case:106844_25-5343",
+   "case:106874_25-459"
+  ],
+  "combined_sha256": "fabc8a7ded35f621b79e6591afe650908f234454955534de93b63a483da28aa2",
+  "file_count": 6,
+  "manifest_sha256": "54b58957de3bddbd219cbc4c2cf3b5765257161735d5ecb7e9e141840ce06a5d",
+  "opened": false,
+  "openings": [],
+  "rule": "files not read by any pipeline until a logged milestone opening (M2/M4/M5)",
+  "sealed_at": "2026-10-28"
+ },
+ "manifest_sha256": {
+  "DEV": "9f717442fd2a220abd178136788d7bb5ac176672e84f1b585822357821f7172f",
+  "EXCLUDED": "624704a99c95a1a64b59867567a73940fc7df22e72f039a6003092edbd2c1bb9",
+  "LM-TRAIN-TEXT": "f11e0c3b80cfca14fe38e0210ea05195eb8f37062320940fea4d9eab56170e22",
+  "LOCKBOX": "54b58957de3bddbd219cbc4c2cf3b5765257161735d5ecb7e9e141840ce06a5d",
+  "PHASE-TEST": "9bbbb8789173a960d0327e7be164fc8e760cacb9f601739e8413d70b0756e953",
+  "TRAIN": "b8cca2bc7103b91b6b2ff903104ddb2662fa6b1ce800c0eb44fc2265f09e7cf0"
+ },
+ "source_inventory": "docs/results/D0-DATA-INVENTORY.md"
+}

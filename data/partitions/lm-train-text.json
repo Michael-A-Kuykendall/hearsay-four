@@ -1,0 +1,78 @@
+{
+ "bead": "hearsay-four-7ms",
+ "entries": [
+  {
+   "bytes": 45401,
+   "dataset": "lm-train-text",
+   "group": "lm-train",
+   "path": "data/bulk_tts_1k/train_1k.tsv",
+   "root": "better-voice",
+   "sha256": "e4a513891bd0efd5f1d01dd23648610e391b31664fcbefe2db1e5f15e3acf9d8"
+  },
+  {
+   "bytes": 5022,
+   "dataset": "lm-train-text",
+   "group": "lm-train",
+   "path": "data/bulk_tts_1k/val_1k.tsv",
+   "root": "better-voice",
+   "sha256": "d9b10b96f17a460d7e21274a8428ad665a72bee2925f76c5d8d55d6b0f2f8863"
+  },
+  {
+   "bytes": 2480,
+   "dataset": "lm-train-text",
+   "group": "lm-train",
+   "path": "data/medical_tts/training_manifest.tsv",
+   "root": "better-voice",
+   "sha256": "4ec4bc25d4d9b0124a69a809086f00928de77b3af91de152ea0a96eace01ac9d"
+  },
+  {
+   "bytes": 2351,
+   "dataset": "lm-train-text",
+   "group": "lm-train",
+   "path": "data/phonetics_audio/phonetics_training_manifest.tsv",
+   "root": "better-voice",
+   "sha256": "8281550f83f2c11169ccd2c0f15c85c67a53a9533408365f99e4251547ba4674"
+  },
+  {
+   "bytes": 54036,
+   "dataset": "lm-train-text",
+   "group": "lm-train",
+   "path": "data/quality_checked_1k/train.tsv",
+   "root": "better-voice",
+   "sha256": "10661dc9c481651f297c051401ab560991cce4353ef46f0dd17dabc5cbbd5666"
+  },
+  {
+   "bytes": 5958,
+   "dataset": "lm-train-text",
+   "group": "lm-train",
+   "path": "data/quality_checked_1k/val.tsv",
+   "root": "better-voice",
+   "sha256": "30a5929dd2ebacb6c26257e22ecfb0857d9d0f7cce6d938c15ba5be4a6888d04"
+  },
+  {
+   "bytes": 329832,
+   "dataset": "lm-train-text",
+   "group": "lm-train",
+   "path": "sessions/oyez-bulk/10-218_2011/transcript.json",
+   "root": "repo",
+   "sha256": "3ae4ce359464a5e472b2cc5d7f7a1f409af8711808e2287a23e9c7e341a08f79"
+  },
+  {
+   "bytes": 274257,
+   "dataset": "lm-train-text",
+   "group": "lm-train",
+   "path": "sessions/oyez-bulk/70-112_1971/transcript.json",
+   "root": "repo",
+   "sha256": "1e22147ebd09de162221abb6b6d11be8c40ea847792696648fa1fe6cd357038e"
+  },
+  {
+   "bytes": 240129,
+   "dataset": "lm-train-text",
+   "group": "lm-train",
+   "path": "sessions/oyez-pilot/transcript.json",
+   "root": "repo",
+   "sha256": "c50b1a506f7f04a91df97302d8b7e5993b5e5dbe1482103d2cbf57f6603771df"
+  }
+ ],
+ "rule": "LM training text contains TRAIN-partition transcripts only"
+}

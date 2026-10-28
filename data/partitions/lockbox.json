@@ -1,0 +1,55 @@
+{
+ "bead": "hearsay-four-7ms",
+ "entries": [
+  {
+   "bytes": 379,
+   "dataset": "case:106844_25-5343",
+   "group": "case:106844_25-5343",
+   "path": "data/corpus/court/scotus/106844/manifest.json",
+   "root": "repo",
+   "sha256": "2ef84f62fca50355490793ab47b1da6f1bfcbc348a858203a8193a7b57c46ec5"
+  },
+  {
+   "bytes": 104812,
+   "dataset": "case:106844_25-5343",
+   "group": "case:106844_25-5343",
+   "path": "data/corpus/court/scotus/106844/transcript.json",
+   "root": "repo",
+   "sha256": "d05620c56fa9377d5140b146bbc0ecfb8bcf3567724daf06af694cc995b05d00"
+  },
+  {
+   "bytes": 104661,
+   "dataset": "case:106844_25-5343",
+   "group": "case:106844_25-5343",
+   "path": "data/corpus/court/scotus/106844/transcript.txt",
+   "root": "repo",
+   "sha256": "1ef827aff53473ef94d576d6e49a498ef8e60ccaeb468714b40911bafc123224"
+  },
+  {
+   "bytes": 382,
+   "dataset": "case:106874_25-459",
+   "group": "case:106874_25-459",
+   "path": "data/corpus/court/scotus/106874/manifest.json",
+   "root": "repo",
+   "sha256": "9f3a27cec589121d94a47b96799da4f51a0219ba3d79ed65d2c4393a94b92e2a"
+  },
+  {
+   "bytes": 80716,
+   "dataset": "case:106874_25-459",
+   "group": "case:106874_25-459",
+   "path": "data/corpus/court/scotus/106874/transcript.json",
+   "root": "repo",
+   "sha256": "2031e24b61f78b23aabc0bfedfccdce058f52fd61b3e0e5ea2a69aa86b2f5bea"
+  },
+  {
+   "bytes": 80565,
+   "dataset": "case:106874_25-459",
+   "group": "case:106874_25-459",
+   "path": "data/corpus/court/scotus/106874/transcript.txt",
+   "root": "repo",
+   "sha256": "0cb4413d0879a85f7bff292b3e6467b1f275f3d891bff42f0694de24eb290e3a"
+  }
+ ],
+ "partition": "LOCKBOX",
+ "split_rule": "by recording session / generation batch / case (chronological); never by sentence"
+}
