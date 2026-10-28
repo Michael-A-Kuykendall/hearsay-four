@@ -11,6 +11,9 @@
 //! (d5n.2) keys candidates on it.
 
 pub mod boundaries;
+pub mod dtw;
+pub mod frontend;
+pub mod gate;
 pub mod nbest;
 
 use std::f64::consts::PI;
