@@ -23,6 +23,7 @@ pub struct EvalResult {
     pub predictions: Vec<Prediction>,
     pub labels: Vec<String>,
     pub confusion: Vec<Vec<usize>>, // rows truth, cols predicted, in `labels` order
+    pub degenerate: usize, // queries with no finite DTW distance: NOT COMPARABLE, never scored
 }
 impl EvalResult {
     pub fn accuracy(&self) -> f64 {
@@ -48,7 +49,7 @@ impl EvalResult {
     }
 }
 
-fn classify(query: &Clip, templates: &[&Clip], band_frac: f64) -> String {
+fn classify(query: &Clip, templates: &[&Clip], band_frac: f64) -> Option<(String, f64)> {
     let mut best: Option<(f64, &str)> = None;
     for t in templates {
         let d = dtw_distance(&query.frames, &t.frames, band_frac);
@@ -56,10 +57,11 @@ fn classify(query: &Clip, templates: &[&Clip], band_frac: f64) -> String {
             best = Some((d, t.label.as_str()));
         }
     }
-    best.map(|(_, l)| l.to_string()).unwrap_or_default()
+    best.filter(|(d, _)| d.is_finite())
+        .map(|(d, l)| (l.to_string(), d))
 }
 
-fn build_result(preds: Vec<Prediction>, clips: &[Clip]) -> EvalResult {
+fn build_result(preds: Vec<Prediction>, clips: &[Clip], degenerate: usize) -> EvalResult {
     let mut labels: Vec<String> = clips
         .iter()
         .map(|c| c.label.clone())
@@ -80,6 +82,7 @@ fn build_result(preds: Vec<Prediction>, clips: &[Clip]) -> EvalResult {
         predictions: preds,
         labels,
         confusion,
+        degenerate,
     }
 }
 
@@ -92,37 +95,49 @@ pub fn leave_one_take_out(clips: &[Clip], band_frac: f64) -> EvalResult {
         .into_iter()
         .collect();
     let mut preds = Vec::new();
+    let mut degenerate = 0usize;
     for take in takes {
         let templates: Vec<&Clip> = clips.iter().filter(|c| c.take != take).collect();
         for q in clips.iter().filter(|c| c.take == take) {
-            let p = classify(q, &templates, band_frac);
-            preds.push(Prediction {
-                truth: q.label.clone(),
-                correct: p == q.label,
-                predicted: p,
-                take,
-            });
+            match classify(q, &templates, band_frac) {
+                Some((p, _)) => preds.push(Prediction {
+                    truth: q.label.clone(),
+                    correct: p == q.label,
+                    predicted: p,
+                    take,
+                }),
+                None => degenerate += 1,
+            }
         }
     }
-    build_result(preds, clips)
+    build_result(preds, clips, degenerate)
 }
 
 /// PHASE-TEST: templates = original takes, queries = fresh session. Scored once by the caller.
 pub fn phase_test(templates: &[Clip], queries: &[Clip], band_frac: f64) -> EvalResult {
     let refs: Vec<&Clip> = templates.iter().collect();
+    let mut degenerate = 0usize;
     let preds: Vec<Prediction> = queries
         .iter()
-        .map(|q| {
-            let p = classify(q, &refs, band_frac);
-            Prediction {
+        .filter_map(|q| match classify(q, &refs, band_frac) {
+            Some((p, _)) => Some(Prediction {
                 truth: q.label.clone(),
                 correct: p == q.label,
                 predicted: p,
                 take: q.take,
+            }),
+            None => {
+                degenerate += 1;
+                None
             }
         })
         .collect();
     let mut all: Vec<Clip> = templates.to_vec();
     all.extend(queries.iter().cloned());
-    build_result(preds, &all)
+    build_result(preds, &all, degenerate)
+}
+/// True when any scored query was degenerate (no finite DTW distance).
+/// Callers must treat a degenerate split as NOT COMPARABLE, never a score.
+pub fn is_degenerate(res: &EvalResult) -> bool {
+    res.degenerate > 0
 }

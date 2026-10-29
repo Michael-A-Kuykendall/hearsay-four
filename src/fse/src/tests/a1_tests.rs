@@ -1,8 +1,8 @@
 //! A1 regression tests (bead hearsay-four-b7p): DTW, front end, LOTO.
 
 use crate::dtw::dtw_distance;
-use crate::frontend::{FrontendConfig, extract_with_config};
-use crate::gate::{Clip, leave_one_take_out, phase_test};
+use crate::frontend::{FrontendConfig, extract_with_config, speech_span};
+use crate::gate::{Clip, is_degenerate, leave_one_take_out, phase_test};
 
 fn seq(v: &[f64]) -> Vec<Vec<f64>> {
     v.iter().map(|&x| vec![x]).collect()
@@ -79,6 +79,23 @@ fn tone(freq: f64, sr: u32, secs: f64) -> Vec<i16> {
         })
         .collect()
 }
+fn write_chirp_wav(dir: &str, name: &str, freq: f64, sr: u32, speech_secs: f64, pad_secs: f64) {
+    // Test-only fixture writer (hound): chirp speech centered in digital silence.
+    let mut samples = vec![0i16; (sr as f64 * pad_secs) as usize];
+    samples.extend(tone(freq, sr, speech_secs));
+    samples.extend(vec![0i16; (sr as f64 * pad_secs) as usize]);
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: sr,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+    let mut w = hound::WavWriter::create(format!("{dir}/{name}"), spec).unwrap();
+    for s in &samples {
+        w.write_sample(*s).unwrap();
+    }
+    w.finalize().unwrap();
+}
 #[test]
 fn loto_discriminates_synthetic_words_and_phase_test_works() {
     let sr = 16_000u32;
@@ -119,4 +136,162 @@ fn loto_discriminates_synthetic_words_and_phase_test_works() {
         pt.accuracy()
     );
     assert!(pt.confusion_csv().contains("alpha"));
+}
+#[test]
+fn degenerate_phase_test_reports_no_silent_label() {
+    let sr = 16_000u32;
+    let cfg = FrontendConfig::default();
+    // Templates short, queries >4x longer: frame-count ratio below 0.8,
+    // so every banded-DTW distance is +inf (the void-run collapse shape).
+    let words = [("alpha", 300.0), ("beta", 900.0)];
+    let templates: Vec<Clip> = words
+        .iter()
+        .map(|(label, f)| Clip {
+            label: (*label).into(),
+            take: 0,
+            frames: extract_with_config(&tone(*f, sr, 0.2), sr, &cfg).unwrap(),
+        })
+        .collect();
+    let queries: Vec<Clip> = words
+        .iter()
+        .map(|(label, f)| Clip {
+            label: (*label).into(),
+            take: 1,
+            frames: extract_with_config(&tone(*f, sr, 0.9), sr, &cfg).unwrap(),
+        })
+        .collect();
+    let pt = phase_test(&templates, &queries, 0.2);
+    assert_eq!(
+        pt.degenerate, 2,
+        "both queries must be degenerate, not silent labels"
+    );
+    assert!(pt.predictions.is_empty());
+    assert!(is_degenerate(&pt));
+}
+#[test]
+fn degenerate_probe_fixture_through_wav_files() {
+    // Writes /tmp/a1deg/{templates,queries} (WAVs + manifests) for the
+    // binary-level NOT COMPARABLE probe, then verifies library degeneracy
+    // on the same bytes read back through hound. Uses unpadded speech at
+    // mismatched durations: padding mismatch is fixed by trimming (see
+    // padding_mismatch_classifies_after_trim), while genuine speech-duration
+    // mismatch must stay loud.
+    let sr = 16_000u32;
+    let cfg = FrontendConfig::default();
+    let words = [("alpha", 300.0), ("beta", 900.0)];
+    let mut tman = String::from("enroll.wav\tenroll\n");
+    let mut qman = String::from("enroll.wav\tenroll\n");
+    std::fs::create_dir_all("/tmp/a1deg/templates").unwrap();
+    std::fs::create_dir_all("/tmp/a1deg/queries").unwrap();
+    for take in 0..2 {
+        for (i, (label, f)) in words.iter().enumerate() {
+            let tname = format!("utt{t}{i}.wav", t = take);
+            write_chirp_wav(
+                "/tmp/a1deg/templates",
+                &tname,
+                *f * (1.0 + take as f64 * 0.01),
+                sr,
+                0.2,
+                0.0,
+            );
+            tman.push_str(&format!("{tname}\t{label}\n"));
+        }
+    }
+    for (i, (label, f)) in words.iter().enumerate() {
+        let qname = format!("utt{i:03}.wav");
+        write_chirp_wav("/tmp/a1deg/queries", &qname, *f, sr, 0.9, 0.0);
+        qman.push_str(&format!("{qname}\t{label}\n"));
+    }
+    std::fs::write("/tmp/a1deg/templates/manifest.tsv", tman).unwrap();
+    std::fs::write("/tmp/a1deg/queries/manifest.tsv", qman).unwrap();
+    let load = |dir: &str, names: &[String]| -> Vec<Clip> {
+        names
+            .iter()
+            .map(|name| {
+                let mut r = hound::WavReader::open(format!("{dir}/{name}")).unwrap();
+                let samples: Vec<i16> = r.samples::<i16>().map(|s| s.unwrap()).collect();
+                Clip {
+                    label: name.clone(),
+                    take: 0,
+                    frames: extract_with_config(&samples, sr, &cfg).unwrap(),
+                }
+            })
+            .collect()
+    };
+    let tnames: Vec<String> = (0..2)
+        .flat_map(|t| (0..2).map(move |i| format!("utt{t}{i}.wav")))
+        .collect();
+    let qnames: Vec<String> = (0..2).map(|i| format!("utt{i:03}.wav")).collect();
+    let pt = phase_test(
+        &load("/tmp/a1deg/templates", &tnames),
+        &load("/tmp/a1deg/queries", &qnames),
+        0.2,
+    );
+    assert_eq!(pt.degenerate, 2);
+    assert!(is_degenerate(&pt));
+}
+#[test]
+fn speech_span_trims_silence_edges_with_hangover() {
+    let e = vec![
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    ];
+    // Speech frames 6..10, hangover 5 each side, clamped to bounds.
+    assert_eq!(speech_span(&e), Some((1, 15)));
+}
+#[test]
+fn speech_span_all_silence_is_none() {
+    assert_eq!(speech_span(&[0.0; 8]), None);
+    assert_eq!(speech_span(&[]), None);
+}
+#[test]
+fn speech_span_hangover_clamps_to_bounds() {
+    let e = vec![1.0, 1.0, 0.0, 0.0, 0.0];
+    assert_eq!(speech_span(&e), Some((0, 5)));
+}
+#[test]
+fn speech_span_ignores_isolated_transient_blip() {
+    // Single hot frame at index 15 has no above-threshold neighbor: span
+    // covers only the main run (6..9) plus hangover, not the blip.
+    let e = vec![
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+    ];
+    assert_eq!(speech_span(&e), Some((1, 14)));
+}
+#[test]
+fn padding_mismatch_classifies_after_trim() {
+    // The void-run shape through the real pipeline: queries at >2x the
+    // template padding must classify by word, not collapse or go degenerate.
+    let sr = 16_000u32;
+    let cfg = FrontendConfig::default();
+    let words = [("alpha", 300.0), ("beta", 900.0), ("gamma", 1800.0)];
+    let padded = |f: f64, pad: f64| {
+        let mut s = vec![0i16; (sr as f64 * pad) as usize];
+        s.extend(tone(f, sr, 0.4));
+        s.extend(vec![0i16; (sr as f64 * pad) as usize]);
+        extract_with_config(&s, sr, &cfg).unwrap()
+    };
+    let templates: Vec<Clip> = words
+        .iter()
+        .map(|(label, f)| Clip {
+            label: (*label).into(),
+            take: 0,
+            frames: padded(*f, 0.1),
+        })
+        .collect();
+    let queries: Vec<Clip> = words
+        .iter()
+        .map(|(label, f)| Clip {
+            label: (*label).into(),
+            take: 1,
+            frames: padded(*f, 0.9),
+        })
+        .collect();
+    let pt = phase_test(&templates, &queries, 0.2);
+    assert_eq!(pt.degenerate, 0, "trimmed queries must be comparable");
+    assert_eq!(pt.predictions.len(), 3);
+    assert!(
+        pt.accuracy() >= 0.9,
+        "padded-word accuracy {}",
+        pt.accuracy()
+    );
 }

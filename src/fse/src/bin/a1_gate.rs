@@ -5,7 +5,7 @@
 //! otherwise it reports NOT RUN. Never fabricates audio.
 
 use fse::frontend::{FrontendConfig, extract_with_config};
-use fse::gate::{Clip, leave_one_take_out, phase_test};
+use fse::gate::{Clip, is_degenerate, leave_one_take_out, phase_test};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -108,6 +108,10 @@ fn main() {
                     continue;
                 }
                 let res = leave_one_take_out(&clips, band);
+                if is_degenerate(&res) {
+                    println!("A1 GATE: NOT COMPARABLE ({name} has degenerate queries)");
+                    std::process::exit(1);
+                }
                 println!(
                     "A1 DEV {name}: top1={:.4} n={}",
                     res.accuracy(),
@@ -139,6 +143,10 @@ fn main() {
         match load_session(&dir, cfg) {
             Ok(q) => {
                 let r = phase_test(&templates, &q, band);
+                if is_degenerate(&r) {
+                    println!("A1 GATE: NOT COMPARABLE (phase-test has degenerate queries)");
+                    std::process::exit(1);
+                }
                 println!(
                     "A1 PHASE-TEST top1={:.4} n={} gate90={}",
                     r.accuracy(),

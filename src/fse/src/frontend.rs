@@ -96,6 +96,38 @@ impl FrontendConfig {
     }
 }
 
+/// Endpoint-trimming constants: relative threshold factor, absolute noise
+/// floor (normalized RMS units), and hangover frames kept each side.
+const TRIM_K: f64 = 0.01;
+const TRIM_FLOOR: f64 = 0.001;
+const TRIM_HANGOVER: usize = 5;
+
+/// Speech span over per-frame RMS energies: inclusive-start, exclusive-end
+/// frame indices covering the above-threshold region plus hangover each
+/// side (clamped to bounds). `None` when no frame exceeds the threshold.
+pub fn speech_span(energies: &[f64]) -> Option<(usize, usize)> {
+    if energies.is_empty() {
+        return None;
+    }
+    let peak = energies.iter().cloned().fold(0.0f64, f64::max);
+    let thr = TRIM_FLOOR.max(TRIM_K * peak);
+    // A frame counts only with an above-threshold neighbor within 2 frames:
+    // isolated transient blips in silence die, speech edges survive.
+    let n = energies.len();
+    let supported = |i: usize| {
+        if energies[i] <= thr {
+            return false;
+        }
+        let lo = i.saturating_sub(2);
+        let hi = (i + 2).min(n - 1);
+        (lo..=hi).any(|j| j != i && energies[j] > thr)
+    };
+    let first = (0..n).find(|&i| supported(i))?;
+    let last = (0..n).rfind(|&i| supported(i))?;
+    let start = first.saturating_sub(TRIM_HANGOVER);
+    let end = (last + 1 + TRIM_HANGOVER).min(n);
+    Some((start, end))
+}
 pub fn extract_with_config(
     samples: &[i16],
     sample_rate: u32,
@@ -124,7 +156,7 @@ pub fn extract_with_config(
         .map(|i| 0.54 - 0.46 * (2.0 * PI * i as f64 / (wl as f64 - 1.0)).cos())
         .collect();
     let n = (xs.len() - wl) / sh + 1;
-    let windows: Vec<Vec<f64>> = (0..n)
+    let all_windows: Vec<Vec<f64>> = (0..n)
         .map(|i| {
             let st = i * sh;
             ham.iter()
@@ -133,7 +165,22 @@ pub fn extract_with_config(
                 .collect()
         })
         .collect();
-    let mut statics = static_features(&windows, sample_rate, cfg)?;
+    // Endpoint trimming on raw-sample frame energies: config-independent
+    // spans, and pre-emphasis would only boost hiss for the threshold.
+    let raw: Vec<f64> = samples
+        .iter()
+        .map(|&s| s as f64 / i16::MAX as f64)
+        .collect();
+    let energies: Vec<f64> = (0..n)
+        .map(|i| {
+            let st = i * sh;
+            let sum: f64 = raw[st..st + wl].iter().map(|x| x * x).sum::<f64>();
+            (sum / wl as f64).sqrt()
+        })
+        .collect();
+    let (ts, te) = speech_span(&energies).ok_or(FeatureError::EmptyInput)?;
+    let windows = &all_windows[ts..te];
+    let mut statics = static_features(windows, sample_rate, cfg)?;
     if cfg.cmn && !statics.is_empty() {
         let d = statics[0].len();
         let t = statics.len() as f64;

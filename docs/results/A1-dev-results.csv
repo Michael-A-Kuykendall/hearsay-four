@@ -1,11 +1,11 @@
 scope,config,top1,n,status,reason
-DEV,base_cmn_d_dd_lifter22_pre097,,0,NOT RUN,owner WAVs absent under sessions/run1 (0 of 120)
-DEV,no_cmn,,0,NOT RUN,owner WAVs absent under sessions/run1 (0 of 120)
-DEV,no_deltas,,0,NOT RUN,owner WAVs absent under sessions/run1 (0 of 120)
-DEV,deltas_only,,0,NOT RUN,owner WAVs absent under sessions/run1 (0 of 120)
-DEV,no_preemphasis,,0,NOT RUN,owner WAVs absent under sessions/run1 (0 of 120)
-DEV,no_lifter,,0,NOT RUN,owner WAVs absent under sessions/run1 (0 of 120)
-DEV,band_300_3400,,0,NOT RUN,owner WAVs absent under sessions/run1 (0 of 120)
-DEV,band_100_4000_no_cmn,,0,NOT RUN,owner WAVs absent under sessions/run1 (0 of 120)
-PHASE-TEST,fresh_5th_take,,0,NOT RUN,no fresh 5th-take owner session exists
+DEV,base_cmn_d_dd_lifter22_pre097,0.8583,120,RUN,leave-one-take-out sessions/run1 2026-10-28 endpoint-trimmed
+DEV,no_cmn,0.8500,120,RUN,leave-one-take-out sessions/run1 2026-10-28 endpoint-trimmed
+DEV,no_deltas,0.8500,120,RUN,leave-one-take-out sessions/run1 2026-10-28 endpoint-trimmed
+DEV,deltas_only,0.8583,120,RUN,leave-one-take-out sessions/run1 2026-10-28 endpoint-trimmed
+DEV,no_preemphasis,0.8500,120,RUN,leave-one-take-out sessions/run1 2026-10-28 endpoint-trimmed
+DEV,no_lifter,0.8250,120,RUN,leave-one-take-out sessions/run1 2026-10-28 endpoint-trimmed
+DEV,band_300_3400,0.8500,120,RUN,leave-one-take-out sessions/run1 2026-10-28 endpoint-trimmed
+DEV,band_100_4000_no_cmn,0.8500,120,RUN,leave-one-take-out sessions/run1 2026-10-28 endpoint-trimmed
+PHASE-TEST,fresh_5th_take,0.0333,30,RUN,sessions/phase-test-20261028-190133 scored once 2026-10-28 - VOID gate90=false - invalid experiment not a hypothesis failure - all 30 predicted congealed - duration-mismatch degenerate - see A1-ACOUSTIC-GATE.md
 MACHINERY-PROBE (synthetic chirps in /tmp not owner data),base_cmn_d_dd_lifter22_pre097,1.0000,12,RUN,machinery verification only - not a gate result
