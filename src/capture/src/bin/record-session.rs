@@ -11,19 +11,37 @@
 //! verify provenance without trusting filenames.
 
 use std::fs::File;
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use capture::mic::MicCapture;
 
 fn usage() -> ! {
+    eprintln!("usage:");
     eprintln!(
-        "usage: record-session [--list-devices] [--out DIR] [--script FILE] [--enroll-only] [--resume-at N] [--utterances N]"
+        "  record-session --script LINES --out DIR            legacy takes (enroll + native rate)"
     );
+    eprintln!("  record-session --script LINES --out DIR --sealed --rate 16000 [--dur SECS]");
+    eprintln!("  record-session --out DIR --continuous SECS --rate 16000");
+    eprintln!(
+        "  record-session --validate DIR [--labels N --dur S]  check a sealed session (VALID/REJECT)"
+    );
+    eprintln!("  record-session --list-devices");
+    eprintln!("flags: --enroll-only --resume-at N --utterances N --no-enroll --rate HZ --dur SECS");
+    eprintln!("(--rate is sealed-only; --dur applies to both modes; sealed implies --no-enroll)");
     std::process::exit(2);
 }
 fn utterance_stem(index: usize) -> String {
     format!("utt{index:03}")
+}
+/// Script lines: trimmed, blanks and full-line `#` comments dropped.
+/// Section labels and provenance headers live in comments so one hashed
+/// script file can carry labeled sets (prep beads) without becoming prompts.
+fn script_lines(text: &str) -> Vec<String> {
+    text.lines()
+        .map(|l| l.trim().to_string())
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .collect()
 }
 fn select_utterances(
     lines: &[String],
@@ -99,14 +117,20 @@ fn write_wav(path: &PathBuf, mono: &[i16], sample_rate: u32) -> hound::Result<()
 }
 
 /// Prompt on stdout, wait for Enter, then record and save under `stem`.
-fn capture_one(cap: &mut MicCapture, out: &Path, stem: &str, say: &str) -> (u32, usize) {
+fn capture_one(
+    cap: &mut MicCapture,
+    out: &Path,
+    stem: &str,
+    say: &str,
+    dur_secs: f64,
+) -> (u32, usize) {
     println!("---");
     println!("Say:  {say}");
     print!("Press Enter to record {stem} ... ");
     std::io::stdout().flush().ok();
     let mut line = String::new();
     std::io::stdin().read_line(&mut line).ok();
-    println!("Recording 3s ...");
+    println!("Recording {dur_secs}s ...");
     let (mono, rate) = cap.record_raw();
     let n = mono.len();
     let path = out.join(format!("{stem}.wav"));
@@ -116,7 +140,159 @@ fn capture_one(cap: &mut MicCapture, out: &Path, stem: &str, say: &str) -> (u32,
     }
     (rate, n)
 }
+fn peak_dbfs(mono: &[i16]) -> f32 {
+    let peak = mono
+        .iter()
+        .map(|s| s.unsigned_abs() as f32 / 32768.0)
+        .fold(0.0f32, f32::max);
+    if peak <= 0.0 {
+        f32::NEG_INFINITY
+    } else {
+        20.0 * peak.log10()
+    }
+}
+/// Sealed take: single Enter, exact-frame capture, no redo.
+/// Returns `None` when the take came up short (caller re-prompts the same index).
+#[allow(clippy::too_many_arguments)]
+fn capture_one_sealed(
+    cap: &mut MicCapture,
+    out: &Path,
+    stem: &str,
+    say: &str,
+    position: usize,
+    total: usize,
+    dur_secs: f64,
+    expected_frames: usize,
+) -> Option<(u32, usize)> {
+    println!("=== [{position}/{total}] Say:  {say}   (Enter = record {dur_secs}s) ===");
+    print!("Press Enter ... ");
+    std::io::stdout().flush().ok();
+    let mut line = String::new();
+    std::io::stdin().read_line(&mut line).ok();
+    println!("Recording {dur_secs}s ... speak NOW:  {say}");
+    let (mono, rate) = cap.record_exact();
+    if mono.len() < expected_frames {
+        eprintln!(
+            "SHORT TAKE: captured {} frames, need {expected_frames} — retrying same prompt (Ctrl-C abandons the session)",
+            mono.len()
+        );
+        return None;
+    }
+    let n = mono.len();
+    let path = out.join(format!("{stem}.wav"));
+    match write_wav(&path, &mono, rate) {
+        Ok(()) => println!(
+            "wrote {stem}.wav: {n} frames @ {rate}Hz mono, peak {:.1} dBFS [OK]",
+            peak_dbfs(&mono)
+        ),
+        Err(e) => {
+            eprintln!("WAV write failed for {}: {e}", path.display());
+            return None;
+        }
+    }
+    Some((rate, n))
+}
+/// Sealed session: guards, precommit, single-Enter takes, seal files.
+/// Prompts are recorded in script order (the prep beads own the order).
+/// Layout matches `fse::instrument::validate_session`.
+fn run_sealed(out: &Path, lines: &[String], rate_hz: u32, dur_secs: f64) {
+    use cpal::traits::{DeviceTrait, HostTrait};
+    if lines.is_empty() {
+        eprintln!("sealed session needs a non-empty --script");
+        std::process::exit(1);
+    }
+    if !(0.5..=600.0).contains(&dur_secs) {
+        eprintln!("--dur must be within 0.5..=600s, got {dur_secs}");
+        std::process::exit(1);
+    }
+    let total = lines.len();
+    let seed = {
+        use std::hash::{BuildHasher, Hasher};
+        std::collections::hash_map::RandomState::new()
+            .build_hasher()
+            .finish()
+    };
+    let device_name = cpal::default_host()
+        .default_input_device()
+        .and_then(|d| d.name().ok())
+        .unwrap_or_else(|| "<unnamed>".to_string());
+    let duration_ms = (dur_secs * 1000.0).round() as u64;
+    let expected_frames = (u64::from(rate_hz) * duration_ms / 1000) as usize;
 
+    // Order is frozen before the first take: order.txt predates every wav.
+    let order_txt = capture::seal::build_order_txt(seed, lines);
+    let order_sha = fse::instrument::sha256_hex(order_txt.as_bytes());
+    println!("guards OK: {total} prompts, DUR={dur_secs}, RATE={rate_hz}");
+    println!("PRECOMMIT seed={seed} order_sha256={order_sha}");
+    println!("  (record this hash in the session bead notes BEFORE capturing)");
+    std::fs::write(out.join("order.txt"), &order_txt).unwrap_or_else(|e| {
+        eprintln!("cannot write order.txt: {e}");
+        std::process::exit(1);
+    });
+    println!("--- session dir: {}", out.display());
+    println!("Mic: {device_name} @ {rate_hz}Hz mono | {total} prompts x {dur_secs}s");
+    println!(
+        "Lead/trail silence is KEPT (do not trim). Ctrl-C abandons the session (a partial session will NOT validate)."
+    );
+
+    let mut cap = MicCapture::new_with_rate(duration_ms, rate_hz).unwrap_or_else(|e| {
+        eprintln!("no usable input device at {rate_hz} Hz: {e}");
+        std::process::exit(1);
+    });
+
+    let mut rows: Vec<(String, String, u32, u32)> = Vec::new();
+    for (position, prompt) in lines.iter().enumerate() {
+        let stem = format!("utt{:03}", position);
+        loop {
+            match capture_one_sealed(
+                &mut cap,
+                out,
+                &stem,
+                prompt,
+                position + 1,
+                total,
+                dur_secs,
+                expected_frames,
+            ) {
+                Some((rate, n)) => {
+                    rows.push((format!("{stem}.wav"), prompt.clone(), rate, n as u32));
+                    break;
+                }
+                None => continue, // short take: same prompt again
+            }
+        }
+    }
+
+    let manifest_tsv = capture::seal::build_manifest_tsv(&rows);
+    let manifest_sha = fse::instrument::sha256_hex(manifest_tsv.as_bytes());
+    std::fs::write(out.join("manifest.tsv"), &manifest_tsv).unwrap_or_else(|e| {
+        eprintln!("cannot write manifest.tsv: {e}");
+        std::process::exit(1);
+    });
+    let meta = capture::seal::build_session_meta(
+        &device_name,
+        rate_hz,
+        &capture::seal::utc_now_string(),
+        seed,
+        &order_sha,
+        &manifest_sha,
+        &capture::seal::recorder_commit(),
+        rows.len(),
+    );
+    std::fs::write(out.join("session.meta"), &meta).unwrap_or_else(|e| {
+        eprintln!("cannot write session.meta: {e}");
+        std::process::exit(1);
+    });
+    let mut names: Vec<String> = rows.iter().map(|(f, _, _, _)| f.clone()).collect();
+    names.push("manifest.tsv".to_string());
+    names.push("order.txt".to_string());
+    if let Err(e) = capture::seal::write_sums_file(out, &names) {
+        eprintln!("{e}");
+        std::process::exit(1);
+    }
+    println!("done; sealed {total} takes in {}", out.display());
+    println!("verify: record-session --validate {}", out.display());
+}
 fn main() {
     let mut list_only = false;
     let mut out = PathBuf::from("sessions/run1");
@@ -124,6 +300,15 @@ fn main() {
     let mut enroll_only = false;
     let mut resume_at: Option<usize> = None;
     let mut max_utterances: Option<usize> = None;
+    let mut rate_hz: u32 = 44100;
+    let mut rate_given = false;
+    let mut dur_secs: f64 = 3.0;
+    let mut no_enroll = false;
+    let mut sealed = false;
+    let mut validate: Option<PathBuf> = None;
+    let mut labels: Option<usize> = None;
+    let mut continuous: Option<f64> = None;
+    let mut dur_given = false;
 
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
@@ -139,11 +324,97 @@ fn main() {
             "--utterances" => {
                 max_utterances = args.next().unwrap_or_else(|| usage()).parse().ok();
             }
+            "--rate" => {
+                rate_hz = args
+                    .next()
+                    .unwrap_or_else(|| usage())
+                    .parse()
+                    .unwrap_or_else(|_| usage());
+                rate_given = true;
+            }
+            "--dur" => {
+                dur_secs = args
+                    .next()
+                    .unwrap_or_else(|| usage())
+                    .parse()
+                    .unwrap_or_else(|_| usage());
+                dur_given = true;
+            }
+            "--continuous" => {
+                continuous = args
+                    .next()
+                    .unwrap_or_else(|| usage())
+                    .parse()
+                    .ok()
+                    .filter(|s: &f64| s.is_finite() && *s > 0.0);
+                if continuous.is_none() {
+                    usage();
+                }
+            }
+            "--no-enroll" => no_enroll = true,
+            "--sealed" => sealed = true,
+            "--validate" => {
+                validate = Some(PathBuf::from(args.next().unwrap_or_else(|| usage())));
+            }
+            "--labels" => {
+                labels = args.next().unwrap_or_else(|| usage()).parse().ok();
+                if labels.is_none() {
+                    usage();
+                }
+            }
             _ => usage(),
         }
     }
     if enroll_only && resume_at.is_some() {
         usage();
+    }
+    if sealed && (enroll_only || resume_at.is_some() || max_utterances.is_some()) {
+        usage();
+    }
+    if rate_given && !sealed && continuous.is_none() {
+        eprintln!("--rate is sealed-only");
+        usage();
+    }
+    if let Some(secs) = continuous {
+        if sealed || enroll_only || resume_at.is_some() || max_utterances.is_some() {
+            eprintln!("--continuous takes no takes-mode flags");
+            usage();
+        }
+        if script.is_some() || dur_given {
+            eprintln!("--continuous takes no --script/--dur (window is SECS)");
+            usage();
+        }
+        if !rate_given {
+            eprintln!("--continuous requires --rate (sealed sessions are 16kHz)");
+            usage();
+        }
+        if !(1.0..=600.0).contains(&secs) {
+            eprintln!("--continuous must be within 1..=600s, got {secs}");
+            std::process::exit(1);
+        }
+    }
+    if !(0.5..=600.0).contains(&dur_secs) {
+        eprintln!("--dur must be within 0.5..=600s, got {dur_secs}");
+        std::process::exit(1);
+    }
+
+    if labels.is_some() && validate.is_none() {
+        eprintln!("--labels needs --validate DIR");
+        usage();
+    }
+    if let Some(dir) = validate {
+        let result = match labels {
+            Some(n) => fse::instrument::validate_session_general(&dir, n, dur_secs),
+            None => fse::instrument::validate_session(&dir),
+        };
+        match result {
+            Ok(_) => println!("VALID: {}", dir.display()),
+            Err(e) => {
+                println!("{e}");
+                std::process::exit(1);
+            }
+        }
+        return;
     }
 
     if list_only {
@@ -173,26 +444,36 @@ fn main() {
         std::process::exit(1);
     });
 
+    if let Some(secs) = continuous {
+        run_sealed(&out, &[format!("continuous-{secs}s")], rate_hz, secs);
+        return;
+    }
+
     // Utterance loop: one line = one expected transcript.
     let lines: Vec<String> = if enroll_only {
         Vec::new()
     } else {
-        match script {
+        match &script {
             Some(path) => {
-                let f = File::open(&path).unwrap_or_else(|e| {
+                let text = std::fs::read_to_string(path).unwrap_or_else(|e| {
                     eprintln!("cannot open {}: {e}", path.display());
                     std::process::exit(1);
                 });
-                BufReader::new(f)
-                    .lines()
-                    .map_while(Result::ok)
-                    .map(|l| l.trim().to_string())
-                    .filter(|l| !l.is_empty())
-                    .collect()
+                script_lines(&text)
             }
             None => vec!["the cat sat on the mat".to_string()],
         }
     };
+
+    if sealed {
+        if script.is_none() {
+            eprintln!("sealed session requires --script");
+            std::process::exit(1);
+        }
+        run_sealed(&out, &lines, rate_hz, dur_secs);
+        return;
+    }
+
     let start_index = resume_at.unwrap_or(0);
     let selected = select_utterances(&lines, start_index, max_utterances);
     let manifest_path = out.join("manifest.tsv");
@@ -219,7 +500,7 @@ fn main() {
         }
     }
 
-    let mut cap = MicCapture::new(3000).unwrap_or_else(|e| {
+    let mut cap = MicCapture::new((dur_secs * 1000.0).round() as u64).unwrap_or_else(|e| {
         eprintln!("no usable input device: {e}");
         std::process::exit(1);
     });
@@ -239,9 +520,15 @@ fn main() {
         })
     };
 
-    if resume_at.is_none() {
+    if resume_at.is_none() && !no_enroll {
         // Enrollment first: the fixed prompt, always `enroll.wav`.
-        let (rate, n) = capture_one(&mut cap, &out, "enroll", calibration::ENROLLMENT_PROMPT);
+        let (rate, n) = capture_one(
+            &mut cap,
+            &out,
+            "enroll",
+            calibration::ENROLLMENT_PROMPT,
+            dur_secs,
+        );
         writeln!(
             manifest,
             "enroll.wav\t{}\t{rate}\t{n}",
@@ -256,7 +543,7 @@ fn main() {
 
     for (index, expected) in selected {
         let stem = utterance_stem(index);
-        let (rate, n) = capture_one(&mut cap, &out, &stem, &expected);
+        let (rate, n) = capture_one(&mut cap, &out, &stem, &expected, dur_secs);
         writeln!(manifest, "{stem}.wav\t{expected}\t{rate}\t{n}").ok();
     }
     println!("done; manifest at {}", manifest_path.display());
@@ -277,4 +564,12 @@ fn resume_manifest_must_match_script_prefix() {
     assert!(validate_resume_manifest_text(manifest, &lines, 2).is_ok());
     assert!(validate_resume_manifest_text(manifest, &lines, 1).is_err());
     assert!(validate_resume_manifest_text(manifest, &["alpha".into(), "wrong".into()], 2).is_err());
+}
+#[test]
+fn script_lines_skips_blanks_and_hash_comments() {
+    let lines = script_lines("# provenance: test\n\n  hello world  \n# section\n\tsecond line\n");
+    assert_eq!(
+        lines,
+        vec!["hello world".to_string(), "second line".to_string()]
+    );
 }

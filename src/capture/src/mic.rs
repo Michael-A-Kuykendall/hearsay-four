@@ -54,7 +54,48 @@ impl MicCapture {
             duration_ms,
         })
     }
-
+    /// Capture at an explicitly requested mono rate (e.g. 16000 Hz for the
+    /// sealed instrument) instead of the device default. Fails closed when
+    /// no mono input config covers `rate_hz`.
+    pub fn new_with_rate(duration_ms: u64, rate_hz: u32) -> Result<Self, CaptureError> {
+        use cpal::traits::{DeviceTrait, HostTrait};
+        let host = cpal::default_host();
+        let device = host
+            .default_input_device()
+            .ok_or(CaptureError::NoInputDevice)?;
+        let wanted = cpal::SampleRate(rate_hz);
+        let mut best: Option<cpal::SupportedStreamConfig> = None;
+        let mut best_rank = u32::MAX;
+        let configs = device
+            .supported_input_configs()
+            .map_err(|e| CaptureError::Setup(e.to_string()))?;
+        for range in configs {
+            if range.channels() != 1
+                || range.min_sample_rate() > wanted
+                || range.max_sample_rate() < wanted
+            {
+                continue;
+            }
+            let rank = match range.sample_format() {
+                cpal::SampleFormat::I16 => 0,
+                cpal::SampleFormat::F32 => 1,
+                cpal::SampleFormat::U16 => 2,
+                _ => continue,
+            };
+            if rank < best_rank {
+                best_rank = rank;
+                best = Some(range.with_sample_rate(wanted));
+            }
+        }
+        let config = best.ok_or_else(|| {
+            CaptureError::Setup(format!("no mono input config covers {rate_hz} Hz"))
+        })?;
+        Ok(MicCapture {
+            device,
+            config,
+            duration_ms,
+        })
+    }
     /// Record one utterance and return MFCC frames (empty on stream error —
     /// the downstream `Enrollment::is_valid` invariant catches that).
     pub fn record(&mut self) -> Vec<Frame> {
@@ -141,6 +182,24 @@ impl MicCapture {
         let _ = stream.pause();
 
         (mono, sample_rate)
+    }
+    /// `record_raw` truncated to exactly `duration_ms` worth of frames.
+    /// Bursty sources (RDP/Pulse) can deliver more samples than the wall
+    /// window asks for; the excess is dropped and reported. Short takes are
+    /// returned short (fail-closed retries live in the caller).
+    pub fn record_exact(&mut self) -> (Vec<i16>, u32) {
+        let (mut mono, rate) = self.record_raw();
+        let expected = (u64::from(rate) * self.duration_ms / 1000) as usize;
+        if mono.len() > expected {
+            eprintln!(
+                "trimmed {} excess frames ({} captured, {} expected)",
+                mono.len() - expected,
+                mono.len(),
+                expected
+            );
+            mono.truncate(expected);
+        }
+        (mono, rate)
     }
 }
 

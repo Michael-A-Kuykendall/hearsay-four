@@ -13,6 +13,7 @@
 //!   (feature `mic`, requires a real input device at runtime).
 
 pub mod pcm;
+pub mod seal;
 
 #[cfg(feature = "mic")]
 pub mod mic;

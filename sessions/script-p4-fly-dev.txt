@@ -1,0 +1,33 @@
+# P4 fly DEV session script (vny): 20 fly + 10 family interleaved 2:1, 30 takes
+# Source: sessions/script-p4-fly.txt (DEV fly block + first 10 competitor lines)
+# Recorder: record-session --sealed --rate 16000 --dur 8; validate: --labels 30 --dur 8
+a fly landed on the rim
+the fly was caught in the web
+my family lives in ohio
+a fly buzzed near the lamp
+the fly rested on the sill
+the family gathered at noon
+a fly circled the bowl
+the fly tapped the glass
+our family shares the harvest
+a fly settled on the crust
+the fly dodged the swatter
+the family rented the cabin
+a fly perched on the rail
+the fly crossed the porch
+her family keeps the ledger
+a fly hovered near the jar
+the fly brushed the curtain
+the family crossed the river
+a fly slipped past the screen
+the fly paused on the ledge
+their family built the barn
+a fly darted toward the light
+the fly clung to the mesh
+the family saved the seeds
+a fly wandered across the tray
+the fly rubbed its wings
+his family mends the fence
+a fly explored the basket
+the fly vanished past the door
+the family trusts the well

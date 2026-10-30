@@ -1,0 +1,33 @@
+# P4 fly PTEST session script (vny): 20 fly + 10 family interleaved 2:1, 30 takes
+# Source: sessions/script-p4-fly.txt (PTEST fly block + last 10 competitor lines)
+# Recorder: record-session --sealed --rate 16000 --dur 8; validate: --labels 30 --dur 8
+a fly drifted near the candle
+the fly inspected the plate
+the family planted the orchard
+a fly zigzagged past the shelf
+the fly bumped the shade
+my family guards the recipe
+a fly lingered by the pitcher
+the fly traced the rim
+the family painted the gate
+a fly balanced on the thread
+the fly startled at the clap
+our family swept the hall
+a fly mapped the counter
+the fly tested the sugar
+the family counted the jars
+a fly braved the draft
+the fly circled the lantern
+her family lit the stove
+a fly claimed the corner
+the fly measured the gap
+the family locked the shed
+a fly risked the sill
+the fly patrolled the table
+their family traced the map
+a fly sampled the syrup
+the fly escaped the jar
+the family shared the bread
+a fly guarded the crumb
+the fly retired to the beam
+his family watched the storm

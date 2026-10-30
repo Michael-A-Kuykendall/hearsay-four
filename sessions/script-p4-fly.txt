@@ -1,0 +1,68 @@
+# P4 confusion-benchmark source, starter pair fly -> family (vny)
+# Protocol: docs/design/recording-protocol.md 3.3. Derived recorder scripts: script-p4-fly-dev.txt, script-p4-fly-ptest.txt (30 takes each, fly/family interleaved 2:1)
+# Recorder: record-session --sealed --rate 16000 --dur 8; validate each session: --labels 30 --dur 8
+# Competitor split is BY SESSION (first 10 family lines DEV, last 10 PTEST), never by sentence within a session
+# --- DEV target fly (20) ---
+a fly landed on the rim
+the fly was caught in the web
+a fly buzzed near the lamp
+the fly rested on the sill
+a fly circled the bowl
+the fly tapped the glass
+a fly settled on the crust
+the fly dodged the swatter
+a fly perched on the rail
+the fly crossed the porch
+a fly hovered near the jar
+the fly brushed the curtain
+a fly slipped past the screen
+the fly paused on the ledge
+a fly darted toward the light
+the fly clung to the mesh
+a fly wandered across the tray
+the fly rubbed its wings
+a fly explored the basket
+the fly vanished past the door
+# --- PTEST target fly (20) ---
+a fly drifted near the candle
+the fly inspected the plate
+a fly zigzagged past the shelf
+the fly bumped the shade
+a fly lingered by the pitcher
+the fly traced the rim
+a fly balanced on the thread
+the fly startled at the clap
+a fly mapped the counter
+the fly tested the sugar
+a fly braved the draft
+the fly circled the lantern
+a fly claimed the corner
+the fly measured the gap
+a fly risked the sill
+the fly patrolled the table
+a fly sampled the syrup
+the fly escaped the jar
+a fly guarded the crumb
+the fly retired to the beam
+# --- competitor family (20: first 10 DEV, last 10 PTEST) ---
+my family lives in ohio
+the family gathered at noon
+our family shares the harvest
+the family rented the cabin
+her family keeps the ledger
+the family crossed the river
+their family built the barn
+the family saved the seeds
+his family mends the fence
+the family trusts the well
+# --- competitor DEV/PTEST split (lines above DEV, lines below PTEST) ---
+the family planted the orchard
+my family guards the recipe
+the family painted the gate
+our family swept the hall
+the family counted the jars
+her family lit the stove
+the family locked the shed
+their family traced the map
+the family shared the bread
+his family watched the storm
