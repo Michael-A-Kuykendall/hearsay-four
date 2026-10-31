@@ -193,3 +193,50 @@ pub fn load_lm_train_sources(
     }
     Ok(out)
 }
+/// True when every text file backing the LM manifests exists on disk.
+///
+/// Mirrors the entry selection of [`load_lm_train_sources`] (all
+/// `lm-train-text.json` entries) and [`load_dev_evaluation_lines`]
+/// (`dev.json` transcript / quality-test entries). Tests skip when this is
+/// false (gitignored transcripts or the better-voice sibling are absent);
+/// unreadable manifests still fail via the returned `Err`.
+pub fn lm_text_files_present(repo_root: &Path, better_voice_root: &Path) -> Result<bool, String> {
+    let part_dir = repo_root.join("data/partitions");
+    let read_entries = |name: &str| -> Result<Vec<serde_json::Value>, String> {
+        let raw = std::fs::read_to_string(part_dir.join(name))
+            .map_err(|e| format!("read {name}: {e}"))?;
+        let v: serde_json::Value =
+            serde_json::from_str(&raw).map_err(|e| format!("parse {name}: {e}"))?;
+        v.get("entries")
+            .and_then(|e| e.as_array())
+            .cloned()
+            .ok_or_else(|| format!("{name}: missing entries"))
+    };
+    let resolve = |root: &str, path: &str| -> PathBuf {
+        match root {
+            "better-voice" => better_voice_root.join(path),
+            _ => repo_root.join(path),
+        }
+    };
+    for e in read_entries("lm-train-text.json")? {
+        let path = e.get("path").and_then(|p| p.as_str()).unwrap_or("");
+        let root = e.get("root").and_then(|r| r.as_str()).unwrap_or("repo");
+        if !resolve(root, path).is_file() {
+            return Ok(false);
+        }
+    }
+    for e in read_entries("dev.json")? {
+        let path = e.get("path").and_then(|p| p.as_str()).unwrap_or("");
+        let dataset = e.get("dataset").and_then(|d| d.as_str()).unwrap_or("");
+        let selected = path.ends_with("transcript.json")
+            || (dataset == "quality_test" && path.ends_with(".tsv"));
+        if !selected {
+            continue;
+        }
+        let root = e.get("root").and_then(|r| r.as_str()).unwrap_or("repo");
+        if !resolve(root, path).is_file() {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}

@@ -12,7 +12,7 @@
 //!   cases `10-218_2011` (11 speakers) + `70-112_1971` (8 speakers).
 //!   `session.tsv` transcripts come from the lane checkout (committed text);
 //!   `audio/run1.wav` is gitignored so it is read from the main workspace
-//!   (`HEARSAY_MAIN_ROOT`, default `/home/michael/repos/hearsay-four`).
+//!   (`HEARSAY_MAIN_ROOT`, default: this checkout).
 //! - SI DEV (human read speech, unseen speaker, D0 VERIFIED CC BY 4.0,
 //!   D1 DEV partition): `libri_mini_spaced` (LibriSpeech speaker 103,
 //!   40 utterances) from better-voice.
@@ -31,8 +31,8 @@
 //!
 //! Reproduce (release; ignored by default, ~9 min):
 //! `cargo test --release -p hmm --test r3_si_base_tests -- --nocapture --test-threads=1 --include-ignored`
-//! with `/home/michael/repos/better-voice` and `/home/michael/repos/hearsay-four`
-//! present (or `HEARSAY_MAIN_ROOT` set).
+//! with the `better-voice` sibling checkout and this repo's gitignored audio
+//! present (or `HEARSAY_MAIN_ROOT` / `BETTER_VOICE_ROOT` set).
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
@@ -70,12 +70,12 @@ fn better_voice_root() -> PathBuf {
 }
 
 /// Root providing gitignored audio (`sessions/oyez-bulk/*/audio/run1.wav`).
-/// Lane worktrees do not contain project audio, so this defaults to the
-/// main workspace; override with `HEARSAY_MAIN_ROOT`.
+/// Defaults to this checkout; lanes without project audio override with
+/// `HEARSAY_MAIN_ROOT`.
 fn main_root() -> PathBuf {
     std::env::var("HEARSAY_MAIN_ROOT")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("/home/michael/repos/hearsay-four"))
+        .unwrap_or_else(|_| lane_root())
 }
 
 fn load_partition(name: &str) -> serde_json::Value {

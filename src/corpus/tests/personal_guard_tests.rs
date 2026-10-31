@@ -13,7 +13,11 @@ fn personal_guard_passes_on_tracked_tree() {
         .expect("workspace root above src/corpus")
         .to_path_buf();
     let script = root.join("scripts/personal_guard.sh");
-    assert!(script.exists(), "missing guard script: {}", script.display());
+    assert!(
+        script.exists(),
+        "missing guard script: {}",
+        script.display()
+    );
     let out = Command::new("sh")
         .arg(&script)
         .current_dir(&root)

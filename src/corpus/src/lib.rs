@@ -4,7 +4,7 @@
 //! Hearsay-IV from two pools:
 //!
 //! 1. **Local better-voice** clips (ul2.3 [`manifest`]) — referenced, never
-//!    moved (`/home/michael/repos/better-voice`, see
+//!    moved (sibling checkout or `$BETTER_VOICE_ROOT`, see
 //!    `docs/research/corpus/local-bettervoice-inventory.md`).
 //! 2. **CourtListener** SCOTUS oral-argument audio + built-in STT transcripts
 //!    (ul2.1 [`courtlistener`], see
@@ -21,7 +21,8 @@ pub mod ground_truth;
 pub mod invariants;
 pub mod manifest;
 
-/// Reference better-voice root (also in [`manifest::DEFAULT_BETTER_VOICE_ROOT`]).
+/// Reference better-voice root, relative to the workspace root
+/// (see [`manifest::DEFAULT_BETTER_VOICE_ROOT`]).
 pub const BETTER_VOICE_ROOT: &str = manifest::DEFAULT_BETTER_VOICE_ROOT;
 
 #[cfg(test)]

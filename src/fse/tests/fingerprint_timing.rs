@@ -163,7 +163,18 @@ fn timing_classifier_protocol_complete() {
     // Canonical run1 audio through the timing-only pipeline: 120 clips
     // evaluated, deterministic (take = per-word occurrence order, as in
     // a1_gate). RS-1 §5: owner audio ONLY via the canonical loader.
-    let session = corpus::canonical::load_session(Path::new("../../sessions/canon/run1")).unwrap();
+    let workspace = std::env::var("HEARSAY_MAIN_ROOT")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."));
+    let canon = workspace.join("sessions/canon/run1");
+    if !canon.join("manifest.tsv").is_file() {
+        eprintln!(
+            "SKIP: canonical run1 absent at {} (gitignored; run canon-session or set $HEARSAY_MAIN_ROOT)",
+            canon.display()
+        );
+        return;
+    }
+    let session = corpus::canonical::load_session(&canon).unwrap();
     assert_eq!(session.takes.len(), 120, "DEV session has 120 clips");
     let mut take_of: BTreeMap<String, usize> = BTreeMap::new();
     // Per clip: (word, take, [lead_ms, trail_ms, dur_ms, centroid_ms]).

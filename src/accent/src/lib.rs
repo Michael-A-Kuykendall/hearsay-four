@@ -18,9 +18,24 @@ use invariant_ppt::assert_invariant;
 pub use calibration::{Baseline, FEATURE_DIM, Frame};
 pub use measure::SessionRow;
 
-/// Session data root: `SESSION_ROOT` env override, else the repo default.
+/// Session data root: `$SESSION_ROOT` override, else `data/session` under the
+/// workspace root (the `session.tsv` manifest is a committed fixture there;
+/// `audio/` holds gitignored session audio).
 pub const SESSION_ROOT_ENV: &str = "SESSION_ROOT";
-pub const DEFAULT_SESSION_ROOT: &str = "/home/michael/repos/hearsay-four/data/session";
+pub const DEFAULT_SESSION_ROOT: &str = "data/session";
+
+/// Workspace root (`<repo>`), derived from this crate's manifest dir.
+pub fn workspace_root() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+/// Resolved session root: `$SESSION_ROOT`, else `data/session` under the
+/// workspace root. Never a host-absolute path.
+pub fn default_session_root() -> std::path::PathBuf {
+    std::env::var(SESSION_ROOT_ENV)
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| workspace_root().join(DEFAULT_SESSION_ROOT))
+}
 /// Session audio file, relative to the session root.
 pub const SESSION_AUDIO: &str = "audio/24-889_20260429-argument.mp3";
 
@@ -251,9 +266,7 @@ pub fn baseline_from_frames(
 
 /// Decode the session audio (full clip) into 16 kHz mono PCM.
 pub fn decode_session_audio() -> Result<corpus::audio::Pcm16kAudio, String> {
-    let root = std::env::var(SESSION_ROOT_ENV)
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| std::path::PathBuf::from(DEFAULT_SESSION_ROOT));
+    let root = default_session_root();
     corpus::audio::decode_to_pcm16k(&root.join(SESSION_AUDIO))
 }
 

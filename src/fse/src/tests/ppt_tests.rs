@@ -127,7 +127,11 @@ proptest! {
 #[test]
 fn emit_candidates_real_corpus_clip() {
     let _guard = invariant_ppt::test_lock::lock();
-    let root = std::path::PathBuf::from(corpus::manifest::DEFAULT_BETTER_VOICE_ROOT);
+    if !corpus::manifest::CorpusManifest::is_available() {
+        eprintln!("SKIP: better-voice checkout absent (set $BETTER_VOICE_ROOT)");
+        return;
+    }
+    let root = corpus::manifest::CorpusManifest::root();
     let path = root.join("data/phrase_training/audio/phrase_000000.wav");
     let audio = corpus::audio::decode_to_pcm16k(&path).expect("decode real clip");
     let frames = extract_features(&window_audio(&audio.frames, 16_000), 16_000).expect("features");

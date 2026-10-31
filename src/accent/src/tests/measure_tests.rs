@@ -12,7 +12,11 @@ use crate::measure::{BucketStat, SessionRow, apply_rule, load_session, measure_s
 use crate::{ConditionA, ConditionB, FEATURE_DIM, decode_session_audio, score_session_utterance};
 use calibration::{Frame, fit_baseline};
 
-const SESSION_ROOT: &str = "/home/michael/repos/hearsay-four/data/session";
+/// Session root: `$SESSION_ROOT`, else `data/session` under this checkout
+/// (the `session.tsv` manifest there is a committed fixture).
+fn session_root() -> std::path::PathBuf {
+    crate::default_session_root()
+}
 
 fn synthetic_frames(n: usize, dim_value: f64) -> Vec<Frame> {
     (0..n)
@@ -28,7 +32,7 @@ fn synthetic_frames(n: usize, dim_value: f64) -> Vec<Frame> {
 
 #[test]
 fn measure_session_loads_manifest() {
-    let rows = load_session(std::path::Path::new(SESSION_ROOT)).expect("load session");
+    let rows = load_session(&session_root()).expect("load session");
     assert!(!rows.is_empty());
     for r in &rows {
         assert!(r.bucket <= 1, "bucket {} present", r.bucket);
@@ -166,8 +170,14 @@ fn apply_rule_b_not_monotone_fails() {
 
 #[test]
 fn measure_symmetry_b_uses_same_audio_frames() {
-    let rows = load_session(std::path::Path::new(SESSION_ROOT)).expect("session");
-    let audio = decode_session_audio().expect("decode");
+    let rows = load_session(&session_root()).expect("session");
+    let audio = match decode_session_audio() {
+        Ok(audio) => audio,
+        Err(e) => {
+            eprintln!("SKIP: session audio absent (gitignored data/session/audio): {e}");
+            return;
+        }
+    };
     assert_eq!(audio.sample_rate, 16_000);
 
     let windows = fse::window_audio(&audio.frames, 16_000);

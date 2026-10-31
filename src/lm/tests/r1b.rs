@@ -179,11 +179,26 @@ fn persistence_round_trip_and_byte_identical_rebuild() {
     assert!(persist::kn_from_bytes(&wrong_kind).is_err());
 }
 
+/// Better-voice checkout: `$BETTER_VOICE_ROOT` (or `$HEARSAY_BETTER_VOICE_ROOT`),
+/// else the `better-voice` sibling of this checkout.
+fn better_voice_root() -> std::path::PathBuf {
+    for env in ["BETTER_VOICE_ROOT", "HEARSAY_BETTER_VOICE_ROOT"] {
+        if let Ok(v) = std::env::var(env) {
+            return std::path::PathBuf::from(v);
+        }
+    }
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../better-voice")
+}
+
 #[test]
 fn dev_evaluation_lines_are_disjoint_from_training() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let bw = std::path::Path::new("/home/michael/repos/better-voice");
-    let dev = lm::load_dev_evaluation_lines(&root, bw).expect("DEV evaluation lines");
+    let bw = better_voice_root();
+    if !lm::lm_text_files_present(&root, &bw).expect("read LM manifests") {
+        eprintln!("SKIP: LM text files absent (gitignored transcripts or better-voice sibling)");
+        return;
+    }
+    let dev = lm::load_dev_evaluation_lines(&root, &bw).expect("DEV evaluation lines");
     assert!(dev.iter().any(|s| s.path.contains("24-889")));
     assert!(dev.iter().all(|s| !s.lines.is_empty()));
     let dev_sents = lm::sentences_from_sources(&dev);

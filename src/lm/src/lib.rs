@@ -11,7 +11,8 @@ pub mod normalize;
 pub mod persist;
 
 pub use ingest::{
-    IngestedSource, extract_text_lines, load_dev_evaluation_lines, load_lm_train_sources,
+    IngestedSource, extract_text_lines, lm_text_files_present, load_dev_evaluation_lines,
+    load_lm_train_sources,
 };
 pub use interpolate::{InterpolatedLm, TuneResult, tune_personal_weight};
 pub use kneser_ney::{Discounts, InspectableModel, KnTrigram, PerplexityReport};

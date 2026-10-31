@@ -148,7 +148,8 @@ def dump(name, payload):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--better-voice-root", default=os.environ.get(
-        "HEARSAY_BETTER_VOICE_ROOT", "/home/michael/repos/better-voice"))
+        "HEARSAY_BETTER_VOICE_ROOT", os.environ.get(
+            "BETTER_VOICE_ROOT", str(REPO.parent / "better-voice"))))
     ap.add_argument("--sealed-at", default="2026-10-28")
     args = ap.parse_args()
     bv = args.better_voice_root

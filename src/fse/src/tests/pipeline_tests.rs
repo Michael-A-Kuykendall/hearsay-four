@@ -105,7 +105,11 @@ fn score_frame_returns_finite_nll_against_calibration_baseline() {
 
 #[test]
 fn process_clip_real_16khz_corpus_clip() {
-    let root = std::path::PathBuf::from(corpus::manifest::DEFAULT_BETTER_VOICE_ROOT);
+    if !corpus::manifest::CorpusManifest::is_available() {
+        eprintln!("SKIP: better-voice checkout absent (set $BETTER_VOICE_ROOT)");
+        return;
+    }
+    let root = corpus::manifest::CorpusManifest::root();
     let path = root.join("data/phrase_training/audio/phrase_000000.wav");
     let audio = corpus::audio::decode_to_pcm16k(&path).expect("decode real clip");
     assert_eq!(audio.sample_rate, 16_000);
@@ -155,6 +159,10 @@ fn closed_vocabulary_is_30_words_subsetting_phrase_training() {
             .all(|w| !w.is_empty() && w.chars().all(|c| c.is_ascii_lowercase()))
     );
 
+    if !corpus::manifest::CorpusManifest::is_available() {
+        eprintln!("SKIP: better-voice checkout absent (set $BETTER_VOICE_ROOT)");
+        return;
+    }
     let manifest = corpus::manifest::CorpusManifest::load().expect("manifest");
     let rows = manifest.rows_from(corpus::manifest::CorpusSource::PhraseTraining, None);
     let transcript: String = rows.iter().map(|r| format!("{} ", r.text)).collect();

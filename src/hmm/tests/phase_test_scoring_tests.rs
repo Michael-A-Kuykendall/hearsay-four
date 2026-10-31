@@ -30,15 +30,14 @@
 //!
 //! DATA RULE: transcripts come from the lane checkout (committed text);
 //! `audio.mp3` files are gitignored and read read-only from the main
-//! workspace (`HEARSAY_MAIN_ROOT`, default
-//! `/home/michael/repos/hearsay-four`). Nothing outside the lane is
-//! written. Consumed groups must equal the partition's group set and no
-//! consumed path may carry a sealed-case fragment.
+//! workspace (`HEARSAY_MAIN_ROOT`, default: this checkout).
+//! Nothing outside the lane is written. Consumed groups must equal the
+//! partition's group set and no consumed path may carry a sealed-case fragment.
 //!
 //! Reproduce (release; ignored by default — heavy real-data gate):
 //! `cargo test --release -p hmm --test phase_test_scoring_tests -- --nocapture --test-threads=1 --include-ignored`
-//! with `/home/michael/repos/better-voice` and `/home/michael/repos/hearsay-four`
-//! present (or `HEARSAY_MAIN_ROOT` set).
+//! with the `better-voice` sibling checkout and this repo's gitignored audio
+//! present (or `HEARSAY_MAIN_ROOT` / `BETTER_VOICE_ROOT` set).
 
 use corpus::audio::{decode_file, to_mono};
 use fse::{extract_features, window_audio};
@@ -65,18 +64,20 @@ fn lane_root() -> PathBuf {
 }
 
 fn better_voice_root() -> PathBuf {
-    let lane = lane_root().join("../better-voice");
-    if lane.join("data").is_dir() {
-        return lane;
+    for env in ["BETTER_VOICE_ROOT", "HEARSAY_BETTER_VOICE_ROOT"] {
+        if let Ok(v) = std::env::var(env) {
+            return PathBuf::from(v);
+        }
     }
-    PathBuf::from("/home/michael/repos/better-voice")
+    lane_root().join("../better-voice")
 }
 
-/// Main workspace: read-only source of gitignored audio (lane has none).
+/// Main workspace: read-only source of gitignored audio. Defaults to this
+/// checkout; lanes without project audio override with `HEARSAY_MAIN_ROOT`.
 fn main_root() -> PathBuf {
     std::env::var("HEARSAY_MAIN_ROOT")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("/home/michael/repos/hearsay-four"))
+        .unwrap_or_else(|_| lane_root())
 }
 
 fn basename_lower(p: &str) -> String {

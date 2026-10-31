@@ -30,12 +30,20 @@ fn lane_root() -> PathBuf {
 }
 
 fn better_voice_root() -> PathBuf {
+    for env in ["BETTER_VOICE_ROOT", "HEARSAY_BETTER_VOICE_ROOT"] {
+        if let Ok(v) = std::env::var(env) {
+            return PathBuf::from(v);
+        }
+    }
     lane_root().join("../better-voice")
 }
 
-/// Main workspace: read-only source of owner audio (lane has none).
+/// Main workspace: read-only source of owner audio. Defaults to this
+/// checkout; lanes without project audio override with `HEARSAY_MAIN_ROOT`.
 fn main_root() -> PathBuf {
-    lane_root().join("../hearsay-four")
+    std::env::var("HEARSAY_MAIN_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| lane_root())
 }
 
 fn norm_words(text: &str) -> Vec<String> {
@@ -127,12 +135,13 @@ fn load_owner_clips(
     lex: &HashMap<String, Vec<Vec<String>>>,
 ) -> (Vec<OwnerUtt>, BTreeMap<&'static str, usize>) {
     // RS-1 §5: owner audio ONLY through the canonical loader (never raw).
+    // Missing canon (gitignored, built by canon-session) is environmental:
+    // callers skip on the empty clip list below.
     let canon = main_root().join("sessions/canon/run1");
-    assert!(
-        canon.is_dir(),
-        "main workspace canonical run1 missing: {} (run canon-session on main first)",
-        canon.display()
-    );
+    if !canon.is_dir() {
+        eprintln!("SKIP: canonical run1 absent at {}", canon.display());
+        return (Vec::new(), BTreeMap::new());
+    }
     let session = corpus::canonical::load_session(&canon)
         .unwrap_or_else(|e| panic!("load canonical run1 {}: {e}", canon.display()));
     let mut out = Vec::new();
@@ -163,7 +172,13 @@ fn load_owner_clips(
 fn owner_enrollment_map_gate() {
     let root = lane_root();
     let bv = better_voice_root();
-    assert!(bv.is_dir(), "better-voice root missing: {}", bv.display());
+    if !bv.join("data").is_dir() {
+        eprintln!(
+            "SKIP: better-voice checkout absent at {} (set $BETTER_VOICE_ROOT)",
+            bv.display()
+        );
+        return;
+    }
     // NOTE: phase-test.json and lockbox.json are deliberately never loaded
     // here (lane data rule); the gate decides on owner DEV only.
 
@@ -188,6 +203,10 @@ fn owner_enrollment_map_gate() {
     // runs on the recorded run1 clips available).
     let (owner, oskipped) = load_owner_clips(&lex);
     eprintln!("owner clips loaded={} skipped={oskipped:?}", owner.len());
+    if owner.is_empty() {
+        eprintln!("SKIP: no usable owner clips (gitignored run1 audio absent)");
+        return;
+    }
     let mut groups: BTreeMap<&str, Vec<usize>> = BTreeMap::new();
     for (i, u) in owner.iter().enumerate() {
         groups.entry(u.text.as_str()).or_default().push(i);
