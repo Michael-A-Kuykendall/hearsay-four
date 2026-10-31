@@ -18,17 +18,26 @@
 //! v0 scope (Oct 31 plumbing checkpoint): single-best token passing over a
 //! phone trie, linear (1-best) lattice emission. Word output today is
 //! unchecked and may be garbage; what is proven is the end-to-end path
-//! WAV → frontend → trie search → A5 lattice. Follow-ups: N-best lattice
-//! with alternates, calibrated `acoustic_llr`, incremental streaming,
-//! silence modeling, LM lookahead inside search.
+//! WAV → frontend → trie search → A5 lattice.
+//!
+//! R5a large-vocab path: [`vocab`] builds the trie word list (LM top-N by
+//! frequency plus book words, tiered-lexicon pronunciations) and the search
+//! applies trie-node LM lookahead in pruning (stored scores stay exact).
+//! Follow-ups: N-best lattice with alternates, calibrated `acoustic_llr`,
+//! incremental streaming, silence modeling.
 
 use lattice::Lattice;
 
 pub mod moore;
 pub mod trie;
+pub mod vocab;
 
 pub use moore::{DecoderConfig, MooreDecoder};
 pub use trie::{PronEntry, PronTrie};
+pub use vocab::{
+    BookSource, VocabReport, book_types_from_personal, book_types_from_text, build_entries,
+    top_lm_words,
+};
 
 /// Frozen decoder trait (interfaces-v1 §I4).
 ///

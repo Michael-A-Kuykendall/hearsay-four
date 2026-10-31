@@ -12,3 +12,5 @@ lexicon = { path = "../lexicon" }
 
 [dev-dependencies]
 corpus = { path = "../corpus" }
+eval = { path = "../eval" }
+output = { path = "../output" }

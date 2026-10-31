@@ -215,3 +215,87 @@ fn decode_with_lm_file_inside_search() {
     assert_eq!(lattice::read_lattice(&text).expect("read lattice"), lattice);
     std::fs::remove_file(&lm_path).ok();
 }
+/// Lookahead exactness: with pruning disabled (astronomical beam + token
+/// cap), weight 0 and weight 1 decode identically — lookahead only ranks.
+#[test]
+fn lookahead_weight_zero_matches_weight_one_without_pruning() {
+    let dict = "HOTBED HH AA T B EH D\nRIPPLE R IH P AH L\n";
+    let sentences: Vec<Vec<String>> = vec![
+        "a hotbed".split(' ').map(str::to_string).collect(),
+        "b hotbed".split(' ').map(str::to_string).collect(),
+        "c ripple".split(' ').map(str::to_string).collect(),
+    ];
+    let model = lm::KnTrigram::train(&sentences);
+    let lm_path = std::env::temp_dir().join("decoder-unpruned-test-lm.kn");
+    lm::persist::save_kn(&model, &lm_path).expect("save test lm");
+    let cfg_off = DecoderConfig {
+        beam: 1e9,
+        max_tokens: 100_000,
+        lookahead_weight: 0.0,
+        ..DecoderConfig::default()
+    };
+    let cfg_on = DecoderConfig {
+        lookahead_weight: 1.0,
+        ..cfg_off.clone()
+    };
+    let dec_off = MooreDecoder::load(&am_path(), Some(&lm_path), dict, cfg_off).expect("load off");
+    let dec_on = MooreDecoder::load(&am_path(), Some(&lm_path), dict, cfg_on).expect("load on");
+    std::fs::remove_file(&lm_path).ok();
+
+    let wav = sample_wav();
+    let audio = corpus::audio::decode_file(&wav).expect("decode demo wav");
+    let pcm16k = resample_to_16k(&corpus::audio::to_mono(&audio), audio.sample_rate);
+    let clip = &pcm16k[..8_000.min(pcm16k.len())];
+    let lat_off = dec_off.decode(clip);
+    let lat_on = dec_on.decode(clip);
+    assert_eq!(
+        lat_off, lat_on,
+        "unpruned search must not depend on lookahead"
+    );
+}
+/// Large-vocab path on synthetic inputs: tiered lexicon + LM top-N +
+/// `load_with_vocab` decodes end to end.
+#[test]
+fn large_vocab_load_from_tiered_lexicon() {
+    let sentences: Vec<Vec<String>> = vec![
+        "hotbed hotbed ripple"
+            .split(' ')
+            .map(str::to_string)
+            .collect(),
+        "hotbed ripple".split(' ').map(str::to_string).collect(),
+    ];
+    let model = lm::KnTrigram::train(&sentences);
+    let top = decoder::top_lm_words(&model, None, 10);
+    assert!(top.contains(&"hotbed".to_string()));
+    assert!(top.contains(&"ripple".to_string()));
+    let tier1 = "HOTBED HH AA T B EH D\n";
+    let tier2 = "RIPPLE R IH P AH L\n";
+    let lex = lexicon::ingest_tiered(tier1, tier2);
+    let book: std::collections::BTreeSet<String> = ["ripple".to_string()].into_iter().collect();
+    let (entries, report) =
+        decoder::build_entries(&top, &book, 10, decoder::BookSource::BookText, &lex);
+    assert_eq!(report.kept_words, 2);
+    assert_eq!(report.tier1_words, 1);
+    assert_eq!(report.tier2_words, 1);
+    assert_eq!(report.oov_lm, 0);
+    let lm_path = std::env::temp_dir().join("decoder-vocab-test-lm.kn");
+    lm::persist::save_kn(&model, &lm_path).expect("save test lm");
+    let decoder = MooreDecoder::load_with_vocab(
+        &am_path(),
+        Some(&lm_path),
+        &entries,
+        DecoderConfig::default(),
+    )
+    .expect("load_with_vocab");
+    std::fs::remove_file(&lm_path).ok();
+    assert_eq!(decoder.vocab_size(), 2);
+    assert!(decoder.skipped_words().is_empty());
+    assert!(decoder.has_lm());
+
+    let wav = sample_wav();
+    let audio = corpus::audio::decode_file(&wav).expect("decode demo wav");
+    let pcm16k = resample_to_16k(&corpus::audio::to_mono(&audio), audio.sample_rate);
+    let clip = &pcm16k[..8_000.min(pcm16k.len())];
+    let lattice = decoder.decode(clip);
+    assert!(!lattice.tokens.is_empty());
+}

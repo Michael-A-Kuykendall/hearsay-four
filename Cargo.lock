@@ -394,11 +394,13 @@ name = "decoder"
 version = "0.1.0"
 dependencies = [
  "corpus",
+ "eval",
  "fse",
  "hmm",
  "lattice",
  "lexicon",
  "lm",
+ "output",
 ]
 
 [[package]]

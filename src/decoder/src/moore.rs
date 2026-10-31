@@ -41,6 +41,11 @@ pub struct DecoderConfig {
     pub word_penalty: f64,
     /// LM log-prob weight (default 1).
     pub lm_weight: f64,
+    /// Trie-node LM-lookahead weight in the pruning rank (default 1).
+    ///
+    /// Lookahead guides which tokens survive the beam; stored path scores
+    /// stay exact. 0 disables lookahead (rank = path score).
+    pub lookahead_weight: f64,
 }
 
 impl Default for DecoderConfig {
@@ -50,6 +55,7 @@ impl Default for DecoderConfig {
             max_tokens: 2000,
             word_penalty: 0.0,
             lm_weight: 1.0,
+            lookahead_weight: 1.0,
         }
     }
 }
@@ -67,6 +73,19 @@ impl LmKind {
             LmKind::Ix(m) => m.prob(w1, w2, w),
         };
         p.max(1e-12).ln()
+    }
+    /// Static per-word prior for trie-node lookahead (continuation unigram;
+    /// convex mix with the same weight as [`InterpolatedLm::prob`]).
+    fn unigram_prob(&self, w: &str) -> f64 {
+        match self {
+            LmKind::Kn(m) => m.unigram_prob(w),
+            LmKind::Ix(m) => {
+                let lambda = m.personal_weight();
+                ((1.0 - lambda) * m.general().unigram_prob(w)
+                    + lambda * m.personal().unigram_prob(w))
+                .clamp(0.0, 1.0)
+            }
+        }
     }
 }
 
@@ -109,6 +128,9 @@ pub struct MooreDecoder {
     am: HmmSet,
     topo: HashMap<String, PhoneTopology>,
     trie: PronTrie,
+    /// Per-trie-node LM lookahead (max unigram log-prob over the subtree),
+    /// aligned with `trie.nodes`; all zeros when no LM is loaded.
+    lookahead: Vec<f64>,
     id_words: Vec<String>,
     word_ids: HashMap<String, u32>,
     lm: Option<LmKind>,
@@ -182,6 +204,22 @@ impl MooreDecoder {
         if entries.is_empty() {
             return Err("dict produced zero usable entries".to_string());
         }
+        let lm = match lm_path {
+            None => None,
+            Some(path) => Some(Self::load_lm(path)?),
+        };
+        Self::assemble(am, lm, entries, skipped, cfg)
+    }
+    /// Assemble a decoder from a loaded AM, an optional LM, and pronunciation
+    /// entries. Shared by [`MooreDecoder::load`] (CMUdict text) and
+    /// [`MooreDecoder::load_with_vocab`] (programmatic vocab).
+    fn assemble(
+        am: HmmSet,
+        lm: Option<LmKind>,
+        entries: Vec<PronEntry>,
+        skipped: Vec<String>,
+        cfg: DecoderConfig,
+    ) -> Result<Self, String> {
         let mut topo: HashMap<String, PhoneTopology> = HashMap::new();
         for entry in &entries {
             for phone in &entry.phones {
@@ -191,6 +229,20 @@ impl MooreDecoder {
             }
         }
         let trie = PronTrie::build(&entries);
+        let lookahead = match &lm {
+            None => vec![0.0; trie.nodes.len()],
+            Some(lm) => {
+                let unk = lm.unigram_prob(lm::UNK_TOKEN).max(1e-12).ln();
+                let mut scores = HashMap::with_capacity(entries.len());
+                for entry in &entries {
+                    scores.insert(
+                        entry.word.clone(),
+                        lm.unigram_prob(&entry.word.to_lowercase()).max(1e-12).ln(),
+                    );
+                }
+                trie.build_lookahead(&scores, unk)
+            }
+        };
         let mut id_words: Vec<String> = entries.iter().map(|e| e.word.clone()).collect();
         id_words.sort();
         id_words.dedup();
@@ -199,14 +251,11 @@ impl MooreDecoder {
             .enumerate()
             .map(|(i, w)| (w.clone(), i as u32))
             .collect();
-        let lm = match lm_path {
-            None => None,
-            Some(path) => Some(Self::load_lm(path)?),
-        };
         Ok(Self {
             am,
             topo,
             trie,
+            lookahead,
             id_words,
             word_ids,
             lm,
@@ -215,7 +264,59 @@ impl MooreDecoder {
             stream_buf: Vec::new(),
         })
     }
-
+    /// Load a decoder from an acoustic model file, an optional LM file, and
+    /// programmatic pronunciation entries (the large-vocab path).
+    ///
+    /// Entries with non-alphabet phones or phones missing from the acoustic
+    /// inventory are skipped loudly (see [`MooreDecoder::skipped_words`]);
+    /// a surviving set of zero fails the load.
+    pub fn load_with_vocab(
+        am_path: &Path,
+        lm_path: Option<&Path>,
+        entries: &[PronEntry],
+        cfg: DecoderConfig,
+    ) -> Result<Self, String> {
+        let am = HmmSet::load_text(am_path)
+            .map_err(|e| format!("acoustic model {}: {e:?}", am_path.display()))?;
+        if am.dim != fse::FEATURE_DIM {
+            return Err(format!(
+                "acoustic dim {} != frontend dim {}",
+                am.dim,
+                fse::FEATURE_DIM
+            ));
+        }
+        let mut kept: Vec<PronEntry> = Vec::with_capacity(entries.len());
+        let mut skipped: Vec<String> = Vec::new();
+        for entry in entries {
+            if entry.phones.is_empty() || !lexicon::phones_in_alphabet(&entry.phones) {
+                skipped.push(format!("{} (non-alphabet phone)", entry.word));
+                continue;
+            }
+            let missing: Vec<&str> = entry
+                .phones
+                .iter()
+                .map(String::as_str)
+                .filter(|p| !am.phones.contains_key(*p))
+                .collect();
+            if !missing.is_empty() {
+                skipped.push(format!(
+                    "{} (missing from AM: {})",
+                    entry.word,
+                    missing.join(",")
+                ));
+                continue;
+            }
+            kept.push(entry.clone());
+        }
+        if kept.is_empty() {
+            return Err("vocab produced zero usable entries".to_string());
+        }
+        let lm = match lm_path {
+            None => None,
+            Some(path) => Some(Self::load_lm(path)?),
+        };
+        Self::assemble(am, lm, kept, skipped, cfg)
+    }
     /// Words skipped at load with reasons. Empty means full coverage.
     pub fn skipped_words(&self) -> &[String] {
         &self.skipped_words
@@ -409,17 +510,24 @@ impl MooreDecoder {
         }
     }
 
+    /// Beam + histogram prune. Tokens rank by path score plus the weighted
+    /// trie-node LM lookahead; stored scores are never modified, so the
+    /// search objective stays exact with or without lookahead.
     fn prune(&self, toks: &mut BTreeMap<Key, VToken>) {
         if toks.is_empty() {
             return;
         }
+        let rank = |node: usize, tok: &VToken| {
+            tok.score + self.cfg.lookahead_weight * self.lookahead.get(node).copied().unwrap_or(0.0)
+        };
         let best = toks
-            .values()
-            .map(|t| t.score)
+            .iter()
+            .map(|(&(node, _, _, _), t)| rank(node, t))
             .fold(f64::NEG_INFINITY, f64::max);
-        toks.retain(|_, t| t.score >= best - self.cfg.beam);
+        toks.retain(|&(node, _, _, _), t| rank(node, t) >= best - self.cfg.beam);
         if toks.len() > self.cfg.max_tokens {
-            let mut ranked: Vec<(Key, f64)> = toks.iter().map(|(k, t)| (*k, t.score)).collect();
+            let mut ranked: Vec<(Key, f64)> =
+                toks.iter().map(|(k, t)| (*k, rank(k.0, t))).collect();
             ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
             ranked.truncate(self.cfg.max_tokens);
             let keep: HashSet<Key> = ranked.into_iter().map(|(k, _)| k).collect();
@@ -606,4 +714,58 @@ impl Recognizer for MooreDecoder {
 
 fn finite_or(value: f64, fallback: f64) -> f64 {
     if value.is_finite() { value } else { fallback }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn am_path() -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../models/si_base/model.json")
+    }
+
+    /// Lookahead wiring: with an LM, per-node values are finite unigram
+    /// log-probs with the root at the max; without an LM, all zeros.
+    #[test]
+    fn lookahead_wired_from_lm() {
+        let dict = "HOTBED HH AA T B EH D\nRIPPLE R IH P AH L\n";
+        let plain = MooreDecoder::load(&am_path(), None, dict, DecoderConfig::default())
+            .expect("load without lm");
+        assert!(plain.lookahead.iter().all(|&v| v == 0.0));
+
+        let sentences: Vec<Vec<String>> = vec![
+            "a hotbed".split(' ').map(str::to_string).collect(),
+            "b hotbed".split(' ').map(str::to_string).collect(),
+            "c ripple".split(' ').map(str::to_string).collect(),
+        ];
+        let model = KnTrigram::train(&sentences);
+        assert!(
+            model.unigram_prob("hotbed") > model.unigram_prob("ripple"),
+            "toy LM must rank hotbed above ripple"
+        );
+        let lm_path = std::env::temp_dir().join("decoder-lookahead-test-lm.kn");
+        lm::persist::save_kn(&model, &lm_path).expect("save test lm");
+        let with_lm =
+            MooreDecoder::load(&am_path(), Some(&lm_path), dict, DecoderConfig::default())
+                .expect("load with lm");
+        std::fs::remove_file(&lm_path).ok();
+        assert_eq!(with_lm.lookahead.len(), with_lm.trie.nodes.len());
+        assert!(with_lm.lookahead.iter().all(|v| v.is_finite()));
+        assert!(with_lm.lookahead.iter().all(|&v| v <= 0.0));
+        // Root carries the max; the hotbed branch outranks ripple's.
+        let max = with_lm
+            .lookahead
+            .iter()
+            .cloned()
+            .fold(f64::NEG_INFINITY, f64::max);
+        assert_eq!(with_lm.lookahead[0], max);
+        let h = with_lm.trie.child(0, "HH").expect("HH child");
+        let r = with_lm.trie.child(0, "R").expect("R child");
+        assert!(
+            with_lm.lookahead[h] > with_lm.lookahead[r],
+            "hotbed branch {:?} must outrank ripple branch {:?}",
+            with_lm.lookahead[h],
+            with_lm.lookahead[r]
+        );
+    }
 }
