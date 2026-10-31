@@ -304,9 +304,8 @@ pub fn validate_session(dir: &Path) -> Result<AcceptSummary, String> {
     }
     // 8+9. Headers (PCM16 mono 16k, manifest cross-check) + durations.
     for (file, _, mrate, mframes) in &rows {
-        let r = hound::WavReader::open(dir.join(file))
+        let (spec, n_probed) = corpus::audio::wav_probe(&dir.join(file))
             .map_err(|e| format!("REJECT: {file} unreadable WAV: {e}"))?;
-        let spec = r.spec();
         if spec.channels != 1
             || spec.sample_rate != RATE_HZ
             || spec.bits_per_sample != 16
@@ -323,7 +322,7 @@ pub fn validate_session(dir: &Path) -> Result<AcceptSummary, String> {
                 spec.sample_rate
             ));
         }
-        let n = r.len();
+        let n = n_probed;
         if *mframes != n {
             return Err(format!(
                 "REJECT: {file} manifest frames {mframes} != header {n}"
@@ -520,9 +519,8 @@ pub fn validate_session_general(
     }
     // 8+9. Headers (PCM16 mono 16k, manifest cross-check) + window.
     for (file, _, mrate, mframes) in &rows {
-        let r = hound::WavReader::open(dir.join(file))
+        let (spec, n_probed) = corpus::audio::wav_probe(&dir.join(file))
             .map_err(|e| format!("REJECT: {file} unreadable WAV: {e}"))?;
-        let spec = r.spec();
         if spec.channels != 1
             || spec.sample_rate != RATE_HZ
             || spec.bits_per_sample != 16
@@ -539,7 +537,7 @@ pub fn validate_session_general(
                 spec.sample_rate
             ));
         }
-        let n = r.len();
+        let n = n_probed;
         if *mframes != n {
             return Err(format!(
                 "REJECT: {file} manifest frames {mframes} != header {n}"

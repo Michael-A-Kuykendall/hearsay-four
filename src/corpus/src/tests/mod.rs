@@ -7,6 +7,7 @@
 //! - `ppt_tests` — ul2.4 gate (`cargo test --all-features`), serialized via
 //!   `invariant_ppt::test_lock`
 
+mod canonical_tests;
 mod decode_tests;
 mod ground_truth_tests;
 mod ingest_tests;

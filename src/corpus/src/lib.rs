@@ -14,6 +14,7 @@
 //! PPT/invariant coverage lives in [`tests`] (ul2.4).
 
 pub mod audio;
+pub mod canonical;
 pub mod courtlistener;
 pub mod dotenv;
 pub mod ground_truth;

@@ -1,0 +1,52 @@
+# RS1-d GO cut read-PHASE-TEST-01: first 50 content lines from sessions/script-c0r-read.txt
+# source_sha256=e079eb2102ad8f567d66116a3bc343ad54315d61f81530c8a4a26b7a4cd3891b content_lines=50
+the old mill hums beside the river
+fresh paint sealed the window frame
+a copper kettle whistled on the stove
+children traded comics under the bleachers
+the night clerk counted soggy dollar bills
+geese argued over frozen pond scraps
+my neighbor grafted pears onto quince stock
+the brass compass spun near the magnet
+fog erased the harbor lighthouse beam
+a stray dog napped behind the dumpster
+the tailor chalked darts on blue wool
+sparrows raided the feeder at dawn
+wet cement swallowed the scattered nails
+the violinist rosined her bow backstage
+thunder rattled the greenhouse panes
+a borrowed ladder reached the gutter
+the orchard crew picked bruised windfalls
+crows debated above the silo
+the dentist polished a chipped crown
+rain beaded on the waxed fenders
+a sleepy cashier miscounted the coins
+the blacksmith quenched the glowing horseshoe
+mint spread beneath the rain barrel
+the lifeguard whistled at the rafts
+dust settled on the piano keys
+a curious toddler unspooled the thread
+the mason leveled the chimney bricks
+owls hunted along the fence line
+the barber swept clippings into piles
+frost feathered the windshield edges
+a cautious heron stalked the shallows
+the grocer stacked melons in pyramids
+wind tilted the scarecrow sideways
+the welder patched the rusted gate
+lilacs perfumed the narrow alley
+a lost hiker followed the creek bed
+the baker scored the risen loaves
+minnows scattered beneath the dock
+the janitor waxed the hallway floor
+hail dented the tin awning
+a gentle mare cropped the clover
+the printer jammed on thick cardstock
+smoke curled from the cabin flue
+the umpire brushed dirt from the plate
+icicles dripped onto the welcome mat
+a nimble ferret stole the mitten
+the cobbler stretched the leather uppers
+waves polished the broken shells
+the pilot banked above the wheat
+dew silvered the spider webs
