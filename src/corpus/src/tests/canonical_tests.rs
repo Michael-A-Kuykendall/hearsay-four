@@ -174,7 +174,20 @@ fn muted_take_rejected() {
         std::fs::read_to_string(root.join("canon").join("manifest.tsv")).expect("manifest");
     assert!(manifest.contains("REJECTED"));
 }
-
+#[test]
+fn legacy_manifest_header_row_skipped() {
+    let root = test_root("header");
+    let raw = root.join("raw");
+    let tone = tone_take(16_000, 400, 800, 8000);
+    write_legacy_session(&raw, &[("hello", tone)], 16_000);
+    // New-recorder sealed manifests carry a header row (100240).
+    let path = raw.join("manifest.tsv");
+    let body = std::fs::read_to_string(&path).expect("manifest");
+    std::fs::write(&path, format!("file\tword\trate_hz\tframes\n{body}")).expect("header");
+    let report = canonical::canon_session(&raw, &root.join("canon")).expect("canon runs");
+    assert_eq!(report.takes_accepted, 1);
+    assert!(report.rejected.is_empty());
+}
 #[test]
 fn short_take_rejected() {
     let root = test_root("short");
@@ -772,6 +785,8 @@ fn rs1d_catalog_coverage() {
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_dir())
         .map(|e| e.file_name().to_string_lossy().into_owned())
+        // sessions/canon/ is derived canonical output (gitignored), not a raw session.
+        .filter(|name| name != "canon")
         .collect();
     dirs.sort();
     let mut ids: Vec<String> = rows.iter().map(|c| c[0].to_string()).collect();

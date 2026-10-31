@@ -755,6 +755,9 @@ fn validate_legacy(dir: &Path) -> Result<RawSession, String> {
         if file == "enroll.wav" {
             continue;
         }
+        if i == 0 && line == "file\tword\trate_hz\tframes" {
+            continue; // header row (new-recorder sealed manifests, e.g. 100240)
+        }
         if prompt.is_empty() {
             return Err(format!("manifest.tsv line {}: empty prompt", i + 1));
         }
