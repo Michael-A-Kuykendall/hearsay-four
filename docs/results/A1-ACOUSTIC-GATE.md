@@ -227,3 +227,33 @@ on the acoustic question either way. Two defects:
    rather than a new crate.
 3. The synthetic chirp probe lives only in `/tmp` and in unit tests; no
    synthetic audio was committed as owner data.
+
+## Re-freeze 2026-10-31 (A1-r, hearsay-four-mc1--a1-rerun-canonical)
+
+re-frozen 2026-10-31 on DEV evidence; supersedes band0.2 freeze.
+
+Frozen-A1-Config:
+`base_cmn_d_dd_lifter22_pre097+cmvn_replaces_cmn+dtw_baseline+band1.0`
+
+Decision record (DEV on canonical run1, `sessions/canon/run1`, n=120,
+`a1_gate` release build, 2026-10-31):
+
+- band 1.0: 7 configs 119/120 = 0.9917 (base with and without cmvn),
+  `band_100_4000_no_cmn` 120/120 = 1.0000.
+- band 0.2: all 8 configs 113/120 = 0.9417; exclusion rate 7/120
+  unscoreable (all 7 misses have sameword_finite=0 — the band excludes
+  every same-word template, lengths being config-invariant; `a1_probe`
+  evidence, same 7 miss queries in every config, fallback labels differ).
+- Only band changed (0.2 -> 1.0); the cmvn token is kept
+  (base+cmvn = 119/120 at band 1.0, identical to base). The instrument
+  requires the frozen base to equal tuning-grid row 0.
+
+Why (item 3, closed 2026-10-31; evidence `src/fse/examples/a1_probe.rs` +
+bead notes): the identical 113/120 x8 was genuine band-exclusion, not a
+scorer bug. Zeroed/shuffled controls collapse (0.0333 = 4/120 exactly at
+band 1.0 under zeroed features); all 7 band-0.2 misses are forced; at
+band 1.0 the configs diverge exactly at the one ambiguous query.
+
+Within-session DEV 119-120/120 at band 1.0 means classical MFCC+DTW
+discriminates the 30 words on one session; the earlier 0.86/0.94 were
+band-length artifacts, not acoustic limits.

@@ -1,5 +1,7 @@
 //! A1 acoustic gate runner (bead hearsay-four-b7p).
 //! Usage: a1_gate [--run1 sessions/canon/run1] [--phase-test-dir DIR] [--band 0.2]
+//!   [--phase-test-sealed-dir SEALED] (RS-1: validate seals on the raw session,
+//!   score queries from the canonical session; defaults to --phase-test-dir)
 //! DEV = leave-one-take-out on canonical run1 (take = per-word occurrence
 //! index). RS-1 §5: owner audio ONLY via corpus::canonical::load_session.
 //! PHASE-TEST runs only if a fresh 5th-take dir with manifest is given AND exists;
@@ -158,8 +160,12 @@ fn main() {
     // PHASE-TEST: sealed formal scoring (bead kyz). Requires --frozen-config
     // + --out-dir; validates the session, scores with the frozen config only,
     // writes one score.log to a fresh dir (score-once). DEV grid above is
-    // unaffected.
+    // unaffected. RS-1: seals are validated on --phase-test-sealed-dir (the
+    // raw sealed session; defaults to --phase-test-dir) while queries are
+    // loaded from --phase-test-dir (the canonical session). Both dirs are
+    // recorded in score.log; scoring math is untouched.
     if let Some(dir) = get("--phase-test-dir") {
+        let sealed = get("--phase-test-sealed-dir").unwrap_or_else(|| dir.clone());
         let frozen_s = args
             .windows(2)
             .find(|w| w[0] == "--frozen-config")
@@ -187,7 +193,7 @@ fn main() {
             println!("A1 PHASE-TEST: NOT RUN (dir absent: {})", dir.display());
             return;
         }
-        let summary = match fse::instrument::validate_session(&dir) {
+        let summary = match fse::instrument::validate_session(&sealed) {
             Ok(s) => s,
             Err(v) => {
                 println!("A1 PHASE-TEST: {v} (session rejected, scored nothing)");
@@ -240,9 +246,10 @@ fn main() {
                     .filter(|s| !s.is_empty())
                     .unwrap_or_else(|| "unknown (git unavailable)".to_string());
                 let log = format!(
-                    "scorer_commit={commit}\nfrozen_config={frozen_s}\ntemplates={}\nphase_test_dir={}\norder_sha256={}\norder_seed={}\ntop1={:.4}\ntop3={:.4}\ntop5={:.4}\ntop10={:.4}\nn={}\ndegenerate={}\nconfusion:\n{}",
+                    "scorer_commit={commit}\nfrozen_config={frozen_s}\ntemplates={}\nphase_test_dir={}\nphase_test_sealed_dir={}\norder_sha256={}\norder_seed={}\ntop1={:.4}\ntop3={:.4}\ntop5={:.4}\ntop10={:.4}\nn={}\ndegenerate={}\nconfusion:\n{}",
                     run1.display(),
                     dir.display(),
+                    sealed.display(),
                     summary.order_sha256,
                     summary.seed,
                     r.accuracy(),
