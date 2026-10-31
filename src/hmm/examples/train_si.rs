@@ -2,7 +2,7 @@
 //! per-iteration checkpoints (1->2->4 mixtures), speaker-balanced subset.
 //!
 //! Usage:
-//!   train_si <manifest.tsv> <wav_root> <out_dir> <target_h> <i1> <i2> <i4> [resume]
+//!   train_si <manifest.tsv> <wav_root> <out_dir> <target_h> <i1> <i2> <i4> <i8> [resume]
 //! With [resume] = checkpoint path: loads model + <out_dir>/schedule.json,
 //! continues the schedule. Checkpoints are HmmSet text (lossless round-trip).
 //!
@@ -135,18 +135,19 @@ fn speaker_of(id: &str) -> String {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     assert!(
-        args.len() == 8 || args.len() == 9,
-        "usage: train_si <manifest.tsv> <wav_root> <out_dir> <target_h> <i1> <i2> <i4> [resume_ckpt]"
+        args.len() == 9 || args.len() == 10,
+        "usage: train_si <manifest.tsv> <wav_root> <out_dir> <target_h> <i1> <i2> <i4> <i8> [resume_ckpt]"
     );
     let (manifest_path, wav_root, out_dir) =
         (PathBuf::from(&args[1]), PathBuf::from(&args[2]), PathBuf::from(&args[3]));
     let target_h: f64 = args[4].parse().expect("target_h");
-    let iters: [usize; 3] = [
+    let iters: [usize; 4] = [
         args[5].parse().expect("i1"),
         args[6].parse().expect("i2"),
         args[7].parse().expect("i4"),
+        args[8].parse().expect("i8"),
     ];
-    let resume = args.get(8).map(PathBuf::from);
+    let resume = args.get(9).map(PathBuf::from);
     std::fs::create_dir_all(&out_dir).expect("out_dir");
     println!("train_si threads={} target_h={target_h} iters={iters:?}", rayon::current_num_threads());
     println!("train_si tier1={TIER1_IDENTITY}");
@@ -302,7 +303,17 @@ fn main() {
                 sched["done1"].as_u64().unwrap_or(0) as usize,
                 sched["done2"].as_u64().unwrap_or(0) as usize,
                 sched["done4"].as_u64().unwrap_or(0) as usize,
+                sched["done8"].as_u64().unwrap_or(0) as usize,
             ];
+            let sched_iters: Vec<usize> = sched["iters"]
+                .as_array()
+                .map(|a| a.iter().map(|v| v.as_u64().unwrap_or(0) as usize).collect())
+                .unwrap_or_default();
+            assert_eq!(
+                sched_iters,
+                iters.to_vec(),
+                "resume iters {iters:?} != schedule iters {sched_iters:?}"
+            );
             println!("train_si resume {} done={done:?}", p.display());
             (m, done)
         }
@@ -321,7 +332,7 @@ fn main() {
                 t2.elapsed().as_secs_f64()
             );
             m.save_text(&out_dir.join("ckpt-flat.json")).expect("ckpt flat");
-            (m, [0, 0, 0])
+            (m, [0, 0, 0, 0])
         }
     };
 
@@ -331,7 +342,7 @@ fn main() {
         var_floor_ratio: 0.01,
         optional_sp: true,
     };
-    let mixes = [1usize, 2, 4];
+    let mixes = [1usize, 2, 4, 8];
     for (s, &mix) in mixes.iter().enumerate() {
         // Split once on first entry to stages 2/4: fresh runs always split;
         // resume splits only when entering an unstarted stage (done[s]==0
@@ -356,6 +367,7 @@ fn main() {
             let sched = serde_json::json!({
                 "mixes": mix, "done1": stage_done[0],
                 "done2": stage_done[1], "done4": stage_done[2],
+                "done8": stage_done[3],
                 "iters": iters, "ll": ll, "ckpt": name,
             });
             std::fs::write(&sched_path, serde_json::to_string_pretty(&sched).unwrap())
@@ -369,6 +381,6 @@ fn main() {
     println!("train_si DONE {}", out_dir.display());
 }
 
-fn done_before(done: &[usize; 3], s: usize, iters: &[usize; 3]) -> bool {
+fn done_before(done: &[usize; 4], s: usize, iters: &[usize; 4]) -> bool {
     (0..s).all(|i| done[i] >= iters[i])
 }
