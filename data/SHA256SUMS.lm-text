@@ -4,3 +4,5 @@
 # md5sum.txt; integrity checked with gzip -t on 2026-10-31. Use a 20-40M
 # word subset first (GO approval).
 927d47656638c2ca93566640e56bcbeb2aa4ca237b8490fe1eff7d6e610a53c7  librispeech-lm-norm.txt.gz  bytes=1507274412  md5=c83c64c726a1aedfe65f80aa311de402  role=LM-TRAIN-general
+8d06ac511c9138fef9cd9904c22ed2b3c4e88af33ca4932481d34b592683b3ac  librispeech-lm-subset-30m-leading.txt  bytes=162173426  words=30000009  lines=1378464  rule=leading-lines-until-30M  role=LM-TRAIN-general-alt (positional bias: first books only; kept for comparison)
+d3f540167e94ee44b59b658c36383f5b1a47db9605c3c0d62700dd557b4ef61a  librispeech-lm-subset-30m-strided.txt  bytes=158828729  words=29759114  lines=1496972  rule=every-27th-line  role=LM-TRAIN-general (canonical subset; full 803M-word corpus measured, stride over 40418261 lines)
