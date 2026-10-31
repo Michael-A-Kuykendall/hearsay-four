@@ -1,0 +1,17 @@
+# RS1-d GO cut fly-PHASE-TEST-01: first 10 fly + first 5 family content lines in source order from sessions/script-p4-fly-ptest.txt
+# source_sha256=2617fa191f6be291fcf36da9f36a021704201be6f2f49b157a2b97c4c7bbad73 content_lines=15
+a fly drifted near the candle
+the fly inspected the plate
+the family planted the orchard
+a fly zigzagged past the shelf
+the fly bumped the shade
+my family guards the recipe
+a fly lingered by the pitcher
+the fly traced the rim
+the family painted the gate
+a fly balanced on the thread
+the fly startled at the clap
+our family swept the hall
+a fly mapped the counter
+the fly tested the sugar
+the family counted the jars

@@ -104,9 +104,8 @@ pub fn ingest(
     let mut elapsed: usize = 0;
     for row in &rows {
         let path = wav_dir.join(&row.file);
-        let mut reader =
-            hound::WavReader::open(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-        let spec = reader.spec();
+        // RS-1 §5: all WAV reads go through corpus (header probe + decode).
+        let (spec, _) = corpus::audio::wav_probe(&path)?;
         if spec.channels != 1 || spec.sample_rate != rate || spec.bits_per_sample != 16 {
             return Err(format!(
                 "{}: expected mono/16-bit/{}Hz, got {:?}",
@@ -115,8 +114,7 @@ pub fn ingest(
                 spec
             ));
         }
-        let samples: Result<Vec<i16>, _> = reader.samples::<i16>().collect();
-        let samples = samples.map_err(|e| format!("{}: {e}", path.display()))?;
+        let samples = corpus::audio::decode_wav(&path)?.samples;
         if samples.len() != row.samples {
             return Err(format!(
                 "{}: manifest says {} samples, WAV holds {}",

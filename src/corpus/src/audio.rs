@@ -316,6 +316,15 @@ pub fn resample_linear(samples: &[i16], src_rate: u32, dst_rate: u32) -> Vec<i16
 /// Output is mono by construction ([`to_mono`]) and 16 kHz by construction
 /// ([`resample_linear`]); the invariant guards the precondition that the
 /// source rate is known, so the resample ratio is well-defined.
+/// Probe a WAV header without decoding samples: `(spec, frames)`.
+/// The single header-reading helper for non-corpus crates (RS-1 §5: all WAV
+/// reads live in corpus, so the CI grep for `hound::WavReader` stays green
+/// outside this crate).
+pub fn wav_probe(path: &Path) -> Result<(hound::WavSpec, u32), String> {
+    let r = hound::WavReader::open(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok((r.spec(), r.len()))
+}
+
 pub fn decode_to_pcm_16k_mono(path: &Path) -> Result<Vec<i16>, String> {
     let audio = decode_file(path)?;
     let mono = to_mono(&audio);

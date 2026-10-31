@@ -1,6 +1,7 @@
 //! A1 acoustic gate runner (bead hearsay-four-b7p).
-//! Usage: a1_gate [--run1 sessions/run1] [--phase-test-dir DIR] [--band 0.2]
-//! DEV = leave-one-take-out on run1 (take = per-word occurrence index).
+//! Usage: a1_gate [--run1 sessions/canon/run1] [--phase-test-dir DIR] [--band 0.2]
+//! DEV = leave-one-take-out on canonical run1 (take = per-word occurrence
+//! index). RS-1 §5: owner audio ONLY via corpus::canonical::load_session.
 //! PHASE-TEST runs only if a fresh 5th-take dir with manifest is given AND exists;
 //! otherwise it reports NOT RUN. Never fabricates audio.
 
@@ -9,53 +10,25 @@ use fse::gate::{Clip, is_degenerate, leave_one_take_out_with_dtw, phase_test_wit
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-fn read_wav(path: &Path) -> Result<(Vec<i16>, u32), String> {
-    let mut r = hound::WavReader::open(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let spec = r.spec();
-    let samples: Vec<i16> = r
-        .samples::<i16>()
-        .collect::<Result<_, _>>()
-        .map_err(|e| format!("{e}"))?;
-    // downmix to mono by taking first channel interleaving average is unnecessary for owner mono; if stereo, average
-    let mono = if spec.channels > 1 {
-        samples
-            .chunks(spec.channels as usize)
-            .map(|c| (c.iter().map(|&x| x as i32).sum::<i32>() / c.len() as i32) as i16)
-            .collect()
-    } else {
-        samples
-    };
-    Ok((mono, spec.sample_rate))
-}
-
 fn load_session(dir: &Path, cfg: &FrontendConfig) -> Result<Vec<Clip>, String> {
-    let manifest = dir.join("manifest.tsv");
-    let text =
-        std::fs::read_to_string(&manifest).map_err(|e| format!("{}: {e}", manifest.display()))?;
+    // RS-1 §5: owner audio ONLY through the canonical loader. `dir` is a
+    // canonical session (canon-session output), never a raw session.
+    let session = corpus::canonical::load_session(dir).map_err(|e| e.to_string())?;
     let mut seen: HashMap<String, usize> = HashMap::new();
     let mut clips = Vec::new();
-    for line in text.lines().skip(1) {
-        let mut it = line.split('\t');
-        let file = it.next().unwrap_or("");
-        let label = it.next().unwrap_or("");
-        if file == "enroll.wav" || label.is_empty() {
-            continue;
-        }
-        let take = {
-            let e = seen.entry(label.to_string()).or_insert(0);
+    for take in &session.takes {
+        let label = take.prompt.clone();
+        let n = {
+            let e = seen.entry(label.clone()).or_insert(0);
             let t = *e;
             *e += 1;
             t
         };
-        let wav = dir.join(file);
-        if !wav.exists() {
-            return Err(format!("MISSING {}", wav.display()));
-        }
-        let (samples, sr) = read_wav(&wav)?;
-        let frames = extract_with_config(&samples, sr, cfg).map_err(|e| format!("{e}"))?;
+        let frames = extract_with_config(&take.pcm, corpus::audio::TARGET_SAMPLE_RATE, cfg)
+            .map_err(|e| format!("{e}"))?;
         clips.push(Clip {
-            label: label.to_string(),
-            take,
+            label,
+            take: n,
             frames,
         });
     }
@@ -94,7 +67,7 @@ fn main() {
             .find(|w| w[0] == k)
             .map(|w| PathBuf::from(&w[1]))
     };
-    let run1 = get("--run1").unwrap_or_else(|| PathBuf::from("sessions/run1"));
+    let run1 = get("--run1").unwrap_or_else(|| PathBuf::from("sessions/canon/run1"));
     let band: f64 = args
         .windows(2)
         .find(|w| w[0] == "--band")

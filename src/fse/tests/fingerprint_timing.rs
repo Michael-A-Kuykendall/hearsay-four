@@ -91,39 +91,6 @@ fn synth_tone(freq: f64, secs: f64) -> Vec<i16> {
         .collect()
 }
 
-/// Minimal PCM16-mono WAV reader (integration tests cannot use the fse
-/// binary's hound dependency; this keeps the test std-only).
-fn read_wav_mono16(path: &Path) -> (u32, Vec<i16>) {
-    let b = std::fs::read(path).unwrap();
-    assert_eq!(&b[0..4], b"RIFF", "not a WAV: {:?}", path);
-    assert_eq!(&b[8..12], b"WAVE", "not a WAV: {:?}", path);
-    let mut pos = 12;
-    let mut sr = 0u32;
-    let mut samples = Vec::new();
-    while pos + 8 <= b.len() {
-        let id = &b[pos..pos + 4];
-        let sz = u32::from_le_bytes(b[pos + 4..pos + 8].try_into().unwrap()) as usize;
-        let data = pos + 8;
-        if id == b"fmt " {
-            let fmt = u16::from_le_bytes([b[data], b[data + 1]]);
-            let ch = u16::from_le_bytes([b[data + 2], b[data + 3]]);
-            assert_eq!(fmt, 1, "WAV must be PCM: {:?}", path);
-            assert_eq!(ch, 1, "WAV must be mono: {:?}", path);
-            sr = u32::from_le_bytes(b[data + 4..data + 8].try_into().unwrap());
-            let bits = u16::from_le_bytes([b[data + 14], b[data + 15]]);
-            assert_eq!(bits, 16, "WAV must be 16-bit: {:?}", path);
-        } else if id == b"data" {
-            samples = b[data..data + sz]
-                .chunks_exact(2)
-                .map(|c| i16::from_le_bytes([c[0], c[1]]))
-                .collect();
-        }
-        pos = data + sz + (sz % 2);
-    }
-    assert!(sr > 0 && !samples.is_empty(), "no audio: {:?}", path);
-    (sr, samples)
-}
-
 #[test]
 fn repadding_conditions_all_scored_deterministically() {
     let cfg = FrontendConfig::default();
@@ -193,31 +160,22 @@ fn repadding_conditions_all_scored_deterministically() {
 
 #[test]
 fn timing_classifier_protocol_complete() {
-    // Real run1-16k audio through the timing-only pipeline: 120 clips
-    // evaluated, deterministic. Manifest columns: file, word, rate, samples
-    // (no take column; take = per-word occurrence order, as in a1_gate).
-    let root = Path::new("../../sessions/run1-16k");
-    let manifest = std::fs::read_to_string(root.join("manifest.tsv")).unwrap();
-    let mut rows: Vec<(String, String)> = Vec::new();
-    for (i, line) in manifest.lines().enumerate() {
-        if i == 0 || line.trim().is_empty() {
-            continue;
-        }
-        let mut f = line.split('\t');
-        let file = f.next().unwrap().to_string();
-        let word = f.next().unwrap().to_string();
-        rows.push((file, word));
-    }
-    assert_eq!(rows.len(), 120, "DEV session has 120 clips");
+    // Canonical run1 audio through the timing-only pipeline: 120 clips
+    // evaluated, deterministic (take = per-word occurrence order, as in
+    // a1_gate). RS-1 §5: owner audio ONLY via the canonical loader.
+    let session = corpus::canonical::load_session(Path::new("../../sessions/canon/run1")).unwrap();
+    assert_eq!(session.takes.len(), 120, "DEV session has 120 clips");
     let mut take_of: BTreeMap<String, usize> = BTreeMap::new();
     // Per clip: (word, take, [lead_ms, trail_ms, dur_ms, centroid_ms]).
     let mut feats: Vec<(String, usize, [f64; 4])> = Vec::new();
-    for (file, word) in &rows {
-        let take = *take_of.entry(word.clone()).or_insert(0);
-        take_of.insert(word.clone(), take + 1);
-        let (sr, samples) = read_wav_mono16(&root.join(file));
-        assert_eq!(sr, SR, "canonical 16k: {}", file);
-        let (e, wl, sh) = energies_of(&samples, sr);
+    for take in &session.takes {
+        let word = take.prompt.clone();
+        let take_idx = *take_of.entry(word.clone()).or_insert(0);
+        take_of.insert(word.clone(), take_idx + 1);
+        let sr = corpus::audio::TARGET_SAMPLE_RATE;
+        let samples = &take.pcm;
+        assert_eq!(sr, SR, "canonical 16k: {}", take.id);
+        let (e, wl, sh) = energies_of(samples, sr);
         let (ts, te) = speech_span(&e).expect("speech span");
         let (s0, s1) = speech_range((ts, te), wl, sh);
         let n = samples.len() as f64;
@@ -235,7 +193,7 @@ fn timing_classifier_protocol_complete() {
         }
         let centroid = if den > 0.0 { num / den } else { 0.0 };
         let _ = n;
-        feats.push((word.clone(), take, [lead, trail, dur, centroid]));
+        feats.push((word.clone(), take_idx, [lead, trail, dur, centroid]));
     }
     // Leave-one-take-out nearest-mean, run twice for determinism.
     let run = |feats: &[(String, usize, [f64; 4])]| -> (usize, usize) {
@@ -292,8 +250,8 @@ fn timing_classifier_protocol_complete() {
     assert_eq!((c1, t1), (c2, t2), "timing classifier is deterministic");
     println!("timing-only LOTO: {c1}/{t1} = {:.4}", c1 as f64 / t1 as f64);
     // Trimmed-extractor sanity on one real clip: production path unaffected.
-    let (sr, samples) = read_wav_mono16(&root.join(&rows[0].0));
+    let first = &session.takes[0].pcm;
     let cfg = FrontendConfig::default();
-    let a = extract_with_config(&samples, sr, &cfg).unwrap();
+    let a = extract_with_config(first, corpus::audio::TARGET_SAMPLE_RATE, &cfg).unwrap();
     assert!(!a.is_empty() && !a[0].is_empty());
 }

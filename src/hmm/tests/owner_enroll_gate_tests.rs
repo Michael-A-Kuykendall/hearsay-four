@@ -5,7 +5,8 @@
 //! Base: the committed speaker-independent model
 //! (`models/si_base/model.json`, bead
 //! hearsay-four-30y--speaker-independent-model). Enrollment + owner DEV:
-//! owner clips from `sessions/run1` (read-only from the main workspace — the
+//! owner clips from `sessions/canon/run1` via the RS-1 §5 canonical loader
+//! (read-only from the main workspace — the
 //! lane worktree does not carry project audio), split stratified by transcript
 //! so enroll and owner-DEV utterances are disjoint.
 //!
@@ -16,7 +17,7 @@
 //! Gate: owner DEV PER (adapted) < owner DEV PER (base) with a paired CI
 //! excluding 0 (PER is the phone-stage proxy for the bead's WER gate — no
 //! word decoder exists yet); retraction on real facts restores the base.
-use corpus::audio::{decode_file, to_mono};
+use corpus::audio::TARGET_SAMPLE_RATE;
 use fse::{extract_features, window_audio};
 use hmm::HmmSet;
 use hmm::adapt::{AdaptFact, AdaptOverlay, collect_fact, select_stage};
@@ -94,17 +95,15 @@ fn phones_for(lex: &HashMap<String, Vec<Vec<String>>>, text: &str) -> Option<Vec
     Some(out)
 }
 
-fn features_for(path: &Path) -> Result<Vec<Vec<f64>>, &'static str> {
-    let pcm = decode_file(path).map_err(|_| "decode")?;
-    let mono = to_mono(&pcm);
-    if mono.is_empty() {
+fn features_for_pcm(pcm: &[i16], sample_rate: u32) -> Result<Vec<Vec<f64>>, &'static str> {
+    if pcm.is_empty() {
         return Err("no_frames");
     }
-    let windows = window_audio(&mono, pcm.sample_rate);
+    let windows = window_audio(pcm, sample_rate);
     if windows.is_empty() {
         return Err("no_frames");
     }
-    let frames = extract_features(&windows, pcm.sample_rate).map_err(|_| "no_frames")?;
+    let frames = extract_features(&windows, sample_rate).map_err(|_| "no_frames")?;
     if frames.is_empty() || frames[0].len() != fse::FEATURE_DIM {
         return Err("no_frames");
     }
@@ -122,41 +121,28 @@ struct OwnerUtt {
     frames: Vec<Vec<f64>>,
 }
 
-/// Owner clips: manifest has no header; columns are file, transcript, ...;
-/// audio resolves under the main workspace (read-only).
+/// Owner clips via the RS-1 §5 canonical loader; canonical audio resolves
+/// under the main workspace (read-only).
 fn load_owner_clips(
     lex: &HashMap<String, Vec<Vec<String>>>,
 ) -> (Vec<OwnerUtt>, BTreeMap<&'static str, usize>) {
-    let run1 = main_root().join("sessions/run1");
+    // RS-1 §5: owner audio ONLY through the canonical loader (never raw).
+    let canon = main_root().join("sessions/canon/run1");
     assert!(
-        run1.is_dir(),
-        "main workspace run1 missing: {}",
-        run1.display()
+        canon.is_dir(),
+        "main workspace canonical run1 missing: {} (run canon-session on main first)",
+        canon.display()
     );
-    let text = std::fs::read_to_string(run1.join("manifest.tsv")).expect("read owner manifest");
+    let session = corpus::canonical::load_session(&canon)
+        .unwrap_or_else(|e| panic!("load canonical run1 {}: {e}", canon.display()));
     let mut out = Vec::new();
     let mut skipped: BTreeMap<&'static str, usize> = BTreeMap::new();
-    for raw in text.lines() {
-        let line = raw.strip_suffix('\r').unwrap_or(raw);
-        if line.trim().is_empty() {
-            continue;
-        }
-        let cols: Vec<&str> = line.split('\t').collect();
-        if cols.len() < 2 {
-            bump(&mut skipped, "malformed_row");
-            continue;
-        }
-        let (file, transcript) = (cols[0].trim(), cols[1].trim());
-        let disk = run1.join(file);
-        if !disk.is_file() {
-            bump(&mut skipped, "missing_file");
-            continue;
-        }
-        let Some(phones) = phones_for(lex, transcript) else {
+    for take in &session.takes {
+        let Some(phones) = phones_for(lex, &take.prompt) else {
             bump(&mut skipped, "lexicon_oov");
             continue;
         };
-        let frames = match features_for(&disk) {
+        let frames = match features_for_pcm(&take.pcm, TARGET_SAMPLE_RATE) {
             Ok(f) => f,
             Err(reason) => {
                 bump(&mut skipped, reason);
@@ -164,8 +150,8 @@ fn load_owner_clips(
             }
         };
         out.push(OwnerUtt {
-            id: file.to_string(),
-            text: transcript.to_string(),
+            id: format!("{}.wav", take.id),
+            text: take.prompt.clone(),
             phones,
             frames,
         });

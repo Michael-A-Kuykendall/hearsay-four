@@ -208,8 +208,10 @@ fn degenerate_probe_fixture_through_wav_files() {
         names
             .iter()
             .map(|name| {
-                let mut r = hound::WavReader::open(format!("{dir}/{name}")).unwrap();
-                let samples: Vec<i16> = r.samples::<i16>().map(|s| s.unwrap()).collect();
+                let decoded =
+                    corpus::audio::decode_wav(std::path::Path::new(&format!("{dir}/{name}")))
+                        .unwrap();
+                let samples = corpus::audio::to_mono(&decoded);
                 Clip {
                     label: name.clone(),
                     take: 0,

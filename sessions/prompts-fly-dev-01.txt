@@ -1,0 +1,17 @@
+# RS1-d GO cut fly-DEV-01: first 10 fly + first 5 family content lines in source order from sessions/script-p4-fly-dev.txt
+# source_sha256=ceb4cfbb52584e12adb42057ece270c681b230aecbe8964616fd7dc3af36aa2a content_lines=15
+a fly landed on the rim
+the fly was caught in the web
+my family lives in ohio
+a fly buzzed near the lamp
+the fly rested on the sill
+the family gathered at noon
+a fly circled the bowl
+the fly tapped the glass
+our family shares the harvest
+a fly settled on the crust
+the fly dodged the swatter
+the family rented the cabin
+a fly perched on the rail
+the fly crossed the porch
+her family keeps the ledger
