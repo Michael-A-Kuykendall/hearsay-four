@@ -58,6 +58,10 @@ track-b/
 data/librispeech/
 data/lm-text/
 data/canon/
+# Two-tier lexicon: derived data stays untracked; only the manifest
+# (identity + URL + sha256 + counts) is committed.
+data/lexicon/*
+!data/lexicon/manifest.json
 *.arpa
 *.lm.bin
 owner-book*

@@ -1,0 +1,33 @@
+{
+  "policy": "two-tier lexicon (bead hearsay-four-1c9--mfcc-viterbi-speed.1--oov-fallback-policy). Tier-1 CMUdict content wins every word it covers; tier-2 librispeech-lexicon fills only words tier-1 lacks. Every entry carries source=cmudict|librispeech-g2p (lexicon::LexiconSource).",
+  "tier1_identity": "better-voice Master_English_Phonetics_FINAL_COMPLETE.txt (CMUdict content, NOT cmudict-0.7b)",
+  "tier1": {
+    "path": "../better-voice/data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt (repo-relative from checkout root; override with BETTER_VOICE_ROOT env)",
+    "format": "lowercase word<TAB>PHONES<TAB>tag rows, # comments, CRLF; converted by lexicon::master_tsv_to_cmudict",
+    "sha256": "0b03cb6cce7f5509e08c39fc93f3fb7f8267cca39ede6a821fb5a2562253fa07",
+    "lines": 124789,
+    "bytes": 4059293,
+    "words_parsed": 124744,
+    "source_tag": "cmudict"
+  },
+  "tier2": {
+    "url": "https://www.openslr.org/resources/11/librispeech-lexicon.txt",
+    "path": "data/lexicon/librispeech-lexicon.txt (gitignored derived data; download with the URL above and verify sha256)",
+    "format": "WORD<space|tab>PHONES with stress digits (Sequitur classical statistical G2P extended); parsed by lexicon::parse_cmudict_line_with_source",
+    "sha256": "d722bc29908cd338ae738edd70f61826a6fca29aaa704a9493f0006773f79d71",
+    "lines": 206508,
+    "bytes": 5627653,
+    "words_gapfill": 134363,
+    "source_tag": "librispeech-g2p"
+  },
+  "merged_table_words": 259107,
+  "census_measured_2026_10_31": {
+    "tool": "cargo run --release -p hmm --example r2_perf -- <manifest> <wav_root> 9999 1 lexscan (BETTER_VOICE_ROOT set; exact R2 scan logic, two-tier load)",
+    "train_clean_100_before": "scan_kept_h=61.4305 scan_utt_dropped=10528/28539 scan_oov_tokens=15181/990101 scan_oov_types=7549",
+    "train_clean_100_after": "scan_kept_h=93.8866 scan_utt_dropped=1812/28539 scan_oov_tokens=2246/990101 scan_oov_types=1349",
+    "dev_clean_before": "scan_kept_h=3.6005 scan_utt_dropped=661/2703 scan_oov_tokens=871/54402 scan_oov_types=675",
+    "dev_clean_after": "scan_kept_h=5.0240 scan_utt_dropped=146/2703 scan_oov_tokens=163/54402 scan_oov_types=97"
+  },
+  "decoder_lm_vocab_dev_oov": "same merged table: token OOV 871/54402 (1.60%, 675 types) -> 163/54402 (0.30%, 97 types)",
+  "book_census_counts_only": "wordlist-scan over owner-book.stripped.txt (lm::normalize, 7559 sents / 105191 tokens): 8294 word types; tier1 7782 types / 103309 tokens; tier2 332 types / 1549 tokens; missing-from-both 180 types / 278 tokens (55 <num> tokens excluded from word counts). Recipe: cargo run --release -p hmm --example r2_perf -- wordlist-scan <stripped.txt> <tier1.tsv> <tier2.txt>"
+}

@@ -6,13 +6,19 @@
 //! word at two spans is two facts with independent retraction and distinct
 //! provenance chains.
 
-/// `WORD_TOKEN{word, start_frame, end_frame, source}`.
+/// `WORD_TOKEN{word, start_frame, end_frame, source, lexicon_source}`.
+///
+/// `source` is the occurrence origin (`decoder`, `user-correction`, ...);
+/// `lexicon_source` is the two-tier lexicon provenance tag
+/// (`cmudict`/`librispeech-g2p`, see the `lexicon` crate) for the
+/// pronunciation the token was decoded with, when recorded.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WordToken {
     pub word: String,
     pub start_frame: u64,
     pub end_frame: u64,
     pub source: String,
+    pub lexicon_source: Option<String>,
 }
 
 /// `PHONE_TOKEN{phone, start_frame, end_frame}`.

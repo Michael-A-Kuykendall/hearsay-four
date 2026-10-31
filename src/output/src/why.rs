@@ -124,6 +124,11 @@ pub struct WhyThisWord {
     pub tiling_token_total: f64,
     /// Winning tiling total `S(T)`.
     pub tiling_total: f64,
+    /// Two-tier lexicon provenance tag (`cmudict`/`librispeech-g2p`) from
+    /// the committed token, when recorded. Additive: exports written before
+    /// this field still deserialize to `None`.
+    #[serde(default)]
+    pub lexicon_source: Option<String>,
 }
 
 /// Why-view construction / completeness failures.
@@ -231,6 +236,10 @@ impl WhyThisWord {
             Some(fabric::TokenFact::Word(w)) => Some(w.source.clone()),
             _ => None,
         };
+        let lexicon_source = match fabric.fabric().token_fact(token) {
+            Some(fabric::TokenFact::Word(w)) => w.lexicon_source.clone(),
+            _ => None,
+        };
         let mut alternatives = Vec::new();
         if let Some(ru) = runner_up {
             for (i, alt) in ru.iter().enumerate() {
@@ -332,6 +341,7 @@ impl WhyThisWord {
             acoustic_weighted: get(SourceClass::Acoustic).weighted,
             tiling_token_total: finite(token_total, "tiling_token_total")?,
             tiling_total: finite(tiling_total, "tiling_total")?,
+            lexicon_source,
         };
         let mut why = why;
         why.acoustic.start_ms = why.record.start_ms;
@@ -414,6 +424,7 @@ impl WhyThisWord {
             self.acoustic.end_frame,
             self.token_id
         );
+        out.push_str(&format!("LEXICON: source={:?}\n", self.lexicon_source));
         out.push_str(&format!(
             "ACOUSTIC: llr {:?} over frames {}-{} (null: {})\n",
             self.acoustic.llr,
@@ -847,6 +858,43 @@ mod why_tests {
     }
 
     #[test]
+    fn lexicon_source_renders_and_survives_json_round_trip() {
+        let run = regression_run();
+        let mut why = WhyThisWord::build(
+            run.records[0].clone(),
+            &run.fabric,
+            run.winner[0],
+            &run.winner,
+            run.runner_up.as_deref(),
+            run.margin,
+            &run.probs,
+        )
+        .expect("why");
+        // The decision-harness tokens record no lexicon tag.
+        assert_eq!(why.lexicon_source, None);
+        assert!(
+            why.render().contains("LEXICON: source=None"),
+            "render must show the (unrecorded) lexicon tag"
+        );
+        // A recorded tag renders and survives JSON.
+        why.lexicon_source = Some("librispeech-g2p".to_string());
+        assert!(
+            why.render()
+                .contains("LEXICON: source=Some(\"librispeech-g2p\")"),
+            "render must show the recorded lexicon tag"
+        );
+        let back = WhyThisWord::from_json(&why.to_json().expect("json")).expect("parse");
+        assert_eq!(back.lexicon_source.as_deref(), Some("librispeech-g2p"));
+        // Additive field: exports written before it still parse to None.
+        let mut v: serde_json::Value =
+            serde_json::from_str(&why.to_json().expect("json")).expect("parse");
+        v.as_object_mut().expect("object").remove("lexicon_source");
+        let legacy =
+            WhyThisWord::from_json(&serde_json::to_string(&v).expect("json")).expect("parse");
+        assert_eq!(legacy.lexicon_source, None);
+    }
+
+    #[test]
     fn json_export_shape_with_transcript() {
         let (export, _) = build_all();
         let json = export.to_json().expect("json");
@@ -870,6 +918,7 @@ mod why_tests {
             "tiling_token_total",
             "tiling_total",
             "acoustic_weighted",
+            "lexicon_source",
         ] {
             assert!(e.get(key).is_some(), "export missing key {key}");
         }

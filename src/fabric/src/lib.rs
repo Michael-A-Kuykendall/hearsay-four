@@ -149,6 +149,10 @@ impl Fabric {
     }
 
     /// Intern a `WORD_TOKEN` occurrence (A3): always a distinct fact.
+    ///
+    /// The lexicon provenance tag is `None` (unrecorded); use
+    /// [`Fabric::intern_word_token_with_lexicon`] when the decoding
+    /// pronunciation's tier is known.
     pub fn intern_word_token(
         &mut self,
         word: impl Into<String>,
@@ -156,11 +160,29 @@ impl Fabric {
         end_frame: u64,
         source: impl Into<String>,
     ) -> FactId {
+        self.intern_word_token_with_lexicon(word, start_frame, end_frame, source, None)
+    }
+
+    /// Intern a `WORD_TOKEN` occurrence with its two-tier lexicon provenance.
+    ///
+    /// `lexicon_source` is the `lexicon` crate tag (`cmudict` /
+    /// `librispeech-g2p`) for the pronunciation the token was decoded with;
+    /// `None` leaves it unrecorded. Surfaced in the why-view
+    /// (`output::WhyThisWord::lexicon_source`).
+    pub fn intern_word_token_with_lexicon(
+        &mut self,
+        word: impl Into<String>,
+        start_frame: u64,
+        end_frame: u64,
+        source: impl Into<String>,
+        lexicon_source: Option<String>,
+    ) -> FactId {
         self.intern_token(TokenFact::Word(WordToken {
             word: word.into(),
             start_frame,
             end_frame,
             source: source.into(),
+            lexicon_source,
         }))
     }
 

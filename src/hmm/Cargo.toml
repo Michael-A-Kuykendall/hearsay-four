@@ -17,5 +17,7 @@ serde_json = "1"
 corpus = { path = "../corpus" }
 fse = { path = "../fse" }
 lexicon = { path = "../lexicon" }
+# r2_perf wordlist-scan mode: lm::normalize_text census tokenizer.
+lm = { path = "../lm" }
 # R3 SI base gate (r3_si_base_tests): canonical WER scorer for SI DEV WER.
 output = { path = "../output" }

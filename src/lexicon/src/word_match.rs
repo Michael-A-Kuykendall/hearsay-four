@@ -30,7 +30,7 @@ use arena::Arena;
 use fabric::FactId;
 use invariant_ppt::assert_invariant;
 
-use crate::PronunciationEntry;
+use crate::{LexiconSource, PronunciationEntry};
 
 /// Maximum edit count for a full-word alignment (B2: bounded distance <= 2).
 pub const MAX_WORD_EDITS: usize = 2;
@@ -45,7 +45,8 @@ pub const INDEL_COST: f32 = 1.0;
 /// (for a partial hypothesis, the committed input phones). `cost` is the
 /// articulatory-class alignment penalty (0.0 for an exact match); `partial`
 /// marks syllable-level fallback hypotheses emitted when no full-word
-/// alignment exists.
+/// alignment exists. `source` is the matched entry's two-tier provenance
+/// (`None` for partial hypotheses, which align no single entry).
 #[derive(Debug, Clone, PartialEq)]
 pub struct WordMatch {
     pub word: String,
@@ -53,6 +54,7 @@ pub struct WordMatch {
     pub phones: Vec<String>,
     pub cost: f32,
     pub partial: bool,
+    pub source: Option<LexiconSource>,
 }
 
 /// Articulatory manner class driving substitution costs (model-free table).
@@ -231,6 +233,7 @@ pub fn match_committed_sequence(
                 phones: entry.phones.clone(),
                 cost,
                 partial: false,
+                source: Some(entry.source),
             });
         }
         matches.sort_by(|a, b| a.cost.total_cmp(&b.cost).then_with(|| a.word.cmp(&b.word)));
@@ -254,6 +257,7 @@ pub fn match_committed_sequence(
                 phones: phones.clone(),
                 cost: *cost,
                 partial: true,
+                source: None,
             });
         }
     }
@@ -296,6 +300,55 @@ mod tests {
                 "K".to_string(),
                 "T".to_string()
             ]
+        );
+    }
+
+    #[test]
+    fn match_carries_entry_source_and_partial_carries_none() {
+        let mut arena = Arena::new();
+        // Tier-2-tagged single-entry table: the full match must inherit it.
+        let table = crate::ingest_with_arena_sourced(
+            "STAKED  S T EY1 K T\n",
+            &mut arena,
+            LexiconSource::LibrispeechG2p,
+        );
+        let syllables = table["STAKED"][0].phoneme_ids.clone();
+        for id in &syllables {
+            arena.fabric.assert_assumption(*id);
+            arena.fabric.commit(*id);
+        }
+        let matches = match_committed_sequence(&mut arena, &syllables, &table);
+        assert_eq!(matches.len(), 1);
+        assert_eq!(
+            matches[0].source,
+            Some(LexiconSource::LibrispeechG2p),
+            "full match must carry the matched entry's tier tag"
+        );
+        // Unalignable phones against a disjoint table: partial fallback, no
+        // single entry, so no source.
+        let mut arena = Arena::new();
+        let table = ingest_with_arena("RHUBARB  R UW1 B AA2 R B\n", &mut arena);
+        let foreign: Vec<String> = ["S", "T", "EY", "K", "T"]
+            .iter()
+            .map(|p| p.to_string())
+            .collect();
+        let syllables = crate::resolve_phones(&mut arena, &foreign);
+        for id in &syllables {
+            arena.fabric.assert_assumption(*id);
+            arena.fabric.commit(*id);
+        }
+        let matches = match_committed_sequence(&mut arena, &syllables, &table);
+        assert!(
+            !matches.is_empty(),
+            "disjoint phones must yield partials, not nothing"
+        );
+        assert!(
+            matches.iter().all(|m| m.partial),
+            "disjoint phones must yield only partials: {matches:?}"
+        );
+        assert!(
+            matches.iter().all(|m| m.source.is_none()),
+            "partials align no single entry: {matches:?}"
         );
     }
 

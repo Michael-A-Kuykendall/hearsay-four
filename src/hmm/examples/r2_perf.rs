@@ -13,21 +13,21 @@
 //! Selection is manifest order until cumulative audio reaches `max_hours`.
 //! Prints `KEY=VALUE` lines plus a human summary on stderr.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use corpus::audio::{decode_file, to_mono};
 use fse::{FEATURE_DIM, extract_features, window_audio};
 use hmm::{HmmSet, TrainConfig, UttData};
-use lexicon::ingest_sample;
+use lexicon::{TIER1_IDENTITY, TieredLexicon, load_tiered};
 
 type Lexicon = HashMap<String, Vec<Vec<String>>>;
 
 fn lexicon_table_path() -> PathBuf {
     if let Ok(root) = std::env::var("BETTER_VOICE_ROOT") {
-        let cand = PathBuf::from(root)
-            .join("data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt");
+        let cand =
+            PathBuf::from(root).join("data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt");
         if cand.is_file() {
             return cand;
         }
@@ -36,30 +36,27 @@ fn lexicon_table_path() -> PathBuf {
     lane.join("../better-voice/data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt")
 }
 
-fn load_lexicon() -> Lexicon {
-    let path = lexicon_table_path();
-    let text = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read phonetics table {}: {e}", path.display()));
-    let mut cmudict = String::new();
-    for raw in text.lines() {
-        let line = raw.strip_suffix('\r').unwrap_or(raw);
-        if line.is_empty() || line.starts_with('#') {
-            continue;
+fn librispeech_lexicon_path() -> PathBuf {
+    if let Ok(path) = std::env::var("LIBRISPEECH_LEXICON") {
+        let cand = PathBuf::from(path);
+        if cand.is_file() {
+            return cand;
         }
-        let mut cols = line.split('\t');
-        let (Some(word), Some(phones)) = (cols.next(), cols.next()) else {
-            continue;
-        };
-        let word = word.trim().to_uppercase();
-        if word.is_empty() || phones.trim().is_empty() {
-            continue;
-        }
-        cmudict.push_str(&word);
-        cmudict.push(' ');
-        cmudict.push_str(phones.trim());
-        cmudict.push('\n');
     }
-    ingest_sample(&cmudict)
+    let lane = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    lane.join("data/lexicon/librispeech-lexicon.txt")
+}
+
+fn load_lexicon() -> TieredLexicon {
+    let tier1 = lexicon_table_path();
+    let tier2 = librispeech_lexicon_path();
+    load_tiered(&tier1, &tier2).unwrap_or_else(|e| {
+        panic!(
+            "read tiered lexicon {} + {}: {e}",
+            tier1.display(),
+            tier2.display()
+        )
+    })
 }
 
 fn norm_token(tok: &str) -> String {
@@ -130,6 +127,69 @@ fn phones_for_train(lex: &Lexicon, text: &str) -> Option<Vec<String>> {
     Some(out)
 }
 
+/// Count-only type/token census of free text against the two-tier lexicon.
+///
+/// Tokenizes with `lm::normalize_text` (the exact DATA-1 census tokenizer),
+/// looks every word token up with the same [`lex_lookup`] candidate chain as
+/// the utterance census, and attributes each hit to its tier via the table
+/// provenance. Prints `wordscan_*` COUNTS ONLY — never the words themselves —
+/// so it is safe to run over personal text (e.g. the owner-book stripped
+/// text) and paste the output into beads or notes.
+fn wordlist_scan(text_path: &str, tier1_path: &str, tier2_path: &str) {
+    let tiered = load_tiered(tier1_path, tier2_path).expect("read tiered lexicon");
+    let text = std::fs::read_to_string(text_path).expect("read text");
+    let sents = lm::normalize_text(&text);
+    let mut tok_total = 0usize;
+    let mut num_tokens = 0usize;
+    let mut tier1_tok = 0usize;
+    let mut tier2_tok = 0usize;
+    let mut miss_tok = 0usize;
+    let mut tier_of_type: HashMap<String, u8> = HashMap::new();
+    let mut types: HashSet<String> = HashSet::new();
+    for sent in &sents {
+        for tok in sent {
+            tok_total += 1;
+            if tok == lm::NUM_TOKEN {
+                num_tokens += 1;
+                continue;
+            }
+            let up = tok.to_uppercase();
+            types.insert(up.clone());
+            let hit = lex_lookup(&tiered.table, &up)
+                .and_then(|(word, _)| tiered.sources.get(&word).copied());
+            match hit {
+                Some(lexicon::LexiconSource::Cmudict) => {
+                    tier1_tok += 1;
+                    tier_of_type.entry(up).or_insert(1);
+                }
+                Some(lexicon::LexiconSource::LibrispeechG2p) => {
+                    tier2_tok += 1;
+                    tier_of_type.entry(up).or_insert(2);
+                }
+                None => {
+                    miss_tok += 1;
+                    tier_of_type.entry(up).or_insert(0);
+                }
+            }
+        }
+    }
+    // Per-type tier is first-seen attribution; token counts are exact.
+    let tier1_types = tier_of_type.values().filter(|v| **v == 1).count();
+    let tier2_types = tier_of_type.values().filter(|v| **v == 2).count();
+    let miss_types = tier_of_type.values().filter(|v| **v == 0).count();
+    println!("wordscan_sentences={}", sents.len());
+    println!("wordscan_tokens_total={tok_total}");
+    println!("wordscan_num_tokens={num_tokens}");
+    println!("wordscan_word_tokens={}", tok_total - num_tokens);
+    println!("wordscan_types_total={}", types.len());
+    println!("wordscan_tier1_types={tier1_types}");
+    println!("wordscan_tier1_tokens={tier1_tok}");
+    println!("wordscan_tier2_types={tier2_types}");
+    println!("wordscan_tier2_tokens={tier2_tok}");
+    println!("wordscan_missing_types={miss_types}");
+    println!("wordscan_missing_tokens={miss_tok}");
+}
+
 struct Row {
     id: String,
     rel: String,
@@ -139,9 +199,14 @@ struct Row {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    // ---- wordlist-scan mode: count-only free-text census, no audio ----
+    if args.len() == 5 && args[1] == "wordlist-scan" {
+        wordlist_scan(&args[2], &args[3], &args[4]);
+        return;
+    }
     assert!(
         args.len() == 5 || (args.len() == 6 && args[5] == "lexscan"),
-        "usage: r2_perf <manifest.tsv> <wav_root> <max_hours> <bw_repeats> [lexscan]"
+        "usage: r2_perf <manifest.tsv> <wav_root> <max_hours> <bw_repeats> [lexscan] | r2_perf wordlist-scan <text.txt> <tier1.tsv> <tier2.txt>"
     );
     let manifest_path = PathBuf::from(&args[1]);
     let wav_root = PathBuf::from(&args[2]);
@@ -149,8 +214,13 @@ fn main() {
     let bw_repeats: usize = args[4].parse().expect("bw_repeats");
     assert!(max_hours > 0.0 && bw_repeats >= 1);
 
-    let lex = load_lexicon();
-    eprintln!("lexicon words: {}", lex.len());
+    let tiered = load_lexicon();
+    let (tier1_words, tier2_words) = (tiered.tier1_words(), tiered.tier2_words());
+    eprintln!(
+        "lexicon words: {} (tier1 {tier1_words} cmudict + tier2 {tier2_words} librispeech-g2p; tier1: {TIER1_IDENTITY})",
+        tiered.table.len(),
+    );
+    let lex: Lexicon = tiered.table;
 
     let text = std::fs::read_to_string(&manifest_path).expect("read manifest");
     let mut rows = Vec::new();
@@ -214,6 +284,8 @@ fn main() {
         println!("scan_oov_tokens={oov_tok}");
         println!("scan_tokens_total={tok_total}");
         println!("scan_oov_types={}", oov_map.len());
+        println!("scan_tier1_words={tier1_words}");
+        println!("scan_tier2_words={tier2_words}");
         let mut top: Vec<(&String, &usize)> = oov_map.iter().collect();
         top.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
         let top30: Vec<String> = top

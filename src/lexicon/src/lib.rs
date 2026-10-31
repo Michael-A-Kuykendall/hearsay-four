@@ -25,17 +25,61 @@ pub const PHONEME_ALPHABET: [&str; 39] = [
     "TH", "V", "W", "Y", "Z", "ZH",
 ];
 
+/// Tier-1 lexicon identity (two-tier policy, bead
+/// `hearsay-four-1c9--mfcc-viterbi-speed.1--oov-fallback-policy`).
+///
+/// Tier-1 is the better-voice `Master_English_Phonetics_FINAL_COMPLETE.txt`
+/// phonetics table (CMUdict content) — NOT cmudict-0.7b. Tier-1 wins every
+/// word it covers; tier-2 (`librispeech-lexicon.txt`, Sequitur G2P) fills
+/// only words tier-1 lacks. This constant records the identity so no
+/// follow-up can silently switch tier-1 to another dictionary.
+pub const TIER1_IDENTITY: &str =
+    "better-voice Master_English_Phonetics_FINAL_COMPLETE.txt (CMUdict content, NOT cmudict-0.7b)";
+
+/// Which tier supplied a pronunciation entry (two-tier provenance).
+///
+/// Every [`PronunciationEntry`] carries one of these; tiered tables record
+/// one per word. Serialized form is [`LexiconSource::as_str`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LexiconSource {
+    /// Tier-1: CMUdict content ([`TIER1_IDENTITY`]). Wins where both exist.
+    Cmudict,
+    /// Tier-2: `librispeech-lexicon.txt` (Sequitur classical G2P). Gap fill.
+    LibrispeechG2p,
+}
+
+impl LexiconSource {
+    /// Stable provenance token: `cmudict` or `librispeech-g2p`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            LexiconSource::Cmudict => "cmudict",
+            LexiconSource::LibrispeechG2p => "librispeech-g2p",
+        }
+    }
+}
+
+impl std::fmt::Display for LexiconSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// One dictionary entry: orthographic word + stress-stripped ARPABET phones.
 ///
 /// `phoneme_ids` holds the arena `NodeId`s (aem.5) for `phones`, in order —
 /// empty until [`PronunciationEntry::resolve`] (or [`ingest_with_arena`])
 /// interns each phone. The table itself stays phone strings only: a lookup
 /// table, NOT a model (INV `lookup_not_model`).
+///
+/// `source` records which tier supplied the pronunciation (two-tier
+/// provenance); [`parse_cmudict_line`] defaults it to
+/// [`LexiconSource::Cmudict`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PronunciationEntry {
     pub word: String,
     pub phones: Vec<String>,
     pub phoneme_ids: Vec<FactId>,
+    pub source: LexiconSource,
 }
 
 impl PronunciationEntry {
@@ -57,7 +101,23 @@ pub fn strip_stress(phone: &str) -> String {
 /// Returns `None` for blank/comment lines or phone-less lines.
 /// The entry's `phoneme_ids` start empty; call [`PronunciationEntry::resolve`]
 /// (or use [`ingest_with_arena`]) to intern phones to arena `NodeId`s.
+/// The entry's [`LexiconSource`] is [`LexiconSource::Cmudict`]; use
+/// [`parse_cmudict_line_with_source`] to tag another tier.
 pub fn parse_cmudict_line(line: &str) -> Option<PronunciationEntry> {
+    parse_cmudict_line_with_source(line, LexiconSource::Cmudict)
+}
+
+/// Parse one CMUdict-shaped line, tagging the entry with `source`.
+///
+/// Same accepted format as [`parse_cmudict_line`] (whitespace-separated
+/// `WORD PHONES...`, stress digits stripped); only the provenance tag
+/// differs. Tier-2 (`librispeech-lexicon.txt`) lines parse through here with
+/// [`LexiconSource::LibrispeechG2p`] — both its separators (double space and
+/// tab) are plain whitespace to `split_whitespace`.
+pub fn parse_cmudict_line_with_source(
+    line: &str,
+    source: LexiconSource,
+) -> Option<PronunciationEntry> {
     let line = line.trim();
     if line.is_empty() || line.starts_with(";;;") {
         return None;
@@ -72,6 +132,7 @@ pub fn parse_cmudict_line(line: &str) -> Option<PronunciationEntry> {
         word,
         phones,
         phoneme_ids: Vec::new(),
+        source,
     })
 }
 
@@ -121,6 +182,111 @@ pub fn ingest_full_cmudict(
         }
     }
     Ok(table)
+}
+
+/// Convert better-voice Master phonetics TSV text to CMUdict-shaped text.
+///
+/// The Master table ([`TIER1_IDENTITY`]) is lowercase `word\tPHONES\ttag`
+/// rows with `#` comment lines and CRLF endings; the returned text is
+/// `WORD PHONES...` lines (words uppercased) ready for [`ingest_sample`] or
+/// [`ingest_tiered`]. Rows without a word and a phone column, or with an
+/// empty word or phone field, are skipped — byte-identical semantics to the
+/// conversion formerly inline in `r2_perf::load_lexicon`.
+pub fn master_tsv_to_cmudict(text: &str) -> String {
+    let mut cmudict = String::new();
+    for raw in text.lines() {
+        let line = raw.strip_suffix('\r').unwrap_or(raw);
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let mut cols = line.split('\t');
+        let (Some(word), Some(phones)) = (cols.next(), cols.next()) else {
+            continue;
+        };
+        let word = word.trim().to_uppercase();
+        if word.is_empty() || phones.trim().is_empty() {
+            continue;
+        }
+        cmudict.push_str(&word);
+        cmudict.push(' ');
+        cmudict.push_str(phones.trim());
+        cmudict.push('\n');
+    }
+    cmudict
+}
+
+/// A two-tier pronunciation table with per-word provenance.
+///
+/// `table` is the word -> pronunciations lookup (same shape as
+/// [`ingest_sample`]); `sources` records which tier supplied each word.
+/// Tier-1 (CMUdict content) wins every word it covers; tier-2
+/// (`librispeech-lexicon.txt`) fills only words tier-1 lacks, so every word
+/// in `table` has exactly one entry in `sources`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TieredLexicon {
+    pub table: HashMap<String, Vec<Vec<String>>>,
+    pub sources: HashMap<String, LexiconSource>,
+}
+
+impl TieredLexicon {
+    /// Words supplied by tier-1 (CMUdict content).
+    pub fn tier1_words(&self) -> usize {
+        self.sources
+            .values()
+            .filter(|s| **s == LexiconSource::Cmudict)
+            .count()
+    }
+
+    /// Words supplied by tier-2 (`librispeech-lexicon.txt` gap fill).
+    pub fn tier2_words(&self) -> usize {
+        self.sources
+            .values()
+            .filter(|s| **s == LexiconSource::LibrispeechG2p)
+            .count()
+    }
+}
+
+/// Ingest two CMUdict-shaped texts as one tiered table with provenance.
+///
+/// `tier1_text` is CMUdict content ([`TIER1_IDENTITY`], already converted via
+/// [`master_tsv_to_cmudict`] when it comes from the Master TSV);
+/// `tier2_text` is `librispeech-lexicon.txt` content. Tier-1 wins per word:
+/// a word present in tier-1 keeps exactly its tier-1 pronunciations and is
+/// tagged [`LexiconSource::Cmudict`]; a word only in tier-2 is tagged
+/// [`LexiconSource::LibrispeechG2p`]. Blank/`;;;` lines are skipped in both.
+pub fn ingest_tiered(tier1_text: &str, tier2_text: &str) -> TieredLexicon {
+    let table = ingest_sample(tier1_text);
+    let mut sources: HashMap<String, LexiconSource> = HashMap::new();
+    for word in table.keys() {
+        sources.insert(word.clone(), LexiconSource::Cmudict);
+    }
+    let mut table = table;
+    for line in tier2_text.lines() {
+        if let Some(entry) = parse_cmudict_line_with_source(line, LexiconSource::LibrispeechG2p) {
+            if table.contains_key(&entry.word) {
+                continue;
+            }
+            sources.insert(entry.word.clone(), entry.source);
+            table.entry(entry.word).or_default().push(entry.phones);
+        }
+    }
+    TieredLexicon { table, sources }
+}
+
+/// Load the two-tier lexicon from its on-disk sources.
+///
+/// `master_tsv_path` is the tier-1 Master phonetics TSV
+/// ([`TIER1_IDENTITY`]); `librispeech_path` is the tier-2
+/// `librispeech-lexicon.txt` (CMUdict-shaped). Fails loudly on unreadable
+/// files; see [`ingest_tiered`] for the merge policy.
+pub fn load_tiered(
+    master_tsv_path: impl AsRef<std::path::Path>,
+    librispeech_path: impl AsRef<std::path::Path>,
+) -> std::io::Result<TieredLexicon> {
+    let master = std::fs::read_to_string(master_tsv_path.as_ref())?;
+    let tier1 = master_tsv_to_cmudict(&master);
+    let tier2 = std::fs::read_to_string(librispeech_path.as_ref())?;
+    Ok(ingest_tiered(&tier1, &tier2))
 }
 
 /// The closed ~30-word experiment vocabulary (uppercased), mirroring
@@ -213,13 +379,25 @@ pub fn resolve_phones(arena: &mut Arena, phones: &[String]) -> Vec<FactId> {
 ///
 /// Returns the word -> pronunciations lookup table; each entry carries both
 /// the stress-stripped `phones` and the parallel `phoneme_ids`.
+/// Every entry's [`LexiconSource`] is [`LexiconSource::Cmudict`]; use
+/// [`ingest_with_arena_sourced`] to tag another tier.
 pub fn ingest_with_arena(
     text: &str,
     arena: &mut Arena,
 ) -> HashMap<String, Vec<PronunciationEntry>> {
+    ingest_with_arena_sourced(text, arena, LexiconSource::Cmudict)
+}
+
+/// Ingest CMUdict-shaped text like [`ingest_with_arena`], tagging every
+/// entry's [`LexiconSource`] with `source` (two-tier provenance).
+pub fn ingest_with_arena_sourced(
+    text: &str,
+    arena: &mut Arena,
+    source: LexiconSource,
+) -> HashMap<String, Vec<PronunciationEntry>> {
     let mut table: HashMap<String, Vec<PronunciationEntry>> = HashMap::new();
     for line in text.lines() {
-        if let Some(mut entry) = parse_cmudict_line(line) {
+        if let Some(mut entry) = parse_cmudict_line_with_source(line, source) {
             entry.resolve(arena);
             table.entry(entry.word.clone()).or_default().push(entry);
         }
@@ -392,5 +570,93 @@ DOG  D AO1 G
             "same phone must share one NodeId across words"
         );
         assert_ne!(staked[0], staked[1], "distinct phones must not alias");
+    }
+
+    #[test]
+    fn tier1_identity_names_master_file_not_cmudict_point_release() {
+        assert!(
+            TIER1_IDENTITY.contains("Master_English_Phonetics_FINAL_COMPLETE"),
+            "tier-1 identity must name the Master file: {TIER1_IDENTITY}"
+        );
+        assert!(
+            TIER1_IDENTITY.contains("NOT cmudict-0.7b"),
+            "tier-1 identity must disclaim cmudict-0.7b: {TIER1_IDENTITY}"
+        );
+    }
+
+    #[test]
+    fn lexicon_source_tokens_are_stable() {
+        assert_eq!(LexiconSource::Cmudict.as_str(), "cmudict");
+        assert_eq!(LexiconSource::LibrispeechG2p.as_str(), "librispeech-g2p");
+        assert_eq!(LexiconSource::Cmudict.to_string(), "cmudict");
+        assert_eq!(LexiconSource::LibrispeechG2p.to_string(), "librispeech-g2p");
+    }
+
+    #[test]
+    fn parse_defaults_source_to_cmudict() {
+        let entry = parse_cmudict_line("QUICK  K W IH1 K").expect("parse");
+        assert_eq!(entry.source, LexiconSource::Cmudict);
+        let tier2 =
+            parse_cmudict_line_with_source("QUICK\tK W IH1 K", LexiconSource::LibrispeechG2p)
+                .expect("parse tab-separated tier-2 line");
+        assert_eq!(tier2.word, "QUICK");
+        assert_eq!(tier2.source, LexiconSource::LibrispeechG2p);
+    }
+
+    #[test]
+    fn master_tsv_conversion_skips_comments_and_empty_fields() {
+        let tsv = "# comment line\nhello\tHH AH0 L OW1\tbase\nempty\t\tbase\n\tHH IY1\tbase\nnocol\nWORLD\tW ER1 L D\tbase\r\n";
+        assert_eq!(
+            master_tsv_to_cmudict(tsv),
+            "HELLO HH AH0 L OW1\nWORLD W ER1 L D\n"
+        );
+    }
+
+    #[test]
+    fn tiered_ingest_tier1_wins_and_every_word_tagged() {
+        let tier1 = "SHARED  S EH1 R D\nONLY1  OW1 N L IY1 W AH1 N\n";
+        let tier2 = "SHARED\tSH AE1 R D\nONLY2\tOW1 N L IY1 T UW1\n";
+        let tiered = ingest_tiered(tier1, tier2);
+        assert_eq!(tiered.table.len(), 3);
+        assert_eq!(tiered.sources.len(), 3);
+        // Tier-1 wins the shared word: pronunciation AND tag.
+        assert_eq!(
+            tiered.table["SHARED"],
+            vec![vec![
+                "S".to_string(),
+                "EH".to_string(),
+                "R".to_string(),
+                "D".to_string()
+            ]]
+        );
+        assert_eq!(tiered.sources["SHARED"], LexiconSource::Cmudict);
+        assert_eq!(tiered.sources["ONLY1"], LexiconSource::Cmudict);
+        assert_eq!(tiered.sources["ONLY2"], LexiconSource::LibrispeechG2p);
+        assert_eq!(tiered.tier1_words(), 2);
+        assert_eq!(tiered.tier2_words(), 1);
+        // Every table word has exactly one provenance tag.
+        for word in tiered.table.keys() {
+            assert!(
+                tiered.sources.contains_key(word),
+                "{word} lacks a provenance tag"
+            );
+        }
+    }
+
+    #[test]
+    fn arena_ingest_tags_entries_with_source() {
+        let mut arena = Arena::new();
+        let tier1 = ingest_with_arena("QUICK  K W IH1 K\n", &mut arena);
+        assert_eq!(
+            tier1["QUICK"][0].source,
+            LexiconSource::Cmudict,
+            "untagged ingest defaults to tier-1"
+        );
+        let tier2 = ingest_with_arena_sourced(
+            "QUICK\tK W IH1 K\n",
+            &mut arena,
+            LexiconSource::LibrispeechG2p,
+        );
+        assert_eq!(tier2["QUICK"][0].source, LexiconSource::LibrispeechG2p);
     }
 }
