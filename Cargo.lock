@@ -3,6 +3,16 @@
 version = 4
 
 [[package]]
+name = "a2"
+version = "0.1.0"
+dependencies = [
+ "eval",
+ "fse",
+ "hound",
+ "lattice",
+]
+
+[[package]]
 name = "accent"
 version = "0.1.0"
 dependencies = [

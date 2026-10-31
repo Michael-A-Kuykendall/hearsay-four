@@ -1,0 +1,12 @@
+[package]
+name = "a2"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+fse = { path = "../fse" }
+lattice = { path = "../lattice" }
+eval = { path = "../eval" }
+hound = "3"
+
+[dev-dependencies]
