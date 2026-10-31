@@ -626,6 +626,7 @@ impl WordRecord {
 // TXT-1): classical casing/punctuation restoration and subtitle exports.
 // ---------------------------------------------------------------------------
 pub mod readable;
+pub mod streaming;
 pub mod why;
 
 // ---------------------------------------------------------------------------
