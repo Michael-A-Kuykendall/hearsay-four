@@ -1,0 +1,14 @@
+[package]
+name = "decoder"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+lattice = { path = "../lattice" }
+hmm = { path = "../hmm" }
+lm = { path = "../lm" }
+fse = { path = "../fse" }
+lexicon = { path = "../lexicon" }
+
+[dev-dependencies]
+corpus = { path = "../corpus" }
