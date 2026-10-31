@@ -1,0 +1,57 @@
+{
+  "dataset": "owner-book",
+  "bead": "hearsay-four-79f--data-intake-corpora",
+  "role": "LM-TRAIN personal component (interpolated with general LM; weight tuned on DEV only)",
+  "source_pdf_sha256": "80754fcf9ade218c979f20ad58f9357ae2b9c38fcb6129d4ac7a2faec919ecb6",
+  "source_pdf_bytes": 886022,
+  "source_location": "~/hearsay-personal/owner-book.pdf (read-only copy outside the repo; Dropbox original never modified)",
+  "extraction": "pdftotext (poppler 24.02.0, rootless extract; no OCR). Text layer present.",
+  "extracted_words": 104725,
+  "extracted_sentences_3plus_words": 7122,
+  "extracted_lm_normalize": {
+    "tool": "lm::normalize_text (src/lm), exact",
+    "sentences": 7562,
+    "tokens": 106465,
+    "sentences_3plus_tokens": 7065
+  },
+  "strip_rules": [
+    {
+      "id": "R1",
+      "description": "Drop front-matter block: every line before the first chapter heading (title block, author line, copyright, rights, ISBN labels, dedication, backer-list heading, plus the running headers of the first 5 pages embedded in the block). No backer names present in extraction (blank pages).",
+      "lines_dropped": 27
+    },
+    {
+      "id": "R2",
+      "description": "Drop running-header lines of the form <AUTHOR-SURNAME> / <UPPERCASE-BOOK-TITLE> / <page>, pages 6-208 (pages 1-5 already removed by R1; 208 headers file-wide, one per page, none digit-only).",
+      "lines_dropped": 203
+    },
+    {
+      "id": "R3",
+      "description": "Drop trailing end-marker line plus surrounding trailing blank lines.",
+      "lines_dropped": 3
+    },
+    {
+      "id": "R4",
+      "description": "Drop separator-only lines (3+ chars from underscore/asterisk/em-dash/en-dash/hyphen sets). 66 file-wide, 1 inside the R1 block.",
+      "lines_dropped": 65
+    },
+    {
+      "id": "R5",
+      "description": "Drop remaining blank lines.",
+      "lines_dropped": 615
+    }
+  ],
+  "front_matter_stripping": "FINAL L3 2026-10-31: R1-R5 dropped 913 of 9292 lines (27+203+3+65+615); 8379 kept. Residual running headers 0, residual digit-only lines 0.",
+  "stripped_location": "~/hearsay-personal/owner-book.stripped.txt (outside repo; counts only in git, never text)",
+  "stripped_bytes": 571588,
+  "stripped_kept_lines": 8379,
+  "stripped_wc_words": 103178,
+  "stripped_lm_normalize": {
+    "tool": "lm::normalize_text (src/lm), exact",
+    "sentences": 7559,
+    "tokens": 105191,
+    "sentences_3plus_tokens": 7060
+  },
+  "eval_novelty": "FINAL L3 2026-10-31: 0 verbatim matches with lm::normalize exactness on both sides vs 891-distinct-prompt superset (893 nonblank lines from sessions/script-c0r-read.txt, script-p4-fly-dev.txt, script-p4-fly-ptest.txt, script-harvard.txt). Exact RS1-d cut lists unavailable (no sessions/CATALOG.tsv on main or lane), so the superset stands as the prompt side; nothing dropped from training text.",
+  "privacy": "PDF, extracted text, and any derived LM never enter git (scripts/personal_guard.sh + src/corpus/tests/personal_guard_tests.rs). No excerpts in any doc."
+}
