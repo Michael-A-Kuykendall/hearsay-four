@@ -36,3 +36,34 @@ either way (0 loud frames outside); the audit checks truncation, not
 tightness. Clips with n=297 are the short files (143520 samples).
 
 Verdict: 12/12 CLEAN, zero TRUNCATED.
+
+---
+
+## RS1-0 onset-transient check (2026-10-31, bead hearsay-four-mng--rs1-0-click-check)
+
+Probe: `python3 scripts/probe_onsets.py` (committed). Takes 0,12,...,108
+of sessions/run1; 25/10 ms RMS framing; replicated production trimmer
+(K 0.01 / floor 0.001 / hangover 5 / radius 2). Plot: first 400 ms dB +
+span overlay (docs/results/rs1-0-onsets/onset_*.png, 10 PNGs).
+CLICK-take rule: max dB(0-100 ms) minus median dB(100-400 ms) > 10 dB.
+Verdict CLICK iff >=7/10 takes.
+
+| take | score dB | span start ms |
+|---|---|---|
+| utt000.wav | 19.75 | 0 |
+| utt012.wav | 12.42 | 0 |
+| utt024.wav | 9.89 | 0 |
+| utt036.wav | 15.70 | 0 |
+| utt048.wav | 22.37 | 0 |
+| utt060.wav | 14.21 | 10 |
+| utt072.wav | 4.91 | 0 |
+| utt084.wav | 10.53 | 0 |
+| utt096.wav | 18.97 | 0 |
+| utt108.wav | 16.22 | 0 |
+
+8/10 takes show a leading transient 10-22 dB above the following speech
+floor, and all 10 spans start at 0-10 ms. The trimmer is pinning open on
+an Enter-key/stream-start click, not on speech. No owner listening check
+needed (not ambiguous).
+
+RS1-0-VERDICT: CLICK

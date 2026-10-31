@@ -1,0 +1,12 @@
+utt000.wav score_db=19.75 span_start_ms=0
+utt012.wav score_db=12.42 span_start_ms=0
+utt024.wav score_db=9.89 span_start_ms=0
+utt036.wav score_db=15.70 span_start_ms=0
+utt048.wav score_db=22.37 span_start_ms=0
+utt060.wav score_db=14.21 span_start_ms=10
+utt072.wav score_db=4.91 span_start_ms=0
+utt084.wav score_db=10.53 span_start_ms=0
+utt096.wav score_db=18.97 span_start_ms=0
+utt108.wav score_db=16.22 span_start_ms=0
+click_takes=8/10
+RS1-0-VERDICT: CLICK
