@@ -58,6 +58,16 @@ condition-B WER, else record acoustic-bottleneck verdict and block
   by search budget alone is implausible; the misses are acoustic
   (genetic/rhubarb/kinship hubs, same as A1).
 
+## Canonical-audio confirmation (main, 2026-10-31)
+
+Same sweep on canon-template lattices (`/tmp/a2-dev-canon/lattices/`):
+1-best 0/422, oracle 0/422 at K=3/5/10/20, gap 0.0000, CI [0,0].
+NO-GO verdict confirmed and strengthened (zero recoverable errors —
+there is nothing for fabric rescoring to fix on this DEV).
+
+Architect review 2026-10-31: APPROVED. K=3 choice stands (moot at zero
+gap; keep for future non-ceiling data).
+
 ## Notes
 
 - Oracle ≤ 1-best holds by construction (backbone + open entry/exit;

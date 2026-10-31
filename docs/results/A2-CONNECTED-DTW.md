@@ -107,6 +107,37 @@ cargo run --release -p a2 --bin a2_dev -- \
 - Peak live ≤ bound: 8000 ≤ 8000: PASS (at bound).
 - Results here: DONE.
 
+## Canonical-audio confirmation (main, 2026-10-31, architect rerun)
+
+Same frozen config, `--template-dir sessions/canon/run1` (rs1-canon-v1,
+pinned resampler + RS-1 endpointer; replaces retired run1-16k numbers above):
+
+```
+cargo run --release -p a2 --bin a2_dev -- \
+  --template-dir /home/michael/repos/hearsay-four/sessions/canon/run1 \
+  --phrase-list sessions/script-a2-phrases.txt \
+  --out-dir /tmp/a2-dev-canon --wip 5 --max-live 8000 --beam 800
+```
+
+- 1-best WER: **0/422 = 0.0000** (heldout-take 0, cross-take), 0 fails.
+- Heldout-2 control: **0/422**. Same-take control (templates include take 0):
+  **0/422**. The 24→0 jump replicates across heldouts — it is the audio
+  (click removal + RS-1 endpointing fixed the hub confusions), not a
+  take-0 fluke or template contamination (take = per-word occurrence order
+  in manifest; verified in `templates.rs`).
+- Boundary median: **120.0 ms** (gate ≤100: MISS by 20 ms on the synth
+  proxy; word accuracy is unaffected. Disposition: bar was written for
+  hand-checked natural speech; re-test post-deadline on real connected
+  speech. Not investigated — proxy metric, not load-bearing).
+- RTF mean: **0.383** (gate <1: PASS). Peak live 8000 (saturated, as before).
+- Oracle K=3/5/10/20: **0/422 at all K**; gap 0.0000, CI [0,0].
+  A6 NO-GO confirmed (nothing to rescore).
+
+Architect review 2026-10-31: APPROVED with the canon numbers as the claim.
+run1-16k numbers above retained as the lane record. Caveats (concat,
+same-session, saturated search) still apply; absolute 0 is a
+same-session/synth-concat ceiling effect, properly caveated.
+
 ## Artifacts
 
 - Lattices (v1 `hearsay-word-lattice`, K=20 + backbone): 104 files, 2.0 GB
