@@ -115,21 +115,17 @@ pub fn frozen_frontend_config() -> FrontendConfig {
 }
 
 fn read_wav_mono(path: &Path) -> Result<(Vec<i16>, u32), String> {
-    let mut r = hound::WavReader::open(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let spec = r.spec();
-    let samples: Vec<i16> = r
-        .samples::<i16>()
-        .collect::<Result<_, _>>()
-        .map_err(|e| format!("{e}"))?;
-    let mono = if spec.channels > 1 {
-        samples
-            .chunks(spec.channels as usize)
+    // RS-1 §5: all WAV reads live in corpus; mix down here identically.
+    let pcm = corpus::audio::decode_wav(path)?;
+    let mono = if pcm.channels > 1 {
+        pcm.samples
+            .chunks(pcm.channels as usize)
             .map(|c| (c.iter().map(|&x| x as i32).sum::<i32>() / c.len() as i32) as i16)
             .collect()
     } else {
-        samples
+        pcm.samples
     };
-    Ok((mono, spec.sample_rate))
+    Ok((mono, pcm.sample_rate))
 }
 
 /// Load templates from `dir/manifest.tsv` with `cfg`.

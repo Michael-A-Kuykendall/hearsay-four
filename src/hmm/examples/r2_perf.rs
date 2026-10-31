@@ -25,15 +25,15 @@ use lexicon::ingest_sample;
 type Lexicon = HashMap<String, Vec<Vec<String>>>;
 
 fn lexicon_table_path() -> PathBuf {
-    let lane = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let cand =
-        lane.join("../better-voice/data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt");
-    if cand.is_file() {
-        return cand;
+    if let Ok(root) = std::env::var("BETTER_VOICE_ROOT") {
+        let cand = PathBuf::from(root)
+            .join("data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt");
+        if cand.is_file() {
+            return cand;
+        }
     }
-    PathBuf::from(
-        "/home/michael/repos/better-voice/data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt",
-    )
+    let lane = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    lane.join("../better-voice/data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt")
 }
 
 fn load_lexicon() -> Lexicon {

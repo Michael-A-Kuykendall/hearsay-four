@@ -7,6 +7,6 @@ edition = "2024"
 fse = { path = "../fse" }
 lattice = { path = "../lattice" }
 eval = { path = "../eval" }
-hound = "3"
+corpus = { path = "../corpus" }
 
 [dev-dependencies]
