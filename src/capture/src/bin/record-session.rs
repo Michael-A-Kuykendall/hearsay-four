@@ -151,6 +151,18 @@ fn peak_dbfs(mono: &[i16]) -> f32 {
         20.0 * peak.log10()
     }
 }
+/// Silence floor for sealed takes: peak below 0.01 (-40 dBFS) is a muted
+/// input stream, not speech. Measured 2026-10-30/31: muted takes peak
+/// 0.00003..0.00034, quietest real speech 0.1096.
+const SILENT_TAKE_PEAK_FLOOR: f32 = 0.01;
+
+fn take_is_silent(mono: &[i16]) -> bool {
+    let peak = mono
+        .iter()
+        .map(|s| s.unsigned_abs() as f32 / 32768.0)
+        .fold(0.0f32, f32::max);
+    peak < SILENT_TAKE_PEAK_FLOOR
+}
 /// Sealed take: single Enter, exact-frame capture, no redo.
 /// Returns `None` when the take came up short (caller re-prompts the same index).
 #[allow(clippy::too_many_arguments)]
@@ -178,13 +190,27 @@ fn capture_one_sealed(
         );
         return None;
     }
+    if take_is_silent(&mono) {
+        eprintln!(
+            "SILENT TAKE: peak {:.1} dBFS below floor -40.0 dBFS (muted input?) — retrying same prompt (Ctrl-C abandons the session)",
+            peak_dbfs(&mono)
+        );
+        return None;
+    }
     let n = mono.len();
     let path = out.join(format!("{stem}.wav"));
     match write_wav(&path, &mono, rate) {
-        Ok(()) => println!(
-            "wrote {stem}.wav: {n} frames @ {rate}Hz mono, peak {:.1} dBFS [OK]",
-            peak_dbfs(&mono)
-        ),
+        Ok(()) => {
+            let tag = if take_is_silent(&mono) {
+                "SILENT"
+            } else {
+                "OK"
+            };
+            println!(
+                "wrote {stem}.wav: {n} frames @ {rate}Hz mono, peak {:.1} dBFS [{tag}]",
+                peak_dbfs(&mono)
+            )
+        }
         Err(e) => {
             eprintln!("WAV write failed for {}: {e}", path.display());
             return None;
@@ -572,4 +598,24 @@ fn script_lines_skips_blanks_and_hash_comments() {
         lines,
         vec!["hello world".to_string(), "second line".to_string()]
     );
+}
+#[test]
+fn silent_take_gate_rejects_dithered_silence_accepts_speech() {
+    // Muted-stream signature measured 2026-10-30/31: full-length takes with
+    // +/-1 LSB dither only (peak 0.00003..0.00034), no speech.
+    let mut silent = vec![0i16; 48_000];
+    for (i, s) in silent.iter_mut().enumerate() {
+        if i % 6 == 0 {
+            *s = 1;
+        } else if i % 11 == 0 {
+            *s = -1;
+        }
+    }
+    assert!(take_is_silent(&silent));
+    assert!(take_is_silent(&vec![0i16; 48_000]));
+    // Quietest real speech measured: peak 0.1096. Synthetic speech-level tone.
+    let speech: Vec<i16> = (0..48_000)
+        .map(|i| ((i as f64 * 0.05).sin() * 0.1 * 32768.0) as i16)
+        .collect();
+    assert!(!take_is_silent(&speech));
 }

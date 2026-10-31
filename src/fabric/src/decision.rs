@@ -17,7 +17,7 @@ use crate::{Fabric, FactId};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// The frozen spec version implemented by this module (§14).
-pub const SPEC_VERSION: &str = "1.0";
+pub const SPEC_VERSION: &str = "1.2";
 
 /// Label of the sentence-start pseudo-token `t0` (§4 boundary pair).
 pub const SENTENCE_START: &str = "<s>";
@@ -193,6 +193,14 @@ pub struct SequenceEvidence {
     pub premises: BTreeSet<FactId>,
 }
 
+/// Which budget cap triggered an eviction (R2, docs/design/a4-budget-semantics.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BudgetKind {
+    Live,
+    Dormant,
+    Combined,
+}
+
 /// Provenance events recorded by the decision layer (§8, §9.4, §10).
 #[derive(Debug, Clone, PartialEq)]
 pub enum DecisionEvent {
@@ -206,15 +214,22 @@ pub enum DecisionEvent {
     Defeated {
         token: FactId,
         winner: Vec<FactId>,
-        margin: f64,
+        /// `None` when the winner was unopposed (§10, amendment 1.2).
+        margin: Option<f64>,
     },
-    /// A dormant token was evicted under budget exhaustion (§8).
-    Evicted { token: FactId, liveness: f64 },
+    /// A token was evicted under budget exhaustion (§8); budget records
+    /// which cap triggered (R2, docs/design/a4-budget-semantics.md).
+    Evicted {
+        token: FactId,
+        liveness: f64,
+        budget: BudgetKind,
+    },
     /// A region committed (§10).
     Committed {
         region: (u32, u32),
         winner: Vec<FactId>,
-        margin: f64,
+        /// `None` when the winner was unopposed (§10, amendment 1.2).
+        margin: Option<f64>,
     },
 }
 
@@ -263,7 +278,8 @@ pub enum CommitOutcome {
     Committed {
         winner: ScoredTiling,
         runner_up: Option<ScoredTiling>,
-        margin: f64,
+        /// `None` when the winner was unopposed (§10, amendment 1.2).
+        margin: Option<f64>,
         defeated: Vec<FactId>,
     },
     /// Frontier has not passed `e + H` yet.
@@ -544,6 +560,25 @@ impl DecisionFabric {
     /// `L(h)` first, ties by §10 order. Eviction is a deliberate retraction
     /// recorded in provenance.
     pub fn enforce_budgets(&mut self) {
+        // R2 (spec docs/design/a4-budget-semantics.md): live cap first,
+        // then dormant + combined. Victim order everywhere: lowest L(h),
+        // ties by §10 tie order.
+        while self.live_tokens().len() > self.params.live_budget {
+            let Some(victim) = self.live_tokens().iter().copied().min_by(|a, b| {
+                self.liveness(*a)
+                    .total_cmp(&self.liveness(*b))
+                    .then_with(|| self.token_tie_cmp(*a, *b))
+            }) else {
+                break;
+            };
+            let liveness = self.liveness(victim);
+            self.fabric.retract(victim);
+            self.log.push(DecisionEvent::Evicted {
+                token: victim,
+                liveness,
+                budget: BudgetKind::Live,
+            });
+        }
         loop {
             let dormant = self.dormant_tokens();
             let over_dormant = dormant.len() > self.params.dormant_budget;
@@ -554,6 +589,11 @@ impl DecisionFabric {
             if !over_dormant && !over_combined {
                 return;
             }
+            let budget = if over_dormant {
+                BudgetKind::Dormant
+            } else {
+                BudgetKind::Combined
+            };
             let Some(victim) = dormant.iter().copied().min_by(|a, b| {
                 self.liveness(*a)
                     .total_cmp(&self.liveness(*b))
@@ -566,6 +606,7 @@ impl DecisionFabric {
             self.log.push(DecisionEvent::Evicted {
                 token: victim,
                 liveness,
+                budget,
             });
         }
     }
@@ -711,7 +752,8 @@ impl DecisionFabric {
                 t.tiling_eligible()
                     && t.start_frame >= s
                     && t.end_frame <= e
-                    && self.fabric.is_active(t.fact)
+                    // R1: tilings admit live tokens only.
+                    && self.is_live(t.fact)
             })
             .collect();
         candidates.sort_by(|a, b| {
@@ -778,13 +820,15 @@ impl DecisionFabric {
         let Some(winner) = winner else {
             return CommitOutcome::NoTiling;
         };
-        // Margin against the runner-up; with no runner-up the winner is
-        // unopposed, so the margin is unbounded.
-        let margin = runner_up
-            .as_ref()
-            .map_or(f64::INFINITY, |r| winner.score - r.score);
-        if margin < self.params.delta && frontier_frame < e + self.params.h_max {
-            return CommitOutcome::MarginTooSmall { margin };
+        // Margin against the runner-up (§10, amendment 1.2): `None` when
+        // the winner is unopposed (no live runner-up tiling). There is no
+        // finite number that means "no rival", so absence is typed.
+        let margin = runner_up.as_ref().map(|r| winner.score - r.score);
+        if let Some(m) = margin
+            && m < self.params.delta
+            && frontier_frame < e + self.params.h_max
+        {
+            return CommitOutcome::MarginTooSmall { margin: m };
         }
         for t in &winner.tokens {
             self.fabric.commit(*t);
@@ -899,8 +943,9 @@ impl DecisionFabric {
             .collect()
     }
 
-    /// Defeat recorded for a token (§10): winning tiling + margin.
-    pub fn defeat_for(&self, token: FactId) -> Option<(Vec<FactId>, f64)> {
+    /// Defeat recorded for a token (§10): winning tiling + margin
+    /// (`None` when the winner was unopposed, amendment 1.2).
+    pub fn defeat_for(&self, token: FactId) -> Option<(Vec<FactId>, Option<f64>)> {
         self.log.iter().find_map(|e| match e {
             DecisionEvent::Defeated {
                 token: t,

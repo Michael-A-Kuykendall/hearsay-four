@@ -6,8 +6,8 @@
 
 use fabric::FactId;
 use fabric::decision::{
-    CommitOutcome, DecisionError, DecisionEvent, DecisionFabric, DecisionParams, SPEC_VERSION,
-    SourceClass, Token, TokenKind, spans_conflict,
+    BudgetKind, CommitOutcome, DecisionError, DecisionEvent, DecisionFabric, DecisionParams,
+    SPEC_VERSION, SourceClass, Token, TokenKind, spans_conflict,
 };
 use std::collections::BTreeSet;
 
@@ -27,7 +27,7 @@ fn token(fact: u64, label: &str, start: u32, end: u32) -> Token {
 
 #[test]
 fn spec_version_is_cited() {
-    assert_eq!(SPEC_VERSION, "1.0");
+    assert_eq!(SPEC_VERSION, "1.2");
     // Every class names its declared null (§3 rule 1).
     for class in [
         SourceClass::Acoustic,
@@ -127,7 +127,7 @@ fn dormancy_revival_defeat_scenario() {
         d.events().iter().any(|e| matches!(
             e,
             DecisionEvent::Defeated { token: t, margin, .. }
-                if *t == wreath && *margin > 0.0
+                if *t == wreath && matches!(margin, Some(m) if *m > 0.0)
         )),
         "defeat names the winner and the margin"
     );
@@ -135,7 +135,73 @@ fn dormancy_revival_defeat_scenario() {
     assert_eq!(d.active_unary_max(reef, SourceClass::Acoustic), Some(2.8));
     assert_eq!(d.active_unary_max(wreath, SourceClass::Acoustic), Some(3.0));
 }
-
+#[test]
+fn unopposed_commit_margin_absent() {
+    // §10, amendment 1.2: a winner unopposed among live tilings (rival is
+    // dormant, excluded by §8 amendment 1.1) commits with margin None —
+    // absence, never +inf. Mirrors output's regression scenario.
+    let params = DecisionParams {
+        theta_live: 6.0,
+        delta: 0.5,
+        ..DecisionParams::default()
+    };
+    let mut d = DecisionFabric::new(params);
+    let wreath = d
+        .mint_token("wreath", TokenKind::Word, 0, 10)
+        .expect("token");
+    let reef = d.mint_token("reef", TokenKind::Word, 0, 10).expect("token");
+    let now = d.mint_token("now", TokenKind::Word, 10, 20).expect("token");
+    d.add_unary(wreath, SourceClass::Acoustic, 3.0, no_premises())
+        .expect("acoustic");
+    d.add_unary(reef, SourceClass::Acoustic, 2.8, no_premises())
+        .expect("acoustic");
+    d.add_unary(reef, SourceClass::Lexical, 1.2, no_premises())
+        .expect("lexical");
+    d.add_unary(reef, SourceClass::Speaker, 0.6, no_premises())
+        .expect("speaker");
+    d.add_unary(now, SourceClass::Acoustic, 2.0, no_premises())
+        .expect("acoustic");
+    d.add_boundary_sequence(reef, 0.3).expect("boundary");
+    d.add_boundary_sequence(wreath, 0.2).expect("boundary");
+    d.add_sequence(wreath, now, 0.1, no_premises())
+        .expect("seq");
+    d.attach_context_for_new_token(now, &|a: &Token, b: &Token| {
+        if a.label == "reef" && b.label == "now" {
+            5.0
+        } else {
+            0.0
+        }
+    });
+    let correction = d.fabric_mut().intern();
+    d.fabric_mut().assert_assumption(correction);
+    d.add_user(reef, correction).expect("user");
+    assert!(d.is_dormant(wreath), "rival stays dormant below theta");
+    assert!(d.is_live(reef), "context plus user revive the winner");
+    let outcome = d.commit_region((0, 20), 20 + 10);
+    let CommitOutcome::Committed {
+        winner,
+        runner_up,
+        margin,
+        defeated,
+    } = outcome
+    else {
+        panic!("region must commit, got {outcome:?}");
+    };
+    assert_eq!(winner.tokens, vec![reef, now]);
+    assert!(runner_up.is_none(), "no live runner-up tiling");
+    assert_eq!(margin, None, "unopposed margin is absent, not +inf");
+    assert_eq!(defeated, vec![wreath], "dormant rival still defeated");
+    for e in d.events() {
+        match e {
+            DecisionEvent::Defeated { margin: m, .. }
+            | DecisionEvent::Committed { margin: m, .. } => match m {
+                None => {}
+                Some(v) => assert!(v.is_finite(), "no non-finite margin: {e:?}"),
+            },
+            _ => {}
+        }
+    }
+}
 #[test]
 fn conflict_tiling_threshold() {
     // §7: >50% of the shorter span conflicts; exactly 50% does not.
@@ -279,5 +345,68 @@ fn dormant_budget_eviction_order() {
         d.events()
             .iter()
             .any(|e| matches!(e, DecisionEvent::Evicted { token: t, .. } if *t == low))
+    );
+}
+#[test]
+fn dormant_token_excluded_from_tilings_before_revival() {
+    // §8 exclusive reading (spec docs/design/a4-budget-semantics.md R1):
+    // a dormant token must appear in neither winner nor runner-up.
+    let params = DecisionParams {
+        theta_live: 3.0,
+        ..DecisionParams::default()
+    };
+    let mut d = DecisionFabric::new(params);
+    let wreath = d
+        .mint_token("wreath", TokenKind::Word, 0, 10)
+        .expect("token");
+    let reef = d.mint_token("reef", TokenKind::Word, 0, 10).expect("token");
+    d.add_unary(wreath, SourceClass::Acoustic, 3.0, no_premises())
+        .expect("acoustic");
+    d.add_unary(reef, SourceClass::Acoustic, 2.8, no_premises())
+        .expect("acoustic");
+    assert!(d.is_live(wreath));
+    assert!(d.is_dormant(reef), "correct word starts dormant");
+    // No revival: reef must stay out of tilings entirely.
+    let (winner, runner_up) = d.best_tilings((0, 10));
+    for tiling in winner.iter().chain(runner_up.iter()) {
+        assert!(
+            !tiling.tokens.contains(&reef),
+            "dormant token must not appear in tilings before revival"
+        );
+    }
+    // Sanity: the live token still wins.
+    let w = winner.expect("live tiling wins");
+    assert_eq!(w.tokens, vec![wreath]);
+}
+#[test]
+fn live_budget_constrains_candidate_pool() {
+    // R2 (spec docs/design/a4-budget-semantics.md): over-budget live pool
+    // is pruned lowest-L(h) first with budget attribution.
+    let params = DecisionParams {
+        theta_live: 3.0,
+        live_budget: 1,
+        ..DecisionParams::default()
+    };
+    let mut d = DecisionFabric::new(params);
+    let strong = d.mint_token("strong", TokenKind::Word, 0, 10).expect("t");
+    let weak = d.mint_token("weak", TokenKind::Word, 0, 10).expect("t");
+    d.add_unary(strong, SourceClass::Acoustic, 3.5, no_premises())
+        .expect("acoustic");
+    d.add_unary(weak, SourceClass::Acoustic, 3.0, no_premises())
+        .expect("acoustic");
+    assert_eq!(d.live_tokens().len(), 2);
+    d.enforce_budgets();
+    assert_eq!(d.live_tokens(), vec![strong], "lowest L evicted first");
+    assert!(!d.fabric().is_active(weak));
+    assert!(
+        d.events().iter().any(|e| matches!(
+            e,
+            DecisionEvent::Evicted {
+                token: t,
+                budget: BudgetKind::Live,
+                ..
+            } if *t == weak
+        )),
+        "live eviction is attributed to the live budget"
     );
 }

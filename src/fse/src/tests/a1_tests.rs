@@ -1,8 +1,8 @@
 //! A1 regression tests (bead hearsay-four-b7p): DTW, front end, LOTO.
 
-use crate::dtw::dtw_distance;
-use crate::frontend::{FrontendConfig, extract_with_config, speech_span};
-use crate::gate::{Clip, is_degenerate, leave_one_take_out, phase_test};
+use crate::dtw::{DtwVariant, dtw_distance, dtw_distance_with};
+use crate::frontend::{FrontendConfig, extract_with_config, speech_span, speech_span_with};
+use crate::gate::{Clip, EvalResult, Prediction, is_degenerate, leave_one_take_out, phase_test};
 
 fn seq(v: &[f64]) -> Vec<Vec<f64>> {
     v.iter().map(|&x| vec![x]).collect()
@@ -258,6 +258,36 @@ fn speech_span_ignores_isolated_transient_blip() {
     assert_eq!(speech_span(&e), Some((1, 14)));
 }
 #[test]
+fn support_radius_one_ignores_near_blips() {
+    // Hot frames {6,7,8} + blips at 10 (2 from speech) and 13 (3 from 10):
+    // radius 1 supports only the main run.
+    let e = vec![
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0,
+    ];
+    assert_eq!(speech_span_with(&e, 1), Some((1, 14)));
+}
+#[test]
+fn support_radius_two_keeps_close_blips() {
+    // Same vector as radius one: the blip at 10 (2 from speech) is now
+    // supported, extending the span; the blip at 13 (3 from 10) still dies.
+    let e = vec![
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0,
+    ];
+    assert_eq!(speech_span_with(&e, 2), Some((1, 16)));
+}
+#[test]
+fn support_radius_three_keeps_far_blips() {
+    // Same vector: radius 3 also supports the blip at 13 (3 from 10),
+    // extending the span to its hangover.
+    let e = vec![
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0,
+    ];
+    assert_eq!(speech_span_with(&e, 3), Some((1, 19)));
+}
+#[test]
 fn padding_mismatch_classifies_after_trim() {
     // The void-run shape through the real pipeline: queries at >2x the
     // template padding must classify by word, not collapse or go degenerate.
@@ -294,4 +324,90 @@ fn padding_mismatch_classifies_after_trim() {
         "padded-word accuracy {}",
         pt.accuracy()
     );
+}
+#[test]
+fn topk_inclusion_counts_rank_correctly() {
+    // Synthetic ranking fixture: truth at ranks 0, 2, 4 over 3 queries.
+    let res = EvalResult {
+        predictions: vec![
+            Prediction {
+                truth: "a".into(),
+                predicted: "a".into(),
+                take: 0,
+                correct: true,
+            },
+            Prediction {
+                truth: "b".into(),
+                predicted: "a".into(),
+                take: 0,
+                correct: false,
+            },
+            Prediction {
+                truth: "c".into(),
+                predicted: "b".into(),
+                take: 0,
+                correct: false,
+            },
+        ],
+        labels: vec!["a".into(), "b".into(), "c".into()],
+        confusion: vec![vec![1, 0, 0], vec![1, 0, 0], vec![0, 1, 0]],
+        degenerate: 0,
+        truth_ranks: vec![Some(0), Some(2), Some(4)],
+    };
+    assert!((res.topk_inclusion(1) - 1.0 / 3.0).abs() < 1e-12);
+    assert!((res.topk_inclusion(3) - 2.0 / 3.0).abs() < 1e-12);
+    assert!((res.topk_inclusion(5) - 1.0).abs() < 1e-12);
+    assert!((res.topk_inclusion(10) - 1.0).abs() < 1e-12);
+}
+#[test]
+fn v1_doubles_diagonal_weight_on_uniform_fixture() {
+    // Every frame pair at distance 1: baseline best path is the diagonal
+    // (1+1)/4 = 0.5; V1 doubles the diagonal step: (1+2)/4 = 0.75.
+    let a = seq(&[0.0, 0.0]);
+    let b = seq(&[1.0, 1.0]);
+    assert!((dtw_distance(&a, &b, 1.0) - 0.5).abs() < 1e-12);
+    let v1 = dtw_distance_with(&a, &b, 1.0, DtwVariant::SymWeighted);
+    assert!((v1 - 0.75).abs() < 1e-12, "V1 uniform-fixture value {v1}");
+}
+#[test]
+fn v2_slope_constraint_never_beats_baseline() {
+    // Constrained path set is a subset of baseline's: same costs and
+    // normalizer, so constrained >= baseline whenever both are finite.
+    // Identical sequences take the pure diagonal: exactly 0.
+    let a = seq(&[0.0, 1.0, 2.0, 3.0, 2.0, 1.0]);
+    let c = seq(&[0.0, 0.0, 1.0, 2.0, 3.0, 2.0, 1.0, 1.0]);
+    assert_eq!(
+        dtw_distance_with(&a, &a, 1.0, DtwVariant::SlopeConstrained),
+        0.0
+    );
+    for (x, y) in [(&a, &c), (&c, &a)] {
+        let base = dtw_distance(x, y, 1.0);
+        let v2 = dtw_distance_with(x, y, 1.0, DtwVariant::SlopeConstrained);
+        assert!(v2 >= base, "constrained {v2} vs baseline {base}");
+    }
+    // Determinism: same inputs, same value.
+    let r1 = dtw_distance_with(&a, &c, 0.2, DtwVariant::SymWeightedSlope);
+    let r2 = dtw_distance_with(&a, &c, 0.2, DtwVariant::SymWeightedSlope);
+    assert_eq!(r1, r2);
+}
+#[test]
+fn v3_cmvn_zero_means_and_unit_variance_statics() {
+    // Mirror of cmn_zero_means_statics: CMVN replaces CMN at the same
+    // pipeline point, so statics gain unit variance as well as zero mean.
+    let sr = 16_000u32;
+    let samples: Vec<i16> = (0..sr as usize)
+        .map(|i| ((i as f64 * 0.05).sin() * 5000.0) as i16)
+        .collect();
+    let cfg = FrontendConfig {
+        cmvn: true,
+        ..FrontendConfig::default()
+    };
+    let frames = extract_with_config(&samples, sr, &cfg).unwrap();
+    for j in 0..13 {
+        let m: f64 = frames.iter().map(|f| f[j]).sum::<f64>() / frames.len() as f64;
+        assert!(m.abs() < 1e-6, "dim {j} mean {m}");
+        let v: f64 =
+            frames.iter().map(|f| (f[j] - m) * (f[j] - m)).sum::<f64>() / frames.len() as f64;
+        assert!((v.sqrt() - 1.0).abs() < 1e-6, "dim {j} std {}", v.sqrt());
+    }
 }

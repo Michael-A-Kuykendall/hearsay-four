@@ -32,6 +32,7 @@ members = [
     "src/sequence",
     "src/stage3",
     "src/hmm",
+    "src/lattice",
 ]
 exclude = [
     "src/wasm-demo",

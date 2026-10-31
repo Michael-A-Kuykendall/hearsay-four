@@ -1,0 +1,16 @@
+{"format":"hearsay-word-lattice","version_major":1,"version_minor":0,"utterance":"d0-fixture-001","frame_shift_ms":10.0,"producer":"g0m-fixture/d0-words"}
+{"t":{"id":1,"word":"impeachment","start":0,"end":40,"source":"fixture","acoustic_llr":3.1}}
+{"t":{"id":2,"word":"methodical","start":0,"end":38,"source":"fixture","acoustic_llr":1.2}}
+{"t":{"id":3,"word":"survival","start":40,"end":70,"source":"fixture","acoustic_llr":2.8}}
+{"t":{"id":4,"word":"process","start":70,"end":95,"source":"fixture","acoustic_llr":3.9}}
+{"t":{"id":5,"word":"intense","start":95,"end":120,"source":"fixture","acoustic_llr":2.2}}
+{"t":{"id":6,"word":"reflection","start":120,"end":155,"source":"fixture","acoustic_llr":4.1}}
+{"t":{"id":7,"word":"kinship","start":155,"end":180,"source":"fixture","acoustic_llr":2.9}}
+{"t":{"id":8,"word":"resented","start":180,"end":210,"source":"fixture","acoustic_llr":3.3}}
+{"a":{"from":1,"to":3}}
+{"a":{"from":2,"to":3}}
+{"a":{"from":3,"to":4}}
+{"a":{"from":4,"to":5}}
+{"a":{"from":5,"to":6}}
+{"a":{"from":6,"to":7}}
+{"a":{"from":7,"to":8}}

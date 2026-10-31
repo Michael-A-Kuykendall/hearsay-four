@@ -702,7 +702,7 @@ mod why_tests {
                 runner_up,
                 margin,
                 ..
-            } => (winner.tokens, runner_up.map(|r| r.tokens), Some(margin)),
+            } => (winner.tokens, runner_up.map(|r| r.tokens), margin),
             other => panic!("regression region must commit, got {other:?}"),
         };
         assert_eq!(
@@ -784,11 +784,20 @@ mod why_tests {
             reef.user_facts.contains(&correction.0),
             "user facts involved"
         );
-        assert!(!reef.alternatives.is_empty(), "alternatives with scores");
-        assert_eq!(reef.alternatives[0].text, "wreath");
+        // Unopposed (§10, amendment 1.2): no runner-up tiling, hence no
+        // alternatives; the dormant rival renders as defeated, not alternative.
+        assert!(reef.alternatives.is_empty());
+        assert_eq!(
+            reef.alternatives_note,
+            "no runner-up tiling: winner was unopposed"
+        );
+        assert!(reef.defeat.defeated_tokens.contains(&"wreath".to_string()));
         assert!(!reef.revivals.is_empty(), "revival events must render");
         assert_eq!(reef.revivals[0].via_text, "now");
-        assert!(reef.defeat.margin.expect("margin") > 0.0);
+        // Post-§8-amendment-1.1 the winner is unopposed (wreath is dormant,
+        // hence not a live tiling), so §10 amendment 1.2 reports no margin:
+        // absence, not +inf.
+        assert_eq!(reef.defeat.margin, None);
         assert!(reef.defeat.defeating_tiling.contains(&"reef".to_string()));
         let screen = reef.render();
         for section in [
@@ -868,7 +877,8 @@ mod why_tests {
         assert_eq!(e["acoustic"]["start_frame"], 0);
         assert_eq!(e["lm"]["history"][0], "<s>");
         assert_eq!(e["lm"]["lm_probability"], 0.42);
-        assert!(e["defeat"]["margin"].as_f64().expect("margin") > 0.0);
+        // Unopposed commit (§10, amendment 1.2): margin is absent (null).
+        assert!(e["defeat"]["margin"].is_null());
         assert!(
             e["defeat"]["defeating_tiling"]
                 .as_array()

@@ -1,5 +1,7 @@
 # Fabric Decision Contract — Specification
 
+Spec version: 1.2 (amends 1.1: section 10 unopposed margin; amends 1.0: section 8 tiling exclusion; see docs/design/a4-budget-semantics.md)
+
 Author: Michael A. Kuykendall
 Status: Frozen-candidate v1.0 (bead hearsay-four-p7u / A4a)
 Date: 2026-10-27
@@ -173,6 +175,9 @@ L(h) = unary(h) + max_left  w_SEQ · llr_SEQ(p → h)
   justifications but excluded from extension; it counts against the
   **dormant budget**. Dormancy is not retraction: no justification is
   removed, and §9 can raise `L(h)` again.
+
+Amendment 1.1 (section 8): dormant tokens are excluded from tilings; only live tokens join tilings.
+
 - θ_live and both budgets are frozen parameters (§12). Budget exhaustion
   eviction order (which dormant token is dropped first) is: lowest
   `L(h)`, ties by §10 tie order. Eviction is a deliberate retraction and
@@ -244,6 +249,10 @@ state. No mode distinction applies.
   retracted (the fabric's deliberate-retraction marker, so a surviving
   premise cannot resurrect them), with provenance naming the winning
   tiling and the score margin (`S(winner) − S(runner-up incl. loser)`).
+  Amendment 1.2 (section 10): with no live runner-up tiling the winner is
+  unopposed and the margin is absent (`None`), never +inf; defeat and
+  commit provenance carry the absence through, and renderers show no
+  numeric margin.
 - **Ties (fully deterministic):** higher `S(T)` → earlier start frame →
   lexicographic label → lower token id. The same order breaks ties in
   the DP, in runner-up selection, and in budget eviction (§8). No

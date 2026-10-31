@@ -9,6 +9,7 @@ pub struct FrontendConfig {
     pub pre_emphasis: f64,
     pub lifter: f64,
     pub cmn: bool,
+    pub cmvn: bool,
     pub use_deltas: bool,
     pub use_delta_deltas: bool,
     pub mel_low_hz: f64,
@@ -21,6 +22,7 @@ impl Default for FrontendConfig {
             pre_emphasis: 0.97,
             lifter: 22.0,
             cmn: true,
+            cmvn: false,
             use_deltas: true,
             use_delta_deltas: true,
             mel_low_hz: 0.0,
@@ -97,29 +99,38 @@ impl FrontendConfig {
 }
 
 /// Endpoint-trimming constants: relative threshold factor, absolute noise
-/// floor (normalized RMS units), and hangover frames kept each side.
+/// floor (normalized RMS units), hangover frames kept each side, and the
+/// support-rule neighbor radius (frames).
 const TRIM_K: f64 = 0.01;
 const TRIM_FLOOR: f64 = 0.001;
 const TRIM_HANGOVER: usize = 5;
+const TRIM_RADIUS: usize = 2;
 
 /// Speech span over per-frame RMS energies: inclusive-start, exclusive-end
 /// frame indices covering the above-threshold region plus hangover each
 /// side (clamped to bounds). `None` when no frame exceeds the threshold.
 pub fn speech_span(energies: &[f64]) -> Option<(usize, usize)> {
+    speech_span_with(energies, TRIM_RADIUS)
+}
+
+/// Speech span with explicit support radius: a frame counts only with an
+/// above-threshold neighbor within `radius` frames, so isolated transient
+/// blips in silence die while speech edges survive. `speech_span` fixes
+/// `radius = TRIM_RADIUS`; the sensitivity tests pin radii 1..=3.
+pub fn speech_span_with(energies: &[f64], radius: usize) -> Option<(usize, usize)> {
     if energies.is_empty() {
         return None;
     }
     let peak = energies.iter().cloned().fold(0.0f64, f64::max);
     let thr = TRIM_FLOOR.max(TRIM_K * peak);
-    // A frame counts only with an above-threshold neighbor within 2 frames:
-    // isolated transient blips in silence die, speech edges survive.
+    // Support rule: an above-threshold neighbor within `radius` frames.
     let n = energies.len();
     let supported = |i: usize| {
         if energies[i] <= thr {
             return false;
         }
-        let lo = i.saturating_sub(2);
-        let hi = (i + 2).min(n - 1);
+        let lo = i.saturating_sub(radius);
+        let hi = (i + radius).min(n - 1);
         (lo..=hi).any(|j| j != i && energies[j] > thr)
     };
     let first = (0..n).find(|&i| supported(i))?;
@@ -132,6 +143,26 @@ pub fn extract_with_config(
     samples: &[i16],
     sample_rate: u32,
     cfg: &FrontendConfig,
+) -> Result<Vec<Vec<f64>>, FeatureError> {
+    extract_inner(samples, sample_rate, cfg, true)
+}
+
+/// Untrimmed extraction: identical pipeline without endpoint trimming.
+/// Test-only seam for the padding-fingerprint experiment; production
+/// always trims. Zero behavior delta on the trimmed path.
+pub fn extract_untrimmed_with_config(
+    samples: &[i16],
+    sample_rate: u32,
+    cfg: &FrontendConfig,
+) -> Result<Vec<Vec<f64>>, FeatureError> {
+    extract_inner(samples, sample_rate, cfg, false)
+}
+
+fn extract_inner(
+    samples: &[i16],
+    sample_rate: u32,
+    cfg: &FrontendConfig,
+    trim: bool,
 ) -> Result<Vec<Vec<f64>>, FeatureError> {
     if sample_rate < 8_000 {
         return Err(FeatureError::UnsupportedSampleRate(sample_rate));
@@ -165,23 +196,40 @@ pub fn extract_with_config(
                 .collect()
         })
         .collect();
-    // Endpoint trimming on raw-sample frame energies: config-independent
-    // spans, and pre-emphasis would only boost hiss for the threshold.
-    let raw: Vec<f64> = samples
-        .iter()
-        .map(|&s| s as f64 / i16::MAX as f64)
-        .collect();
-    let energies: Vec<f64> = (0..n)
-        .map(|i| {
-            let st = i * sh;
-            let sum: f64 = raw[st..st + wl].iter().map(|x| x * x).sum::<f64>();
-            (sum / wl as f64).sqrt()
-        })
-        .collect();
-    let (ts, te) = speech_span(&energies).ok_or(FeatureError::EmptyInput)?;
-    let windows = &all_windows[ts..te];
+    let windows: &[Vec<f64>] = if trim {
+        // Endpoint trimming on raw-sample frame energies: config-independent
+        // spans, and pre-emphasis would only boost hiss for the threshold.
+        let raw: Vec<f64> = samples
+            .iter()
+            .map(|&s| s as f64 / i16::MAX as f64)
+            .collect();
+        let energies: Vec<f64> = (0..n)
+            .map(|i| {
+                let st = i * sh;
+                let sum: f64 = raw[st..st + wl].iter().map(|x| x * x).sum::<f64>();
+                (sum / wl as f64).sqrt()
+            })
+            .collect();
+        let (ts, te) = speech_span(&energies).ok_or(FeatureError::EmptyInput)?;
+        &all_windows[ts..te]
+    } else {
+        &all_windows[..]
+    };
     let mut statics = static_features(windows, sample_rate, cfg)?;
-    if cfg.cmn && !statics.is_empty() {
+    if cfg.cmvn && !statics.is_empty() {
+        // V3: CMVN replaces CMN at the same pipeline point (population std,
+        // floored; deltas below are computed from these normalized statics).
+        let d = statics[0].len();
+        let t = statics.len() as f64;
+        for j in 0..d {
+            let m: f64 = statics.iter().map(|r| r[j]).sum::<f64>() / t;
+            let v: f64 = statics.iter().map(|r| (r[j] - m) * (r[j] - m)).sum::<f64>() / t;
+            let s = v.sqrt().max(1e-6);
+            for r in statics.iter_mut() {
+                r[j] = (r[j] - m) / s;
+            }
+        }
+    } else if cfg.cmn && !statics.is_empty() {
         let d = statics[0].len();
         let t = statics.len() as f64;
         for j in 0..d {

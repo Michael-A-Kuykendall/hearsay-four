@@ -112,6 +112,57 @@ within-window timing/position habit the untrimmed DTW exploited, not word
 acoustics. 0.8583 is the honest within-session number; cross-session fresh
 takes measure at or below it.
 
+Re-padding proof experiment (2026-10-28, bead zco, run1-16k, base config,
+untrimmed pipeline, band 0.2, one release run, 0 degenerate in all cells):
+
+| Condition | Result |
+|---|---|
+| original-window-untrimmed-16k | 113/120 = 0.9417 |
+| repad-centered (symmetric, same length) | 114/120 = 0.9500 |
+| repad-random (seed 7, same length) | 103/120 = 0.8583 |
+| repad-short (+/-50 ms) | 105/120 = 0.8750 |
+| repad-long (+/-1000 ms cap) | 114/120 = 0.9500 |
+| timing-only nearest-mean LOTO (4 timing feats) | 8/120 = 0.0667 |
+
+Verdict: REFUTED (as operationalized). The pinned rule required timing-only
+>= 10% absolute AND best re-padded trailing original-window by >= 4 points.
+Timing-only reached 6.67% (2x chance, below the 3x bar), and the best
+re-padded conditions (centered/long, 0.9500) EXCEED the original window
+(0.9417) rather than trailing it. The pattern is informative anyway: random
+re-padding lands EXACTLY on the trimmed level (103/120), while deterministic
+symmetric re-padding preserves/exceeds the original. The padding advantage is
+therefore not primarily word-dependent timing leakage; it looks like DTW
+alignment geometry (centered speech aligns best, random positions add noise
+down to the no-padding level). The ~8-point trim drop still needs an
+explanation - candidates: CMN edge effects (2x2 trimmed/untrimmed x CMN/no-CMN
+on DEV), delta-edge handling. The word "fingerprint" above is kept as the
+historical label for the padding advantage, not as a proven mechanism.
+
+Bounded classical baseline (2026-10-29, bead t5i, run1-16k, band 0.2, base
+config only, each variant run ONCE, release, 0 degenerate in all runs):
+
+| Run | top1 | top3 | top5 | top10 | vs baseline |
+|---|---|---|---|---|---|
+| baseline (grid row 0) | 0.8500 (102) | 0.8583 | 0.8667 | 0.8667 | - |
+| V1 sym-weighted DTW | 0.8583 (103) | 0.8667 | 0.8667 | 0.8667 | +1 WIN |
+| V2 slope-constrained DTW | 0.8417 (101) | 0.8583 | 0.8667 | 0.8667 | -1 LOSE |
+| V3 CMVN replaces CMN | 0.8667 (104) | 0.8667 | 0.8667 | 0.8667 | +2 WIN |
+| V4 V1+V2 | 0.8500 (102) | 0.8583 | 0.8667 | 0.8667 | 0 NEUTRAL |
+| V5 V1+V2+V3 | 0.8667 (104) | 0.8667 | 0.8667 | 0.8667 | +2 WIN |
+
+Winner by best top-1: V3 and V5 tie at 0.8667; pinned tie-break (fewest
+moving parts) selects V3. Full 8-row baseline grid reproduced the recorded
+16k top-1 values exactly (7x 0.8500, no_lifter 0.8333): zero drift through
+the DTW-unification + N-best refactor. Top-K signal is WEAK: top-10 exceeds
+top-1 by only 2 clips on every row - the candidate generator is not rich;
+A5 oracle proceeds on this measured basis, not on hoped-for recall.
+Confusion matrices were not captured for the variant runs (output was
+grep-filtered at run time); per-variant correct counts above are the
+record. Re-running for capture would violate once-each-literal, so the
+frozen-config confusion is deferred to sealed scoring (bead b7p).
+
+Frozen-A1-Config: base_cmn_d_dd_lifter22_pre097+cmvn_replaces_cmn+dtw_baseline+band0.2
+
 PHASE-TEST (templates = run1 takes, queries = fresh 5th takes, n=30):
 output top-1 = 0.0333, gate90=false. INVALID — void run, not scored evidence.
 
