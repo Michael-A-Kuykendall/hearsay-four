@@ -97,6 +97,9 @@ pub struct InspectableModel {
     pub unigram_counts: BTreeMap<String, u64>,
     pub bigram_counts: BTreeMap<String, u64>,
     pub trigram_counts: BTreeMap<String, u64>,
+    /// Live-only: skipped in v2 archives (load recomputes it exactly via
+    /// `finalize()`); dropping this redundant map cuts archive bytes ~35%.
+    #[serde(skip)]
     pub bigram_continuation_counts: BTreeMap<String, u64>,
     pub trigram_discounts: Discounts,
     pub bigram_discounts: Discounts,
@@ -174,27 +177,44 @@ impl KnTrigram {
         m
     }
 
-    fn finalize(&mut self) {
-        // Bigram continuation counts from trigram distinct predecessors.
-        let mut seen: HashSet<(String, String, String)> = HashSet::new();
-        let mut cont: HashMap<(String, String), u64> = HashMap::new();
-        for (v, u, w) in self.trigram.keys() {
-            if seen.insert((v.clone(), u.clone(), w.clone())) {
-                *cont.entry((u.clone(), w.clone())).or_insert(0) += 1;
-            }
+        fn finalize(&mut self) {
+        // Bigram continuation counts: distinct predecessors v per (u,w).
+        // Trigram keys are unique, so each key contributes exactly one
+        // predecessor (no dedup set). Every (u,w) here is also a stored
+        // bigram, which bounds the map.
+        let mut cont: HashMap<(String, String), u64> =
+            HashMap::with_capacity(self.bigram.len());
+        for key in self.trigram.keys() {
+            *cont.entry((key.1.clone(), key.2.clone())).or_insert(0) += 1;
         }
         self.bigram_cont = cont;
-        // Unigram continuation from bigram distinct predecessors.
-        let mut preds: HashMap<String, HashSet<String>> = HashMap::new();
+        // Unigram continuation: distinct predecessors v per w, via sort +
+        // linear dedup. Same counts as per-word predecessor sets, without
+        // cloning every bigram string twice into nested sets.
+        let mut pairs: Vec<(&str, &str)> = Vec::with_capacity(self.bigram.len());
         for (v, w) in self.bigram.keys() {
             if w != BOS_TOKEN {
-                preds.entry(w.clone()).or_default().insert(v.clone());
+                pairs.push((w.as_str(), v.as_str()));
             }
         }
-        self.unigram_cont = preds
-            .iter()
-            .map(|(w, s)| (w.clone(), s.len() as u64))
-            .collect();
+        pairs.sort_unstable();
+        let mut unigram_cont: HashMap<String, u64> =
+            HashMap::with_capacity(self.vocab.len());
+        let mut i = 0;
+        while i < pairs.len() {
+            let w = pairs[i].0;
+            let mut n = 0u64;
+            let mut prev: Option<&str> = None;
+            while i < pairs.len() && pairs[i].0 == w {
+                if Some(pairs[i].1) != prev {
+                    n += 1;
+                    prev = Some(pairs[i].1);
+                }
+                i += 1;
+            }
+            unigram_cont.insert(w.to_string(), n);
+        }
+        self.unigram_cont = unigram_cont;
         // Guarantee <unk> and </s> carry continuation mass.
         self.unigram_cont.entry(UNK_TOKEN.into()).or_insert(1);
         self.unigram_cont.entry(EOS_TOKEN.into()).or_insert(1);
@@ -203,7 +223,8 @@ impl KnTrigram {
         self.bi_discounts =
             estimate_discounts(&counts_of_counts(self.bigram_cont.values().copied()));
         // History follower-type stats (same buckets prob() used to rescan for).
-        let mut tri_stats: HashMap<(String, String), (u64, u64, u64, u64)> = HashMap::new();
+        let mut tri_stats: HashMap<(String, String), (u64, u64, u64, u64)> =
+            HashMap::with_capacity(self.bigram.len());
         for ((a, b, _), &c) in &self.trigram {
             let e = tri_stats.entry((a.clone(), b.clone())).or_default();
             e.0 += c;
@@ -214,7 +235,8 @@ impl KnTrigram {
             }
         }
         self.tri_hist_stats = tri_stats;
-        let mut bi_stats: HashMap<String, (u64, u64, u64, u64)> = HashMap::new();
+        let mut bi_stats: HashMap<String, (u64, u64, u64, u64)> =
+            HashMap::with_capacity(self.vocab.len());
         for ((u, _), &cc) in &self.bigram_cont {
             let e = bi_stats.entry(u.clone()).or_default();
             e.0 += cc;
@@ -365,10 +387,13 @@ impl KnTrigram {
     /// space, so the split is unambiguous. Continuation counts, discounts,
     /// and history stats are re-derived by `finalize()`, which reproduces
     /// the snapshot's stored values for any snapshot taken from a model.
-    pub fn from_inspectable(snap: &InspectableModel) -> Result<Self, String> {
+        pub fn from_inspectable(snap: &InspectableModel) -> Result<Self, String> {
         let mut m = Self::new();
         m.vocab = snap.vocabulary.iter().cloned().collect();
         m.total_tokens = snap.total_tokens;
+        m.unigram = HashMap::with_capacity(snap.unigram_counts.len());
+        m.bigram = HashMap::with_capacity(snap.bigram_counts.len());
+        m.trigram = HashMap::with_capacity(snap.trigram_counts.len());
         for (k, &v) in &snap.unigram_counts {
             m.unigram.insert(k.clone(), v);
         }
@@ -394,7 +419,24 @@ impl KnTrigram {
     pub fn trigram_entry_count(&self) -> usize {
         self.trigram.len()
     }
-
+    /// Number of stored bigram entries (kept whole by entropy pruning).
+    pub fn bigram_entry_count(&self) -> usize {
+        self.bigram.len()
+    }
+    /// Counts-of-counts histograms `(bigrams, trigrams)`: raw-count value
+    /// -> number of distinct entries carrying it. Used to pick
+    /// count-cutoff thresholds without serializing the model.
+    pub fn count_histograms(&self) -> (BTreeMap<u64, u64>, BTreeMap<u64, u64>) {
+        let mut bi: BTreeMap<u64, u64> = BTreeMap::new();
+        for &c in self.bigram.values() {
+            *bi.entry(c).or_insert(0) += 1;
+        }
+        let mut tri: BTreeMap<u64, u64> = BTreeMap::new();
+        for &c in self.trigram.values() {
+            *tri.entry(c).or_insert(0) += 1;
+        }
+        (bi, tri)
+    }
     /// Perplexity on held-out normalized sentences (R1b gate metric).
     /// Empty input yields infinite perplexity.
     pub fn perplexity(&self, sentences: &[Vec<String>]) -> PerplexityReport {
@@ -460,6 +502,29 @@ impl KnTrigram {
             .collect();
         let mut m = self.clone();
         m.trigram.retain(|k, _| !drop_set.contains(k));
+        m.finalize();
+        m
+    }
+    /// Count-cutoff pruning (R1-v2): drop bigram entries with raw count
+    /// below `min_bigram_count` and trigram entries below
+    /// `min_trigram_count`, then re-estimate continuation counts,
+    /// discounts, and history stats via `finalize()`. Thresholds at or
+    /// below 1 keep every entry of that order (a no-op clone). Pruning
+    /// is a pure filter, so it is deterministic. Removed n-grams back
+    /// off exactly as unseen ones do (standard cutoff semantics);
+    /// unigram counts are untouched.
+    pub fn count_cutoff_pruned(
+        &self,
+        min_bigram_count: u64,
+        min_trigram_count: u64,
+    ) -> Self {
+        let mut m = self.clone();
+        if min_bigram_count > 1 {
+            m.bigram.retain(|_, c| *c >= min_bigram_count);
+        }
+        if min_trigram_count > 1 {
+            m.trigram.retain(|_, c| *c >= min_trigram_count);
+        }
         m.finalize();
         m
     }

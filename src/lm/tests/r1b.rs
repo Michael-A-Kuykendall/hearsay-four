@@ -145,7 +145,64 @@ fn entropy_pruning_respects_budget_and_stays_valid() {
     // Serialized pruned archive is smaller than the full archive.
     assert!(persist::kn_to_bytes(&pruned).len() < persist::kn_to_bytes(&m).len());
 }
-
+#[test]
+fn count_cutoff_pruning_keeps_frequent_entries_and_stays_valid() {
+    // Repeated lines build known count strata: singletons vanish at
+    // cutoff 2 while repeated n-grams survive.
+    let repeated = [
+        "alpha calls harbor and island again",
+        "alpha calls harbor and island again",
+        "alpha calls harbor and island again",
+        "bravo finds jungle and kitten again",
+        "bravo finds jungle and kitten again",
+        "charlie greets meadow and ladder again",
+    ];
+    let m = KnTrigram::train(&sents(&repeated));
+    let (bi_hist, tri_hist) = m.count_histograms();
+    // Histograms account for every stored entry.
+    assert_eq!(
+        bi_hist.values().sum::<u64>() as usize,
+        m.bigram_entry_count()
+    );
+    assert_eq!(
+        tri_hist.values().sum::<u64>() as usize,
+        m.trigram_entry_count()
+    );
+    assert!(bi_hist.get(&1).copied().unwrap_or(0) > 0);
+    // Cutoff 1 is a no-op.
+    assert_eq!(m.count_cutoff_pruned(1, 1).inspectable(), m.inspectable());
+    // Cutoff 2 drops every singleton bigram and trigram.
+    let cut = m.count_cutoff_pruned(2, 2);
+    let snap = cut.inspectable();
+    assert!(snap.bigram_counts.values().all(|&c| c >= 2));
+    assert!(snap.trigram_counts.values().all(|&c| c >= 2));
+    assert_eq!(
+        cut.bigram_entry_count(),
+        m.bigram_entry_count() - bi_hist.get(&1).copied().unwrap_or(0) as usize
+    );
+    assert_eq!(
+        cut.trigram_entry_count(),
+        m.trigram_entry_count() - tri_hist.get(&1).copied().unwrap_or(0) as usize
+    );
+    // Deterministic.
+    assert_eq!(
+        cut.inspectable(),
+        m.count_cutoff_pruned(2, 2).inspectable()
+    );
+    // Distributions still sum to 1 and perplexity stays finite.
+    let vocab = cut.prediction_vocabulary();
+    for (w1, w2) in [("alpha", "calls"), ("calls", "harbor"), ("<s>", "<s>")] {
+        let sum: f64 = vocab.iter().map(|w| cut.prob(w1, w2, w)).sum();
+        assert!((sum - 1.0).abs() < 1e-9, "cut sum ({w1},{w2}) = {sum}");
+    }
+    assert!(
+        cut.perplexity(&sents(&["alpha calls harbor and island again"]))
+            .perplexity
+            .is_finite()
+    );
+    // Serialized cut archive is smaller than the full archive.
+    assert!(persist::kn_to_bytes(&cut).len() < persist::kn_to_bytes(&m).len());
+}
 #[test]
 fn persistence_round_trip_and_byte_identical_rebuild() {
     let (g, p) = (general(), personal());

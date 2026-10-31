@@ -15,7 +15,9 @@ use crate::interpolate::InterpolatedLm;
 use crate::kneser_ney::{InspectableModel, KnTrigram};
 
 pub const ARCHIVE_FORMAT: &str = "hearsay-lm";
-pub const ARCHIVE_VERSION: u32 = 1;
+/// v2 drops the redundant `bigram_continuation_counts` map from archives
+/// (recomputed exactly on load); v1 files are rejected, none shipped.
+pub const ARCHIVE_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct KnArchive {
@@ -35,18 +37,38 @@ struct InterpolatedArchive {
     personal: InspectableModel,
 }
 
-fn parse_archive<T: serde::de::DeserializeOwned>(bytes: &[u8], kind: &str) -> Result<T, String> {
-    let v: serde_json::Value =
+/// Header fields every LM archive carries, checked after a single-pass parse.
+trait ArchiveKind {
+    fn header(&self) -> (&str, u32, &str);
+}
+
+impl ArchiveKind for KnArchive {
+    fn header(&self) -> (&str, u32, &str) {
+        (&self.format, self.version, &self.kind)
+    }
+}
+
+impl ArchiveKind for InterpolatedArchive {
+    fn header(&self) -> (&str, u32, &str) {
+        (&self.format, self.version, &self.kind)
+    }
+}
+
+fn parse_archive<T: serde::de::DeserializeOwned + ArchiveKind>(
+    bytes: &[u8],
+    kind: &str,
+) -> Result<T, String> {
+    // Single pass straight into the typed struct: the old Value-then-convert
+    // path parsed and walked multi-million-entry maps twice.
+    let archive: T =
         serde_json::from_slice(bytes).map_err(|e| format!("parse LM archive: {e}"))?;
-    if v.get("format").and_then(|f| f.as_str()) != Some(ARCHIVE_FORMAT)
-        || v.get("version").and_then(|x| x.as_u64()) != Some(u64::from(ARCHIVE_VERSION))
-        || v.get("kind").and_then(|k| k.as_str()) != Some(kind)
-    {
+    let (format, version, actual) = archive.header();
+    if format != ARCHIVE_FORMAT || version != ARCHIVE_VERSION || actual != kind {
         return Err(format!(
             "not a {ARCHIVE_FORMAT} v{ARCHIVE_VERSION} {kind} archive"
         ));
     }
-    serde_json::from_value(v).map_err(|e| format!("parse LM archive: {e}"))
+    Ok(archive)
 }
 
 /// Serialize one KN model to deterministic archive bytes.
