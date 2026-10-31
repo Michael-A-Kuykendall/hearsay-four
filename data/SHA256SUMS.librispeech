@@ -1,0 +1,7 @@
+# LibriSpeech audio archives (DATA-1, bead hearsay-four-79f--data-intake-corpora).
+# Downloaded 2026-10-31 from openslr.org/12 (CC BY 4.0). Archives live in
+# data/librispeech/ (gitignored); this manifest is the committed record.
+# MD5s verified OK against the published SLR12 md5sum.txt on 2026-10-31.
+d4ddd1d5a6ab303066f14971d768ee43278a5f2a0aa43dc716b0e64ecbbbf6e2  train-clean-100.tar.gz  bytes=6387309499  md5=2a93770f6d5c6c964bc36631d331a522  role=TRAIN
+76f87d090650617fca0cac8f88b9416e0ebf80350acb97b343a85fa903728ab3  dev-clean.tar.gz  bytes=337926286  md5=42e2234ba48799c1f50f24a7926300a1  role=DEV
+39fde525e59672dc6d1551919b1478f724438a95aa55f874b576be21967e6c23  test-clean.tar.gz  bytes=346663984  md5=32fa31d27d2e1cad72775fee3f4849a9  role=PHASE-TEST-public
