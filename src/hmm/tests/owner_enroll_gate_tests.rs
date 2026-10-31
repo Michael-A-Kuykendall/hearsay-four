@@ -29,12 +29,20 @@ fn lane_root() -> PathBuf {
 }
 
 fn better_voice_root() -> PathBuf {
+    for env in ["BETTER_VOICE_ROOT", "HEARSAY_BETTER_VOICE_ROOT"] {
+        if let Ok(v) = std::env::var(env) {
+            return PathBuf::from(v);
+        }
+    }
     lane_root().join("../better-voice")
 }
 
-/// Main workspace: read-only source of owner audio (lane has none).
+/// Main workspace: read-only source of owner audio. Defaults to this
+/// checkout; lanes without project audio override with `HEARSAY_MAIN_ROOT`.
 fn main_root() -> PathBuf {
-    lane_root().join("../hearsay-four")
+    std::env::var("HEARSAY_MAIN_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| lane_root())
 }
 
 fn norm_words(text: &str) -> Vec<String> {
@@ -128,12 +136,17 @@ fn load_owner_clips(
     lex: &HashMap<String, Vec<Vec<String>>>,
 ) -> (Vec<OwnerUtt>, BTreeMap<&'static str, usize>) {
     let run1 = main_root().join("sessions/run1");
-    assert!(
-        run1.is_dir(),
-        "main workspace run1 missing: {}",
-        run1.display()
-    );
-    let text = std::fs::read_to_string(run1.join("manifest.tsv")).expect("read owner manifest");
+    // Missing run1 (gitignored owner audio) is environmental, not a gate
+    // failure: callers skip on the empty clip list below.
+    if !run1.is_dir() {
+        eprintln!("SKIP: owner run1 audio absent at {}", run1.display());
+        return (Vec::new(), BTreeMap::new());
+    }
+    let manifest = run1.join("manifest.tsv");
+    let Ok(text) = std::fs::read_to_string(&manifest) else {
+        eprintln!("SKIP: owner manifest absent at {}", manifest.display());
+        return (Vec::new(), BTreeMap::new());
+    };
     let mut out = Vec::new();
     let mut skipped: BTreeMap<&'static str, usize> = BTreeMap::new();
     for raw in text.lines() {
@@ -177,7 +190,13 @@ fn load_owner_clips(
 fn owner_enrollment_map_gate() {
     let root = lane_root();
     let bv = better_voice_root();
-    assert!(bv.is_dir(), "better-voice root missing: {}", bv.display());
+    if !bv.join("data").is_dir() {
+        eprintln!(
+            "SKIP: better-voice checkout absent at {} (set $BETTER_VOICE_ROOT)",
+            bv.display()
+        );
+        return;
+    }
     // NOTE: phase-test.json and lockbox.json are deliberately never loaded
     // here (lane data rule); the gate decides on owner DEV only.
 
@@ -202,6 +221,10 @@ fn owner_enrollment_map_gate() {
     // runs on the recorded run1 clips available).
     let (owner, oskipped) = load_owner_clips(&lex);
     eprintln!("owner clips loaded={} skipped={oskipped:?}", owner.len());
+    if owner.is_empty() {
+        eprintln!("SKIP: no usable owner clips (gitignored run1 audio absent)");
+        return;
+    }
     let mut groups: BTreeMap<&str, Vec<usize>> = BTreeMap::new();
     for (i, u) in owner.iter().enumerate() {
         groups.entry(u.text.as_str()).or_default().push(i);

@@ -196,8 +196,19 @@ fn timing_classifier_protocol_complete() {
     // Real run1-16k audio through the timing-only pipeline: 120 clips
     // evaluated, deterministic. Manifest columns: file, word, rate, samples
     // (no take column; take = per-word occurrence order, as in a1_gate).
-    let root = Path::new("../../sessions/run1-16k");
-    let manifest = std::fs::read_to_string(root.join("manifest.tsv")).unwrap();
+    let workspace = std::env::var("HEARSAY_MAIN_ROOT")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."));
+    let root = workspace.join("sessions/run1-16k");
+    let manifest_path = root.join("manifest.tsv");
+    if !manifest_path.is_file() {
+        eprintln!(
+            "SKIP: run1-16k audio absent at {} (gitignored; set $HEARSAY_MAIN_ROOT)",
+            manifest_path.display()
+        );
+        return;
+    }
+    let manifest = std::fs::read_to_string(&manifest_path).unwrap();
     let mut rows: Vec<(String, String)> = Vec::new();
     for (i, line) in manifest.lines().enumerate() {
         if i == 0 || line.trim().is_empty() {

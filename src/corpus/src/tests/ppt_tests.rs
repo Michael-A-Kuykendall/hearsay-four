@@ -31,7 +31,16 @@ fn contract_corpus_pipeline_invariants_enforced() {
         ],
     );
 
-    // Exercise every invariant-holding path.
+    // Exercise every invariant-holding path. Both the better-voice checkout
+    // and the CourtListener token are external inputs: skip when absent.
+    if !CorpusManifest::is_available() {
+        eprintln!("SKIP: better-voice checkout absent (set $BETTER_VOICE_ROOT)");
+        return;
+    }
+    if api_token().is_err() {
+        eprintln!("SKIP: $COURTLISTENER_API_TOKEN unset (env or repo-root .env)");
+        return;
+    }
     let m = CorpusManifest::load().expect("manifest load"); // fires wellformed + paired
     let phrase = m.rows_from(CorpusSource::PhraseTraining, None);
     let wav = phrase.first().expect("phrase sample");
@@ -50,6 +59,10 @@ proptest! {
     #[test]
     fn ppt_manifest_rows_wellformed(_index in 0usize..4) {
         let _guard = test_lock::lock();
+        if !CorpusManifest::is_available() {
+            eprintln!("SKIP: better-voice checkout absent (set $BETTER_VOICE_ROOT)");
+            return Ok(());
+        }
         let m = CorpusManifest::load().expect("manifest load");
         prop_assert!(!m.rows.is_empty());
         for row in &m.rows {
@@ -71,6 +84,10 @@ proptest! {
 #[test]
 fn ppt_decode_samples_produce_pcm() {
     let _guard = test_lock::lock();
+    if !CorpusManifest::is_available() {
+        eprintln!("SKIP: better-voice checkout absent (set $BETTER_VOICE_ROOT)");
+        return;
+    }
     let m = CorpusManifest::load().expect("manifest load");
     let mut samples: Vec<_> = m
         .rows_from(CorpusSource::PhraseTraining, None)

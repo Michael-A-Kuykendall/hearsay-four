@@ -13,13 +13,24 @@ use crate::audio::{
 };
 use crate::manifest::CorpusManifest;
 
-fn sample(rel: &str) -> PathBuf {
-    CorpusManifest::root().join(rel)
+/// Resolve a better-voice audio path, or `None` when the checkout is absent
+/// (fresh clone): callers skip via `let-else return`, never fail.
+fn sample(rel: &str) -> Option<PathBuf> {
+    if !CorpusManifest::is_available() {
+        eprintln!(
+            "SKIP: better-voice checkout absent at {} (set $BETTER_VOICE_ROOT)",
+            CorpusManifest::root().display()
+        );
+        return None;
+    }
+    Some(CorpusManifest::root().join(rel))
 }
 
 #[test]
 fn decode_reads_true_16khz_pcm_wav() {
-    let path = sample("data/phrase_training/audio/phrase_000000.wav");
+    let Some(path) = sample("data/phrase_training/audio/phrase_000000.wav") else {
+        return;
+    };
     assert_eq!(detect_format(&path).unwrap(), AudioFormat::Wav);
     let audio = decode_wav(&path).expect("hound reads the real PCM WAV");
     assert_eq!(audio.sample_rate, 16_000);
@@ -29,7 +40,9 @@ fn decode_reads_true_16khz_pcm_wav() {
 
 #[test]
 fn decode_identifies_mislabeled_mp3() {
-    let path = sample("data/quality_checked_1k/abating_0707.wav");
+    let Some(path) = sample("data/quality_checked_1k/abating_0707.wav") else {
+        return;
+    };
     assert_eq!(
         detect_format(&path).unwrap(),
         AudioFormat::Mp3,
@@ -42,7 +55,9 @@ fn decode_identifies_mislabeled_mp3() {
 
 #[test]
 fn decode_normalizes_mp3_to_16khz_mono() {
-    let path = sample("data/quality_checked_1k/abating_0707.wav");
+    let Some(path) = sample("data/quality_checked_1k/abating_0707.wav") else {
+        return;
+    };
     let canonical = decode_to_pcm16k(&path).expect("canonical decode");
     assert_eq!(canonical.sample_rate, TARGET_SAMPLE_RATE);
     assert_eq!(canonical.channels, TARGET_CHANNELS);
@@ -59,8 +74,12 @@ fn decode_normalizes_mp3_to_16khz_mono() {
 
 #[test]
 fn decode_to_pcm_16k_mono_handles_both_formats() {
-    let wav = sample("data/phrase_training/audio/phrase_000000.wav");
-    let mp3 = sample("data/quality_checked_1k/abating_0707.wav");
+    let Some(wav) = sample("data/phrase_training/audio/phrase_000000.wav") else {
+        return;
+    };
+    let Some(mp3) = sample("data/quality_checked_1k/abating_0707.wav") else {
+        return;
+    };
     for p in [&wav, &mp3] {
         let frames = decode_to_pcm_16k_mono(p).expect("canonical decode");
         assert!(!frames.is_empty());
@@ -70,6 +89,10 @@ fn decode_to_pcm_16k_mono_handles_both_formats() {
 #[test]
 fn decode_audio_transcript_paired_samples_decode() {
     // A slice of the closed-vocab corpus: every sampled train row decodes.
+    if !CorpusManifest::is_available() {
+        eprintln!("SKIP: better-voice checkout absent (set $BETTER_VOICE_ROOT)");
+        return;
+    }
     let m = CorpusManifest::load().expect("manifest load");
     let mut rows: Vec<_> = m
         .rows_from(crate::manifest::CorpusSource::QualityChecked, None)

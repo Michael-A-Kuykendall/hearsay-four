@@ -10,7 +10,7 @@ use std::env;
 use std::path::PathBuf;
 
 use accent::measure::{BucketStat, apply_rule, load_session, measure_session};
-use accent::{ConditionA, ConditionB, decode_session_audio};
+use accent::{ConditionA, ConditionB, decode_session_audio, default_session_root};
 use calibration::FEATURE_DIM;
 
 /// Process exit codes (bead nwu regression gate):
@@ -31,7 +31,7 @@ fn run(args: &[String]) -> i32 {
     // the 39c.2 fixture), a bare N limits to the first N rows, and
     // --margin-floor <f> asserts the separation margin clears a regression
     // floor (exit 1 on regress, exit 2 on error — never silent PASS).
-    let mut root = PathBuf::from("/home/michael/repos/hearsay-four/data/session");
+    let mut root = default_session_root();
     let mut limit: Option<usize> = None;
     let mut enroll: Option<PathBuf> = None;
     let mut margin_floor: Option<f64> = None;
@@ -95,7 +95,7 @@ fn run(args: &[String]) -> i32 {
     };
     println!("manifest: {total_rows} rows, running {}", rows.len());
 
-    let custom_root = root.as_os_str() != "/home/michael/repos/hearsay-four/data/session";
+    let custom_root = root != default_session_root();
     println!("decoding session audio...");
     let audio = if custom_root {
         // Ingested runs (bead o20): single WAV written by session-ingest.

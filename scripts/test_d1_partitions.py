@@ -47,8 +47,8 @@ def sha256_of(path):
 
 def bv_root():
     for cand in (os.environ.get("HEARSAY_BETTER_VOICE_ROOT"),
-                 str(REPO.parent / "better-voice"),
-                 "/home/michael/repos/better-voice"):
+                 os.environ.get("BETTER_VOICE_ROOT"),
+                 str(REPO.parent / "better-voice")):
         if cand and (Path(cand) / "data").is_dir():
             return Path(cand)
     return None

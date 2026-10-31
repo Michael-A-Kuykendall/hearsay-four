@@ -67,3 +67,14 @@ owner-book*
 hearsay-personal/
 # bd worktree
 track-a/
+
+# --- HYG-1 (bead hearsay-four-qwz--portable-tests-hygiene): logs, model
+# --- weights, regenerated binaries (never tracked) ---
+*.log
+*.pt
+*.pth
+*.onnx
+*.safetensors
+*.gguf
+*.ckpt
+models/si_base/model.bin

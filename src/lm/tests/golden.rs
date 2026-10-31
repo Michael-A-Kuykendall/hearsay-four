@@ -116,11 +116,26 @@ fn inspectable_counts() {
     assert_eq!(a, b);
 }
 
+/// Better-voice checkout: `$BETTER_VOICE_ROOT` (or `$HEARSAY_BETTER_VOICE_ROOT`),
+/// else the `better-voice` sibling of this checkout.
+fn better_voice_root() -> std::path::PathBuf {
+    for env in ["BETTER_VOICE_ROOT", "HEARSAY_BETTER_VOICE_ROOT"] {
+        if let Ok(v) = std::env::var(env) {
+            return std::path::PathBuf::from(v);
+        }
+    }
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../better-voice")
+}
+
 #[test]
 fn ingest_only_lm_train_partition() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let bw = std::path::Path::new("/home/michael/repos/better-voice");
-    let sources = lm::load_lm_train_sources(&root, bw).expect("LM-train ingestion");
+    let bw = better_voice_root();
+    if !lm::lm_text_files_present(&root, &bw).expect("read LM manifests") {
+        eprintln!("SKIP: LM text files absent (gitignored transcripts or better-voice sibling)");
+        return;
+    }
+    let sources = lm::load_lm_train_sources(&root, &bw).expect("LM-train ingestion");
     assert_eq!(sources.len(), 9);
     assert!(sources.iter().all(|s| !s.lines.is_empty()));
     assert!(sources.iter().any(|s| s.path.contains("oyez")));

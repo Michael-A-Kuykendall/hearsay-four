@@ -1,7 +1,8 @@
 //! Better-voice local pool manifest reader (ul2.3).
 //!
-//! Reads the pre-existing TSV manifests under `/home/michael/repos/better-voice`
-//! (see `docs/research/corpus/local-bettervoice-inventory.md` §1–3) into a
+//! Reads the pre-existing TSV manifests under the better-voice checkout
+//! (sibling `../better-voice`, or `$BETTER_VOICE_ROOT`; see
+//! `docs/research/corpus/local-bettervoice-inventory.md` §1–3) into a
 //! unified typed manifest. **Audio is referenced, never copied** — rows carry
 //! resolved absolute paths into the better-voice tree.
 //!
@@ -25,8 +26,12 @@ use crate::invariants::{AUDIO_TRANSCRIPT_PAIRED, MANIFEST_WELLFORMED};
 
 /// Env var overriding the better-voice root.
 pub const BETTER_VOICE_ROOT_ENV: &str = "BETTER_VOICE_ROOT";
-/// Default better-voice repo root (audited 2026-08-15).
-pub const DEFAULT_BETTER_VOICE_ROOT: &str = "/home/michael/repos/better-voice";
+/// Alternate env var overriding the better-voice root (D1 scripts use this name).
+pub const HEARSAY_BETTER_VOICE_ROOT_ENV: &str = "HEARSAY_BETTER_VOICE_ROOT";
+/// Default better-voice checkout, resolved against the workspace root: the
+/// `better-voice` sibling of this repo (audited 2026-08-15). Never a
+/// host-absolute path, so fresh clones resolve without edits.
+pub const DEFAULT_BETTER_VOICE_ROOT: &str = "../better-voice";
 
 /// Which TSV source a row came from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -88,11 +93,30 @@ pub struct CorpusManifest {
 }
 
 impl CorpusManifest {
-    /// Resolve the better-voice root: env override, else the default.
+    /// Workspace root (`<repo>`), derived from this crate's manifest dir.
+    pub fn workspace_root() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+    }
+
+    /// Resolve the better-voice root: `$BETTER_VOICE_ROOT` (or
+    /// `$HEARSAY_BETTER_VOICE_ROOT`), else the `better-voice` sibling of the
+    /// workspace root. Never a host-absolute path.
     pub fn root() -> PathBuf {
         dotenv::get_var(BETTER_VOICE_ROOT_ENV)
+            .or_else(|| dotenv::get_var(HEARSAY_BETTER_VOICE_ROOT_ENV))
             .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(DEFAULT_BETTER_VOICE_ROOT))
+            .unwrap_or_else(|| Self::workspace_root().join(DEFAULT_BETTER_VOICE_ROOT))
+    }
+
+    /// True when the resolved root holds the TSV manifests `load()` needs.
+    /// Tests skip (never fail) when this is false: a fresh clone has no
+    /// better-voice sibling and no env override.
+    pub fn is_available() -> bool {
+        let root = Self::root();
+        root.join("data/phrase_training/train_phrases.tsv")
+            .is_file()
+            && root.join("data/bulk_tts_1k/train_1k.tsv").is_file()
+            && root.join("data/quality_checked_1k/train.tsv").is_file()
     }
 
     /// Load every TSV source into one manifest.

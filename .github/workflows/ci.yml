@@ -1,0 +1,45 @@
+# CI (bead hearsay-four-qwz--portable-tests-hygiene, HYG-1): the suite must be
+# green on a fresh clone with no host data mounts, and tests must emit no
+# artifacts into the repo.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: No-model guard
+        run: bash scripts/no_model_guard.sh
+      - name: Tracked-artifact guard
+        run: bash scripts/check_tracked_artifacts.sh
+      - name: No host-absolute paths in code
+        run: |
+          if grep -rn '/home/' src scripts --include='*.rs' --include='*.py' --include='*.sh'; then
+            echo "GUARD-RED: host-absolute path in code (use repo fixtures + env overrides)"
+            exit 1
+          fi
+          echo "HOST-PATH GUARD GREEN: no /home/ literals in src or scripts."
+      - name: D1 partition seal
+        run: python3 scripts/test_d1_partitions.py
+      - name: Test suite (clean env, no host data)
+        run: cargo test --workspace --no-fail-fast
+        env:
+          BETTER_VOICE_ROOT: ""
+          HEARSAY_BETTER_VOICE_ROOT: ""
+          HEARSAY_MAIN_ROOT: ""
+          SESSION_ROOT: ""
+          COURTLISTENER_API_TOKEN: ""
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Format check
+        run: cargo fmt --all -- --check
+      - name: Post-test tree cleanliness (untracked-artifact check)
+        run: bash scripts/check_tracked_artifacts.sh --strict
