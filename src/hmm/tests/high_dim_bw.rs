@@ -152,3 +152,35 @@ fn probe_diagnose_both() {
     diagnose(2);
     diagnose(39);
 }
+#[test]
+fn parallel_estep_is_deterministic() {
+    // Ordered merge: the parallel E-step must be bit-identical across runs
+    // (LL and full model), independent of thread scheduling.
+    let data = synth(13, 20, 30);
+    let obs_only: Vec<Vec<Vec<f64>>> = data.iter().map(|(_, o)| o.clone()).collect();
+    let with_ids: Vec<(String, Vec<String>, Vec<Vec<f64>>)> = data
+        .iter()
+        .enumerate()
+        .map(|(i, (s, o))| (format!("u{i}"), s.clone(), o.clone()))
+        .collect();
+    let cfg = TrainConfig {
+        bw_iterations: 1,
+        ..Default::default()
+    };
+    let mut a = HmmSet::flat_start(&["AA", "BB"], &obs_only, 0.01).unwrap();
+    let mut b = a.clone();
+    let ll_a1 = a.baum_welch_ids(&with_ids, &cfg).unwrap();
+    let ll_b1 = b.baum_welch_ids(&with_ids, &cfg).unwrap();
+    assert!(
+        ll_a1 == ll_b1,
+        "iter1 LL must be bit-identical: {ll_a1} vs {ll_b1}"
+    );
+    assert!(a == b, "iter1 models must be identical");
+    let ll_a2 = a.baum_welch_ids(&with_ids, &cfg).unwrap();
+    let ll_b2 = b.baum_welch_ids(&with_ids, &cfg).unwrap();
+    assert!(
+        ll_a2 == ll_b2,
+        "iter2 LL must be bit-identical: {ll_a2} vs {ll_b2}"
+    );
+    assert!(a == b, "iter2 models must be identical");
+}

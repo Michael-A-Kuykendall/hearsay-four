@@ -423,6 +423,7 @@ fn main() {
     }
 
     let audio_h = audio_sec / 3600.0;
+    println!("bw_threads={}", rayon::current_num_threads());
     println!("utts={}", data.len());
     println!("audio_h={audio_h:.4}");
     println!("frames={frames_total}");
@@ -453,10 +454,14 @@ fn main() {
     for (mixes, t, ll) in &t_bwmix {
         println!("t_bw_{mixes}mix_s={t:.1}");
         println!("train_ll_{mixes}mix={ll:.1}");
+        println!("train_ll_{mixes}mix_full={ll:.6}");
+        println!("train_ll_{mixes}mix_exact={ll:?}");
     }
     for (i, (t, ll)) in t_bw.iter().enumerate() {
         println!("t_bw_iter{}_s={t:.1}", i + 1);
         println!("train_ll_iter{}={ll:.1}", i + 1);
+        println!("train_ll_iter{}_full={ll:.6}", i + 1);
+        println!("train_ll_iter{}_exact={ll:?}", i + 1);
     }
     println!("mfcc_per_h_s={:.1}", t_mfcc / audio_h);
     println!("viterbi_per_h_s={:.1}", t_viterbi / audio_h);

@@ -6,7 +6,7 @@
 //! the caller; no audio/D0/D1 data is read by this crate.
 #![allow(clippy::needless_range_loop)]
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 pub mod adapt;
@@ -34,6 +34,21 @@ pub type Result<T> = std::result::Result<T, HmmError>;
 
 /// Training/dev utterance with a stable id: (id, phone sequence, frames).
 pub type UttData = (String, Vec<String>, Vec<Vec<f64>>);
+
+/// Per-component sufficient statistics accumulated by the E-step, keyed by
+/// (phone, state, mixture component). One map per utterance is built in
+/// parallel by `estep_utt` and merged in utterance order by `baum_welch_ids`.
+#[derive(Default, Clone)]
+struct CAcc {
+    count: f64,
+    sum: Vec<f64>,
+    sumsq: Vec<f64>,
+    utts: BTreeSet<String>,
+    frames: u64,
+}
+
+/// Per-utterance E-step output: (utterance log-likelihood, sparse accumulators).
+type UttPartial = (f64, BTreeMap<(String, usize, usize), CAcc>);
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Gaussian {
@@ -450,16 +465,163 @@ impl HmmSet {
             .collect();
         self.baum_welch_ids(&with_ids, cfg)
     }
-    pub fn baum_welch_ids(&mut self, data: &[UttData], cfg: &TrainConfig) -> Result<f64> {
-        use std::collections::BTreeSet;
-        #[derive(Default, Clone)]
-        struct CAcc {
-            count: f64,
-            sum: Vec<f64>,
-            sumsq: Vec<f64>,
-            utts: BTreeSet<String>,
-            frames: u64,
+    /// E-step for one utterance: forward-backward in the log domain plus
+    /// per-component sufficient statistics. Emissions are read-only (frozen
+    /// for the whole E-step), so this runs on any thread; the caller merges
+    /// the returned map in utterance order. Returns (utterance
+    /// log-likelihood, sparse per-component accumulators).
+    fn estep_utt(
+        &self,
+        utt_id: &str,
+        seq: &[String],
+        obs: &[Vec<f64>],
+        log_half: f64,
+    ) -> Result<UttPartial> {
+        let mut local: BTreeMap<(String, usize, usize), CAcc> = BTreeMap::new();
+        let states = self.composite(seq)?;
+        let n = states.len();
+        let t_len = obs.len();
+        // Log-domain emits: never exp() here (39 dims underflow to 0).
+        let log_emit: Vec<Vec<f64>> = obs
+            .iter()
+            .map(|o| {
+                states
+                    .iter()
+                    .map(|(p, s)| self.emission(p, *s).map(|m| m.log_prob(o)))
+                    .collect::<Result<Vec<_>>>()
+            })
+            .collect::<Result<Vec<_>>>()?;
+        // Forward pass in log domain with per-frame normalization.
+        // log_c[t] = log(sum_j exp(unnorm[t][j])); total LL = sum log_c.
+        let mut log_alpha = vec![vec![f64::NEG_INFINITY; n]; t_len];
+        let mut log_c = vec![0.0; t_len];
+        log_alpha[0][0] = log_emit[0][0];
+        log_c[0] = log_sum_exp_slice(&log_alpha[0]);
+        for v in &mut log_alpha[0] {
+            *v -= log_c[0];
         }
+        for t in 1..t_len {
+            let mut unnorm = vec![f64::NEG_INFINITY; n];
+            for (j, u) in unnorm.iter_mut().enumerate() {
+                let stay = log_alpha[t - 1][j] + log_half;
+                let enter = if j > 0 {
+                    log_alpha[t - 1][j - 1] + log_half
+                } else {
+                    f64::NEG_INFINITY
+                };
+                *u = log_emit[t][j] + log_sum_exp(stay, enter);
+            }
+            log_c[t] = log_sum_exp_slice(&unnorm);
+            for j in 0..n {
+                log_alpha[t][j] = unnorm[j] - log_c[t];
+            }
+        }
+        // Backward pass in log domain (scaled to match forward).
+        let mut log_beta = vec![vec![f64::NEG_INFINITY; n]; t_len];
+        for v in &mut log_beta[t_len - 1] {
+            *v = -log_c[t_len - 1];
+        }
+        for t in (0..t_len.saturating_sub(1)).rev() {
+            for i in 0..n {
+                let stay = log_half + log_emit[t + 1][i] + log_beta[t + 1][i];
+                let next = if i + 1 < n {
+                    log_half + log_emit[t + 1][i + 1] + log_beta[t + 1][i + 1]
+                } else {
+                    f64::NEG_INFINITY
+                };
+                log_beta[t][i] = -log_c[t] + log_sum_exp(stay, next);
+            }
+        }
+        let utt_ll = log_c.iter().sum::<f64>();
+        // Hoisted per-state views (perf: the gamma loop below visits
+        // every (frame, state); fetching once per utterance keeps the
+        // inner loop free of mixture clones). Values are identical to
+        // per-visit fetches: emissions are frozen during the E-step
+        // (the M-step runs after all utterances), and any missing
+        // phone/state already errored in log_emit above.
+        let mixes: Vec<&Mixture> = states
+            .iter()
+            .map(|(p, s)| self.emission(p, *s))
+            .collect::<Result<Vec<_>>>()?;
+        let keys: Vec<(String, usize)> = states
+            .iter()
+            .map(|(p, s)| {
+                if p == SP {
+                    (SIL.to_string(), 1)
+                } else {
+                    (p.clone(), *s)
+                }
+            })
+            .collect();
+        // Gammas: renormalize per frame, assert they sum to ~1.
+        for t in 0..t_len {
+            let mut lg = vec![f64::NEG_INFINITY; n];
+            for j in 0..n {
+                lg[j] = log_alpha[t][j] + log_beta[t][j];
+            }
+            let lse = log_sum_exp_slice(&lg);
+            if !lse.is_finite() {
+                continue;
+            }
+            let mut gammas = vec![0.0; n];
+            let mut gsum = 0.0;
+            for j in 0..n {
+                let g = (lg[j] - lse).exp();
+                gammas[j] = g;
+                gsum += g;
+            }
+            debug_assert!(
+                (gsum - 1.0).abs() < 1e-6,
+                "gamma row must sum to 1, got {gsum}"
+            );
+            for j in 0..n {
+                let g = gammas[j];
+                if g <= 0.0 {
+                    continue;
+                }
+                let mix = mixes[j];
+                // Mixture responsibilities in log domain. The
+                // denominator is the forward-pass emit already
+                // computed for this (frame, state): same mixture,
+                // same frame, bit-identical value, no recompute.
+                let log_denom = log_emit[t][j];
+                if !log_denom.is_finite() {
+                    continue;
+                }
+                let log_g = g.ln();
+                for (ci, comp) in mix.components.iter().enumerate() {
+                    let log_r =
+                        log_g + comp.weight.max(1e-300).ln() + comp.gaussian.log_prob(&obs[t])
+                            - log_denom;
+                    let r = log_r.exp();
+                    if r <= 1e-12 {
+                        continue;
+                    }
+                    let a = local
+                        .entry((keys[j].0.clone(), keys[j].1, ci))
+                        .or_insert_with(|| CAcc {
+                            sum: vec![0.0; self.dim],
+                            sumsq: vec![0.0; self.dim],
+                            ..Default::default()
+                        });
+                    a.count += r;
+                    for d in 0..self.dim {
+                        a.sum[d] += r * obs[t][d];
+                        a.sumsq[d] += r * obs[t][d] * obs[t][d];
+                    }
+                    // Same set content: insert once per
+                    // (component, utterance), not once per visit.
+                    if !a.utts.contains(utt_id) {
+                        a.utts.insert(utt_id.to_string());
+                    }
+                    a.frames += 1;
+                }
+            }
+        }
+        Ok((utt_ll, local))
+    }
+    pub fn baum_welch_ids(&mut self, data: &[UttData], cfg: &TrainConfig) -> Result<f64> {
+        use rayon::prelude::*;
         // Transition choice (hearsay-four-bwf--baum-welch-underflow-fix): the
         // old M-step split every state's occupancy 50/50 between self-loop
         // and forward arc, so estimated transitions were always 0.5/0.5 (dead
@@ -487,144 +649,34 @@ impl HmmSet {
                 }
             }
             total_ll = 0.0;
-            for (utt_id, seq, obs) in data {
-                if obs.is_empty() {
-                    continue;
-                }
-                let states = self.composite(seq)?;
-                let n = states.len();
-                let t_len = obs.len();
-                // Log-domain emits: never exp() here (39 dims underflow to 0).
-                let log_emit: Vec<Vec<f64>> = obs
-                    .iter()
-                    .map(|o| {
-                        states
-                            .iter()
-                            .map(|(p, s)| self.emission(p, *s).map(|m| m.log_prob(o)))
-                            .collect::<Result<Vec<_>>>()
-                    })
-                    .collect::<Result<Vec<_>>>()?;
-                // Forward pass in log domain with per-frame normalization.
-                // log_c[t] = log(sum_j exp(unnorm[t][j])); total LL = sum log_c.
-                let mut log_alpha = vec![vec![f64::NEG_INFINITY; n]; t_len];
-                let mut log_c = vec![0.0; t_len];
-                log_alpha[0][0] = log_emit[0][0];
-                log_c[0] = log_sum_exp_slice(&log_alpha[0]);
-                for v in &mut log_alpha[0] {
-                    *v -= log_c[0];
-                }
-                for t in 1..t_len {
-                    let mut unnorm = vec![f64::NEG_INFINITY; n];
-                    for (j, u) in unnorm.iter_mut().enumerate() {
-                        let stay = log_alpha[t - 1][j] + log_half;
-                        let enter = if j > 0 {
-                            log_alpha[t - 1][j - 1] + log_half
-                        } else {
-                            f64::NEG_INFINITY
-                        };
-                        *u = log_emit[t][j] + log_sum_exp(stay, enter);
+            // E-step over utterances, parallel: each utterance builds its own
+            // sufficient-statistics map (emissions are frozen, so utterances
+            // are independent) and the maps merge in utterance order. The
+            // merge order is fixed, so results are deterministic and
+            // independent of thread count; per-utterance likelihoods sum in
+            // index order, bit-identical to the serial path for the same
+            // model. Only the cross-utterance association order of the
+            // f64 accumulators differs from a single running sum (ulp-level).
+            let partials: Vec<UttPartial> = data
+                .par_iter()
+                .map(|(utt_id, seq, obs)| {
+                    if obs.is_empty() {
+                        return Ok((0.0, BTreeMap::new()));
                     }
-                    log_c[t] = log_sum_exp_slice(&unnorm);
-                    for j in 0..n {
-                        log_alpha[t][j] = unnorm[j] - log_c[t];
-                    }
-                }
-                // Backward pass in log domain (scaled to match forward).
-                let mut log_beta = vec![vec![f64::NEG_INFINITY; n]; t_len];
-                for v in &mut log_beta[t_len - 1] {
-                    *v = -log_c[t_len - 1];
-                }
-                for t in (0..t_len.saturating_sub(1)).rev() {
-                    for i in 0..n {
-                        let stay = log_half + log_emit[t + 1][i] + log_beta[t + 1][i];
-                        let next = if i + 1 < n {
-                            log_half + log_emit[t + 1][i + 1] + log_beta[t + 1][i + 1]
-                        } else {
-                            f64::NEG_INFINITY
-                        };
-                        log_beta[t][i] = -log_c[t] + log_sum_exp(stay, next);
-                    }
-                }
-                total_ll += log_c.iter().sum::<f64>();
-                // Hoisted per-state views (perf: the gamma loop below visits
-                // every (frame, state); fetching once per utterance keeps the
-                // inner loop free of mixture clones). Values are identical to
-                // per-visit fetches: emissions are frozen during the E-step
-                // (the M-step runs after all utterances), and any missing
-                // phone/state already errored in log_emit above.
-                let mixes: Vec<&Mixture> = states
-                    .iter()
-                    .map(|(p, s)| self.emission(p, *s))
-                    .collect::<Result<Vec<_>>>()?;
-                let keys: Vec<(String, usize)> = states
-                    .iter()
-                    .map(|(p, s)| {
-                        if p == SP {
-                            (SIL.to_string(), 1)
-                        } else {
-                            (p.clone(), *s)
+                    self.estep_utt(utt_id, seq, obs, log_half)
+                })
+                .collect::<Result<Vec<_>>>()?;
+            for (ll, local) in &partials {
+                total_ll += *ll;
+                for (k, b) in local {
+                    if let Some(a) = cacc.get_mut(k) {
+                        a.count += b.count;
+                        for d in 0..self.dim {
+                            a.sum[d] += b.sum[d];
+                            a.sumsq[d] += b.sumsq[d];
                         }
-                    })
-                    .collect();
-                // Gammas: renormalize per frame, assert they sum to ~1.
-                for t in 0..t_len {
-                    let mut lg = vec![f64::NEG_INFINITY; n];
-                    for j in 0..n {
-                        lg[j] = log_alpha[t][j] + log_beta[t][j];
-                    }
-                    let lse = log_sum_exp_slice(&lg);
-                    if !lse.is_finite() {
-                        continue;
-                    }
-                    let mut gammas = vec![0.0; n];
-                    let mut gsum = 0.0;
-                    for j in 0..n {
-                        let g = (lg[j] - lse).exp();
-                        gammas[j] = g;
-                        gsum += g;
-                    }
-                    debug_assert!(
-                        (gsum - 1.0).abs() < 1e-6,
-                        "gamma row must sum to 1, got {gsum}"
-                    );
-                    for j in 0..n {
-                        let g = gammas[j];
-                        if g <= 0.0 {
-                            continue;
-                        }
-                        let mix = mixes[j];
-                        // Mixture responsibilities in log domain. The
-                        // denominator is the forward-pass emit already
-                        // computed for this (frame, state): same mixture,
-                        // same frame, bit-identical value, no recompute.
-                        let log_denom = log_emit[t][j];
-                        if !log_denom.is_finite() {
-                            continue;
-                        }
-                        let log_g = g.ln();
-                        for (ci, comp) in mix.components.iter().enumerate() {
-                            let log_r = log_g
-                                + comp.weight.max(1e-300).ln()
-                                + comp.gaussian.log_prob(&obs[t])
-                                - log_denom;
-                            let r = log_r.exp();
-                            if r <= 1e-12 {
-                                continue;
-                            }
-                            if let Some(a) = cacc.get_mut(&(keys[j].0.clone(), keys[j].1, ci)) {
-                                a.count += r;
-                                for d in 0..self.dim {
-                                    a.sum[d] += r * obs[t][d];
-                                    a.sumsq[d] += r * obs[t][d] * obs[t][d];
-                                }
-                                // Same set content: insert once per
-                                // (component, utterance), not once per visit.
-                                if !a.utts.contains(utt_id.as_str()) {
-                                    a.utts.insert(utt_id.clone());
-                                }
-                                a.frames += 1;
-                            }
-                        }
+                        a.utts.extend(b.utts.iter().cloned());
+                        a.frames += b.frames;
                     }
                 }
             }
