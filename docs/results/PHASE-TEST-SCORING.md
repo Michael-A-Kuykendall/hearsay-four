@@ -77,6 +77,8 @@ D1-DEV 32, 39 phones, flat 0.9938 / selected 0.8043 (iter 5, 2 mix).
 | case:106804_25-579 | 167/12659 | 18 (10.8%) | 591 | 5984 | 0.8240 | 0.8443 |
 | **Total** | 490 | 59 (12.0%) | 1812 | 17952 | **0.8135** | **0.8350** |
 
+> RELABEL 2026-10-31 (REFOCUS §3): SCOTUS numbers are NOT evidence — wrong target population for owner-adaptation claims. R4 owner MAP gate (PER 1.80 → 1.67) is machinery check only (PER > 1 = insertion-dominated garbage; enrollment on isolated words). Do not cite as adaptation evidence.
+
 Totals: base errors 1474, adapted errors 1513 (+39 / +2.6% relative).
 Paired-diff mean +0.0214, CI [+0.0097,+0.0332] — descriptive only
 (n=3, normal approximation not trusted; no inferential claim).

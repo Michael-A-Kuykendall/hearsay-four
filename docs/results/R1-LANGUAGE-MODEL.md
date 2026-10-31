@@ -13,6 +13,8 @@ Measured run (this doc's numbers, one run):
 cargo run --release -p lm --bin lm-report -- . /home/michael/repos/better-voice /tmp/lm-r1b-out
 ```
 
+> RELABEL 2026-10-31 (REFOCUS §3): valid, toy scale. NOTE: `sessions/oyez-pilot/transcript.json` and `sessions/oyez-bulk/10-218_2011/transcript.json` are the same Oyez argument (id 21627), counted twice in LM training — remove the alias.
+
 ## Held-out basis (DEV perplexity)
 
 DEV text is scored, never trained on. `load_dev_evaluation_lines`

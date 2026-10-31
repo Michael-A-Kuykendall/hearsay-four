@@ -79,6 +79,8 @@ max-active 3000, insertion penalty 0, no LM. Fully deterministic
 ```
 flat PER=0.9943 selected PER=0.8490 (iter 4, 2 mixtures)
 split 1->2 before=0.9088 after=0.8490 accepted=true
+
+> RELABEL 2026-10-31 (REFOCUS §3): valid measurement, NOT a base model — 23 min of spontaneous courtroom audio. Retired as a base; R3-v2 (hearsay-four-30y--speaker-independent-model) retrains on LibriSpeech.
 split 2->4 before=0.8490 after=0.8608 accepted=false
 split 2->8 before=0.8490 after=0.8613 accepted=false
 ckpt iter=0 mix=1 train_ll=-701110.73 dev_per=0.9943

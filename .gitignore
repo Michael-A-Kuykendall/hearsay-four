@@ -50,5 +50,14 @@ __pycache__/
 # --- Openstate session state ---
 /.openstate
 track-b/
+
+# --- GO 2026-10-31: corpora + personal artifacts (never tracked) ---
+data/librispeech/
+data/lm-text/
+data/canon/
+*.arpa
+*.lm.bin
+owner-book*
+*personal*
 # bd worktree
 track-a/

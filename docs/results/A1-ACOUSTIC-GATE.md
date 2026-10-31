@@ -14,6 +14,8 @@ to the first template's label through a proven degenerate mechanism (below):
 wrong recording protocol for the test session plus a gate instrument that
 reports a score when it cannot compare. DEV in the same run passed and stands:
 best config `base_cmn_d_dd_lifter22_pre097` top-1 = 0.8583 (103/120)
+
+> RELABEL 2026-10-31 (REFOCUS §3): exploratory DEV — likely still includes leading-click padding. Re-measure on canonical run1 (A1-r, hearsay-four-mc1--a1-rerun-canonical). 190133 stays VOID (unchanged).
 with endpoint trimming (untrimmed pipeline measured 0.9417; the gap is
 padding fingerprint, see the DEV section).
 
