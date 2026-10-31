@@ -257,3 +257,24 @@ band 1.0 the configs diverge exactly at the one ambiguous query.
 Within-session DEV 119-120/120 at band 1.0 means classical MFCC+DTW
 discriminates the 30 words on one session; the earlier 0.86/0.94 were
 band-length artifacts, not acoustic limits.
+
+## PHASE-TEST phase-test-20261031-100240 — scored once 2026-10-31
+
+Labels: cross-channel (WSL-chain queries vs Windows-chain run1 templates),
+29/30 takes, characterization only, not a pass/fail gate. Session consumed;
+now REGRESSION in `sessions/CATALOG.tsv`, never re-score.
+
+- Frozen config:
+  `base_cmn_d_dd_lifter22_pre097+cmvn_replaces_cmn+dtw_baseline+band1.0`
+  (re-freeze above; scorer commit `fd7b63b`).
+- Seal verified ACCEPT on the raw session (seed 14206645340250353102,
+  order 041a964f, matches the recording log); queries loaded from the
+  canonical session per RS-1 (`--phase-test-sealed-dir` split).
+- Rejected take: take001.wav (`reflection`) — canonical QC: speech span
+  115 ms < 150 ms floor (`manifest.tsv`/`qc.tsv` in the canon dir).
+- Result (`docs/results/A1-phasetest-20261031-100240/score.log`):
+  top-1 = 1.0000 (29/29), top-3/5/10 = 1.0000, degenerate = 0,
+  confusion matrix diagonal (zero confusions).
+
+words30-PHASE-TEST-01 (Windows chain, owner sitting, optional) gets scored
+once under the same frozen config when it exists.

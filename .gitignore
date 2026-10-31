@@ -74,6 +74,8 @@ track-a/
 # --- HYG-1 (bead hearsay-four-qwz--portable-tests-hygiene): logs, model
 # --- weights, regenerated binaries (never tracked) ---
 *.log
+# A1 sealed score-once logs ARE formal evidence: track them.
+!docs/results/A1-phasetest-*/score.log
 *.pt
 *.pth
 *.onnx
