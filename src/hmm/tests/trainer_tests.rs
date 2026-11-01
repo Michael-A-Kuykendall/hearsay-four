@@ -43,6 +43,7 @@ fn synthetic_known_hmm_recovery() {
         embedded_iterations: 3,
         var_floor_ratio: 0.01,
         optional_sp: true,
+        estep_chunk: 2000,
     };
     let history = model.train_embedded(&data, &cfg).unwrap();
     assert_eq!(history.len(), 3);

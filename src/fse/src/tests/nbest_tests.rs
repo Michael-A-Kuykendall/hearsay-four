@@ -3,8 +3,8 @@
 //! Emission properties: never argmax collapse with real competition, cap at
 //! 5, ARPABET-only candidates, relative (not absolute) threshold.
 
+use crate::nbest::{emit_nbest, Candidate, DEFAULT_DELTA, MAX_N};
 use crate::ARPABET;
-use crate::nbest::{Candidate, DEFAULT_DELTA, MAX_N, emit_nbest};
 
 /// Build a score list from (phoneme, score) pairs; phonemes default to real
 /// ARPABET entries so the alphabet invariant holds.

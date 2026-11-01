@@ -9,8 +9,8 @@ use proptest::prelude::*;
 
 use crate::nbest::emit_nbest;
 use crate::{
-    FEATURE_DIM, FeatureError, Frame, default_codebook, emit_clip_candidates, extract_features,
-    score_phones, window_audio,
+    default_codebook, emit_clip_candidates, extract_features, score_phones, window_audio,
+    FeatureError, Frame, FEATURE_DIM,
 };
 
 /// All six contract invariants for Stage 1 FSE.

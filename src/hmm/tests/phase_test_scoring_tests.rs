@@ -605,6 +605,7 @@ fn phase_test_base_vs_adapted_report() {
         embedded_iterations: 1,
         var_floor_ratio: 0.01,
         optional_sp: true,
+        estep_chunk: 2000,
     };
     let run = model
         .train_checkpoints(&train, &d1_dev, &cfg, &[2])

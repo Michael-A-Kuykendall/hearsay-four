@@ -46,6 +46,9 @@ pub struct DecoderConfig {
     /// Lookahead guides which tokens survive the beam; stored path scores
     /// stay exact. 0 disables lookahead (rank = path score).
     pub lookahead_weight: f64,
+    /// Per-utterance CMVN on static features before deltas (hmm-fe2,
+    /// default true). Set false ONLY to decode pre-CMVN acoustic models.
+    pub cmvn: bool,
 }
 
 impl Default for DecoderConfig {
@@ -56,6 +59,7 @@ impl Default for DecoderConfig {
             word_penalty: 0.0,
             lm_weight: 1.0,
             lookahead_weight: 1.0,
+            cmvn: true,
         }
     }
 }
@@ -137,6 +141,10 @@ pub struct MooreDecoder {
     cfg: DecoderConfig,
     skipped_words: Vec<String>,
     stream_buf: Vec<i16>,
+    /// Running CMVN estimate for the live path (cumulative over the buffer).
+    cmvn_live: fse::CmvnLive,
+    /// Buffer windows already folded into `cmvn_live`.
+    cmvn_windows: usize,
 }
 
 impl MooreDecoder {
@@ -262,6 +270,8 @@ impl MooreDecoder {
             cfg,
             skipped_words: skipped,
             stream_buf: Vec::new(),
+            cmvn_live: fse::CmvnLive::new(),
+            cmvn_windows: 0,
         })
     }
     /// Load a decoder from an acoustic model file, an optional LM file, and
@@ -335,6 +345,8 @@ impl MooreDecoder {
     /// Clear the streaming buffer (next `stream` chunk starts fresh).
     pub fn reset_stream(&mut self) {
         self.stream_buf.clear();
+        self.cmvn_live = fse::CmvnLive::new();
+        self.cmvn_windows = 0;
     }
 
     fn topology(am: &HmmSet, phone: &str) -> Result<PhoneTopology, String> {
@@ -378,7 +390,7 @@ impl MooreDecoder {
     }
 
     /// Canonical frontend: 16 kHz mono → 39-dim MFCC frames (same `fse`
-    /// pipeline the acoustic model trained on).
+    /// pipeline the acoustic model trained on). CMVN per `cfg.cmvn`.
     fn frontend(&self, pcm16k: &[i16]) -> Vec<fse::Frame> {
         if pcm16k.is_empty() {
             return Vec::new();
@@ -387,7 +399,40 @@ impl MooreDecoder {
         if windows.is_empty() {
             return Vec::new();
         }
-        fse::extract_features(&windows, 16_000).unwrap_or_default()
+        if self.cfg.cmvn {
+            fse::extract_features_cmvn(&windows, 16_000).unwrap_or_default()
+        } else {
+            fse::extract_features(&windows, 16_000).unwrap_or_default()
+        }
+    }
+
+    /// Live frontend: like `frontend`, but CMVN uses the cumulative running
+    /// estimate over the buffer (new windows folded per call), applied only
+    /// past ~1 s (100 frames); raw when `cfg.cmvn` is false.
+    fn frontend_live(&mut self, pcm16k: &[i16]) -> Vec<fse::Frame> {
+        if pcm16k.is_empty() {
+            return Vec::new();
+        }
+        let windows = fse::window_audio(pcm16k, 16_000);
+        if windows.is_empty() {
+            return Vec::new();
+        }
+        if !self.cfg.cmvn {
+            return fse::extract_features(&windows, 16_000).unwrap_or_default();
+        }
+        let Ok(statics) = fse::extract_statics(&windows, 16_000) else {
+            return Vec::new();
+        };
+        let fresh = self.cmvn_windows.min(statics.len());
+        self.cmvn_live.update(&statics[fresh..]);
+        self.cmvn_windows = statics.len();
+        let stats = if statics.len() >= 100 {
+            self.cmvn_live.stats()
+        } else {
+            None
+        };
+        let borrowed = stats.as_ref().map(|(m, s)| (m.as_slice(), s.as_slice()));
+        fse::extract_features_with_stats(&windows, 16_000, borrowed).unwrap_or_default()
     }
 
     fn lm_log_prob(&self, w1: u32, w2: u32, word: &str) -> f64 {
@@ -588,8 +633,7 @@ impl MooreDecoder {
     }
 
     /// Decode to (lattice, total path score, frame count).
-    fn decode_inner(&self, pcm16k: &[i16]) -> (Lattice, f64, u32) {
-        let frames = self.frontend(pcm16k);
+    fn decode_inner(&self, frames: &[fse::Frame]) -> (Lattice, f64, u32) {
         let nframes = frames.len() as u32;
         if frames.is_empty() || self.trie.is_empty() {
             return (self.empty_lattice(nframes), f64::NEG_INFINITY, 0);
@@ -689,7 +733,8 @@ impl MooreDecoder {
 
 impl Recognizer for MooreDecoder {
     fn decode(&self, pcm16k: &[i16]) -> Lattice {
-        self.decode_inner(pcm16k).0
+        let frames = self.frontend(pcm16k);
+        self.decode_inner(&frames).0
     }
 
     fn stream(&mut self, chunk: &[i16]) -> Vec<Partial> {
@@ -697,7 +742,8 @@ impl Recognizer for MooreDecoder {
         // incremental search is follow-up work.
         self.stream_buf.extend_from_slice(chunk);
         let buffered = self.stream_buf.clone();
-        let (lattice, score, nframes) = self.decode_inner(&buffered);
+        let frames = self.frontend_live(&buffered);
+        let (lattice, score, nframes) = self.decode_inner(&frames);
         let text = lattice
             .tokens
             .iter()
@@ -713,7 +759,11 @@ impl Recognizer for MooreDecoder {
 }
 
 fn finite_or(value: f64, fallback: f64) -> f64 {
-    if value.is_finite() { value } else { fallback }
+    if value.is_finite() {
+        value
+    } else {
+        fallback
+    }
 }
 
 #[cfg(test)]

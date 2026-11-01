@@ -1,6 +1,6 @@
 //! A1 gate protocols: DEV leave-one-take-out and PHASE-TEST (bead hearsay-four-b7p).
 
-use crate::dtw::{DtwVariant, dtw_distance_with};
+use crate::dtw::{dtw_distance_with, DtwVariant};
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone)]

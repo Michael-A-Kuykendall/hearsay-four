@@ -6,7 +6,7 @@
 use calibration::Frame;
 
 use crate::{
-    boundaries::{BoundaryConfig, detect_boundaries},
+    boundaries::{detect_boundaries, BoundaryConfig},
     extract_features, window_audio,
 };
 

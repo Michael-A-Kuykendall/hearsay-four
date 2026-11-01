@@ -19,6 +19,8 @@ data/corpus/raw/
 !data/demo/serve-mp3-twin.wav
 !data/demo/corrupt.mp3
 data/session/audio/
+# Feature cache (bead hearsay-four-smpp): re-derived by build_featcache.
+data/cache/
 # RS1 canonical sessions (bead hearsay-four-c0q--rs1-d-catalog-cuts): canon
 # output is re-derived by canon-session; only CATALOG.tsv + prompt cuts commit.
 sessions/canon/

@@ -256,3 +256,74 @@ fn resolve_audio_path(root: &Path, raw: &str) -> PathBuf {
     let p = PathBuf::from(&normalized);
     if p.is_absolute() { p } else { root.join(p) }
 }
+
+// ---- LibriSpeech TSV sampling (stratified tuning subsets) ----
+
+/// One row of a LibriSpeech-style 4-column TSV (id, relpath, seconds, transcript).
+#[derive(Debug, Clone, PartialEq)]
+pub struct LibriRow {
+    pub id: String,
+    pub rel: String,
+    pub sec: f64,
+    pub text: String,
+}
+
+/// Parse 4-col TSV; skips blank lines and rows with empty id/rel or
+/// non-positive seconds (same guards as the training/eval consumers).
+pub fn parse_librispeech_tsv(text: &str) -> Vec<LibriRow> {
+    let mut rows = Vec::new();
+    for line in text.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let mut cols = line.splitn(4, '\t');
+        let (id, rel, sec, txt) = (
+            cols.next().unwrap_or("").to_string(),
+            cols.next().unwrap_or("").to_string(),
+            cols.next().unwrap_or("0").parse::<f64>().unwrap_or(0.0),
+            cols.next().unwrap_or("").to_string(),
+        );
+        if id.is_empty() || rel.is_empty() || sec <= 0.0 {
+            continue;
+        }
+        rows.push(LibriRow {
+            id,
+            rel,
+            sec,
+            text: txt,
+        });
+    }
+    rows
+}
+
+fn xorshift64star(state: &mut u64) -> u64 {
+    // xorshift64* (Vigna): deterministic cross-platform RNG for seeded sampling.
+    let mut x = *state;
+    x ^= x >> 12;
+    x ^= x << 25;
+    x ^= x >> 27;
+    *state = x;
+    x.wrapping_mul(0x2545F4914F6CDD1D)
+}
+
+/// Stratified sample: `per_speaker` rows per speaker (id prefix before the
+/// first '-'), Fisher-Yates with the given seed. Speakers iterate in sorted
+/// order; short speakers contribute all their rows.
+pub fn sample_stratified(rows: &[LibriRow], per_speaker: usize, seed: u64) -> Vec<LibriRow> {
+    use std::collections::BTreeMap;
+    let mut by_spk: BTreeMap<&str, Vec<&LibriRow>> = BTreeMap::new();
+    for r in rows {
+        let spk = r.id.split('-').next().unwrap_or("");
+        by_spk.entry(spk).or_default().push(r);
+    }
+    let mut rng = seed | 1; // xorshift degenerates on 0; force nonzero
+    let mut out = Vec::new();
+    for (_, mut v) in by_spk {
+        for i in (1..v.len()).rev() {
+            let j = (xorshift64star(&mut rng) % (i as u64 + 1)) as usize;
+            v.swap(i, j);
+        }
+        out.extend(v.into_iter().take(per_speaker).cloned());
+    }
+    out
+}

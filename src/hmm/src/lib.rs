@@ -22,6 +22,7 @@ pub enum HmmError {
     UnknownPhone(String),
     EmptyTranscript,
     InvalidModel(String),
+    FrontendMismatch(String),
     Io(String),
 }
 impl fmt::Display for HmmError {
@@ -199,6 +200,12 @@ pub struct HmmSet {
     pub global_mean: Vec<f64>,
     pub global_var: Vec<f64>,
     pub var_floor_ratio: f64,
+    /// Frontend id that produced the training features ([`HMM_FRONTEND_ID`]
+    /// family in fse). `None` = legacy checkpoint saved before stamping;
+    /// [`check_frontend`] warns loudly and assumes the selected frontend.
+    /// Train bins stamp this; eval/decoder refuse an explicit mismatch.
+    #[serde(default)]
+    pub frontend_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -207,6 +214,11 @@ pub struct TrainConfig {
     pub embedded_iterations: usize,
     pub var_floor_ratio: f64,
     pub optional_sp: bool,
+    /// E-step chunk size in utterances (bounded-memory streaming merge).
+    /// Each chunk is processed in parallel and merged before the next
+    /// begins, so peak transient is one chunk of partials, not all
+    /// utterances. Default 2000 (~2GB worst case). Values < 1 behave as 1.
+    pub estep_chunk: usize,
 }
 impl Default for TrainConfig {
     fn default() -> Self {
@@ -215,6 +227,7 @@ impl Default for TrainConfig {
             embedded_iterations: 3,
             var_floor_ratio: 0.01,
             optional_sp: true,
+            estep_chunk: 2000,
         }
     }
 }
@@ -231,6 +244,29 @@ fn ltr_trans(n: usize) -> Vec<Vec<f64>> {
         }
     }
     t
+}
+/// Front-end guard: refuse to score a model with features from a different
+/// frontend than the one that trained it. `selected_id` is the frontend id
+/// of the feature path in use (an `HMM_FRONTEND_ID*` constant from fse).
+/// Legacy checkpoints (`None`) warn loudly and proceed on the operator's
+/// responsibility; an explicit mismatch is a hard error naming both sides.
+pub fn check_frontend(
+    model_id: &Option<String>,
+    selected_id: &str,
+    model_path: &str,
+) -> Result<()> {
+    match model_id {
+        None => {
+            eprintln!(
+                "FRONTEND GUARD: {model_path} has no frontend_id (legacy checkpoint); assuming selected frontend {selected_id}. Resave to stamp."
+            );
+            Ok(())
+        }
+        Some(m) if m == selected_id => Ok(()),
+        Some(m) => Err(HmmError::FrontendMismatch(format!(
+            "model {model_path} frontend_id={m} does not match selected frontend {selected_id}"
+        ))),
+    }
 }
 fn log_sum_exp(a: f64, b: f64) -> f64 {
     if a == f64::NEG_INFINITY {
@@ -343,6 +379,8 @@ impl HmmSet {
             global_mean: mean,
             global_var: var,
             var_floor_ratio,
+            // Train bins stamp the real frontend id after construction.
+            frontend_id: None,
         })
     }
 
@@ -452,7 +490,151 @@ impl HmmSet {
         }
         Ok((path, best))
     }
-
+    /// Single-pass emission re-estimate from Viterbi state paths (CMVN
+    /// retrain init). `paths[i][t]` is the composite-state index of frame
+    /// `t` (from `forced_align` on the aligning model); `obs` are the NEW
+    /// features (CMVN). States get hard assignment; mixture components get
+    /// posterior-weighted soft counts. Transitions carry over (BW refines
+    /// them). Returns aligned frame count.
+    pub fn viterbi_reestimate(
+        &mut self,
+        data: &[UttData],
+        paths: &[Vec<usize>],
+        var_floor_ratio: f64,
+    ) -> Result<usize> {
+        if data.is_empty() || data.len() != paths.len() {
+            return Err(HmmError::EmptyData);
+        }
+        let dim = self.dim;
+        struct Acc {
+            count: f64,
+            sum: Vec<f64>,
+            sumsq: Vec<f64>,
+            utts: BTreeSet<String>,
+            frames: u64,
+        }
+        let mut acc: BTreeMap<(String, usize, usize), Acc> = BTreeMap::new();
+        let mut g_count = 0.0;
+        let mut g_sum = vec![0.0; dim];
+        let mut g_sumsq = vec![0.0; dim];
+        let mut used = 0usize;
+        for (u, (id, seq, obs)) in data.iter().enumerate() {
+            let states = self.composite(seq)?;
+            if obs.len() != paths[u].len() {
+                return Err(HmmError::DimensionMismatch);
+            }
+            for (t, frame) in obs.iter().enumerate() {
+                if frame.len() != dim {
+                    return Err(HmmError::DimensionMismatch);
+                }
+                let idx = paths[u][t];
+                let (p, s) = states.get(idx).ok_or_else(|| {
+                    HmmError::InvalidModel(format!(
+                        "path index {idx} >= {} states",
+                        states.len()
+                    ))
+                })?;
+                let kp = if p == SP { SIL.to_string() } else { p.clone() };
+                let ks = if p == SP { 1 } else { *s };
+                let mix = self.emission(&kp, ks)?;
+                let mut terms = Vec::with_capacity(mix.components.len());
+                let mut mx = f64::NEG_INFINITY;
+                for c in &mix.components {
+                    let lt = c.weight.max(1e-300).ln() + c.gaussian.log_prob(frame);
+                    terms.push(lt);
+                    if lt > mx {
+                        mx = lt;
+                    }
+                }
+                if mx == f64::NEG_INFINITY {
+                    continue;
+                }
+                let z: f64 = terms.iter().map(|lt| (lt - mx).exp()).sum();
+                for (ci, lt) in terms.iter().enumerate() {
+                    let post = (lt - mx).exp() / z;
+                    if post <= 0.0 {
+                        continue;
+                    }
+                    let e = acc
+                        .entry((kp.clone(), ks, ci))
+                        .or_insert_with(|| Acc {
+                            count: 0.0,
+                            sum: vec![0.0; dim],
+                            sumsq: vec![0.0; dim],
+                            utts: BTreeSet::new(),
+                            frames: 0,
+                        });
+                    e.count += post;
+                    e.frames += 1;
+                    e.utts.insert(id.clone());
+                    for d in 0..dim {
+                        e.sum[d] += post * frame[d];
+                        e.sumsq[d] += post * frame[d] * frame[d];
+                    }
+                }
+                g_count += 1.0;
+                for d in 0..dim {
+                    g_sum[d] += frame[d];
+                    g_sumsq[d] += frame[d] * frame[d];
+                }
+                used += 1;
+            }
+        }
+        if used == 0 {
+            return Err(HmmError::EmptyData);
+        }
+        // Global stats first: floor reference for the new feature scale.
+        for d in 0..dim {
+            self.global_mean[d] = g_sum[d] / g_count;
+            let v = g_sumsq[d] / g_count - self.global_mean[d] * self.global_mean[d];
+            self.global_var[d] = v.max(1e-6);
+        }
+        let floor: Vec<f64> = self
+            .global_var
+            .iter()
+            .map(|v| v * var_floor_ratio)
+            .collect();
+        let mut state_totals: BTreeMap<(String, usize), f64> = BTreeMap::new();
+        for ((p, s, _), a) in &acc {
+            *state_totals.entry((p.clone(), *s)).or_insert(0.0) += a.count;
+        }
+        for ((p, s, ci), a) in &acc {
+            if a.count <= 0.0 {
+                continue;
+            }
+            let total = state_totals.get(&(p.clone(), *s)).copied().unwrap_or(0.0);
+            if total <= 0.0 {
+                continue;
+            }
+            let h = self
+                .phones
+                .get_mut(p)
+                .ok_or_else(|| HmmError::UnknownPhone(p.clone()))?;
+            let comp = h
+                .emissions
+                .get_mut(*s)
+                .and_then(|m| m.components.get_mut(*ci))
+                .ok_or_else(|| HmmError::InvalidModel(format!("missing {p}:{s}:{ci}")))?;
+            comp.weight = a.count / total;
+            for d in 0..dim {
+                let m = a.sum[d] / a.count;
+                comp.gaussian.mean[d] = m;
+                comp.gaussian.var[d] = (a.sumsq[d] / a.count - m * m).max(floor[d]);
+            }
+            comp.stats = ParamStats {
+                count: a.count,
+                sum: a.sum.clone(),
+                sum_sq: a.sumsq.clone(),
+                provenance: Provenance {
+                    utterances: a.utts.iter().cloned().collect(),
+                    frames: a.frames,
+                },
+            };
+        }
+        self.var_floor_ratio = var_floor_ratio;
+        self.refresh_sp();
+        Ok(used)
+    }
     pub fn baum_welch(
         &mut self,
         data: &[(Vec<String>, Vec<Vec<f64>>)],
@@ -649,34 +831,41 @@ impl HmmSet {
                 }
             }
             total_ll = 0.0;
-            // E-step over utterances, parallel: each utterance builds its own
-            // sufficient-statistics map (emissions are frozen, so utterances
-            // are independent) and the maps merge in utterance order. The
-            // merge order is fixed, so results are deterministic and
-            // independent of thread count; per-utterance likelihoods sum in
-            // index order, bit-identical to the serial path for the same
-            // model. Only the cross-utterance association order of the
-            // f64 accumulators differs from a single running sum (ulp-level).
-            let partials: Vec<UttPartial> = data
-                .par_iter()
-                .map(|(utt_id, seq, obs)| {
-                    if obs.is_empty() {
-                        return Ok((0.0, BTreeMap::new()));
-                    }
-                    self.estep_utt(utt_id, seq, obs, log_half)
-                })
-                .collect::<Result<Vec<_>>>()?;
-            for (ll, local) in &partials {
-                total_ll += *ll;
-                for (k, b) in local {
-                    if let Some(a) = cacc.get_mut(k) {
-                        a.count += b.count;
-                        for d in 0..self.dim {
-                            a.sum[d] += b.sum[d];
-                            a.sumsq[d] += b.sumsq[d];
+            // E-step over utterances in bounded-memory chunks
+            // (hearsay-four-d7qe--bounded-memory-expectation-merge): each
+            // chunk is processed in parallel and merged before the next
+            // begins, so peak transient is one chunk of partials instead of
+            // all utterances (full93's 26.7k partials collected at once
+            // exceeded a 32GB box). Emissions are frozen, so utterances are
+            // independent; chunks run in index order and each chunk merges
+            // in index order, so results stay deterministic and
+            // per-utterance likelihoods still sum in index order
+            // (bit-identical LL). Only the cross-utterance association
+            // order of the f64 accumulators differs across chunk sizes
+            // (ulp-level, within the 1e-9 tolerance).
+            let estep_chunk = cfg.estep_chunk.max(1);
+            for part in data.chunks(estep_chunk) {
+                let partials: Vec<UttPartial> = part
+                    .par_iter()
+                    .map(|(utt_id, seq, obs)| {
+                        if obs.is_empty() {
+                            return Ok((0.0, BTreeMap::new()));
                         }
-                        a.utts.extend(b.utts.iter().cloned());
-                        a.frames += b.frames;
+                        self.estep_utt(utt_id, seq, obs, log_half)
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                for (ll, local) in &partials {
+                    total_ll += *ll;
+                    for (k, b) in local {
+                        if let Some(a) = cacc.get_mut(k) {
+                            a.count += b.count;
+                            for d in 0..self.dim {
+                                a.sum[d] += b.sum[d];
+                                a.sumsq[d] += b.sumsq[d];
+                            }
+                            a.utts.extend(b.utts.iter().cloned());
+                            a.frames += b.frames;
+                        }
                     }
                 }
             }
@@ -862,26 +1051,36 @@ impl HmmSet {
         Ok(out)
     }
     /// DEV phone error rate. SIL/SP stripped from both reference and hypothesis.
-    pub fn phone_error_rate(&self, data: &[(Vec<String>, Vec<Vec<f64>>)]) -> Result<PerReport> {
+        pub fn phone_error_rate(&self, data: &[(Vec<String>, Vec<Vec<f64>>)]) -> Result<PerReport> {
+        use rayon::prelude::*;
         let strip = |seq: &[String]| -> Vec<String> {
             seq.iter()
                 .filter(|p| *p != SIL && *p != SP)
                 .cloned()
                 .collect()
         };
-        let mut per_utterance = Vec::with_capacity(data.len());
+        // Parallel over utterances (rayon collect preserves order, so the
+        // report is deterministic); error sums stay sequential.
+        let results: Vec<(usize, usize, f64)> = data
+            .par_iter()
+            .map(|(seq, obs)| {
+                let reference = strip(seq);
+                let hyp = strip(&self.decode_phones(obs)?);
+                let e = phone_edit_distance(&reference, &hyp);
+                let pu = if reference.is_empty() {
+                    0.0
+                } else {
+                    e as f64 / reference.len() as f64
+                };
+                Ok((e, reference.len(), pu))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let mut per_utterance = Vec::with_capacity(results.len());
         let (mut errors, mut total) = (0usize, 0usize);
-        for (seq, obs) in data {
-            let reference = strip(seq);
-            let hyp = strip(&self.decode_phones(obs)?);
-            let e = phone_edit_distance(&reference, &hyp);
+        for (e, n, pu) in results {
             errors += e;
-            total += reference.len();
-            per_utterance.push(if reference.is_empty() {
-                0.0
-            } else {
-                e as f64 / reference.len() as f64
-            });
+            total += n;
+            per_utterance.push(pu);
         }
         Ok(PerReport {
             per: if total == 0 {

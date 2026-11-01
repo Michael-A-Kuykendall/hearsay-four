@@ -1,8 +1,8 @@
 //! A1 regression tests (bead hearsay-four-b7p): DTW, front end, LOTO.
 
-use crate::dtw::{DtwVariant, dtw_distance, dtw_distance_with};
-use crate::frontend::{FrontendConfig, extract_with_config, speech_span, speech_span_with};
-use crate::gate::{Clip, EvalResult, Prediction, is_degenerate, leave_one_take_out, phase_test};
+use crate::dtw::{dtw_distance, dtw_distance_with, DtwVariant};
+use crate::frontend::{extract_with_config, speech_span, speech_span_with, FrontendConfig};
+use crate::gate::{is_degenerate, leave_one_take_out, phase_test, Clip, EvalResult, Prediction};
 
 fn seq(v: &[f64]) -> Vec<Vec<f64>> {
     v.iter().map(|&x| vec![x]).collect()

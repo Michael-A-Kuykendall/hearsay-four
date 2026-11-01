@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use corpus::audio::{decode_file, to_mono};
-use fse::{FEATURE_DIM, extract_features, window_audio};
+use fse::{FEATURE_DIM, extract_features_cmvn, window_audio};
 use hmm::{HmmSet, TrainConfig, UttData};
 use lexicon::{TIER1_IDENTITY, TieredLexicon, load_tiered};
 
@@ -324,7 +324,7 @@ fn main() {
             *skipped.entry("no_frames").or_insert(0) += 1;
             continue;
         }
-        let frames = match extract_features(&windows, pcm.sample_rate) {
+        let frames = match extract_features_cmvn(&windows, pcm.sample_rate) {
             Ok(f) => f,
             Err(_) => {
                 *skipped.entry("no_frames").or_insert(0) += 1;
@@ -392,6 +392,7 @@ fn main() {
         embedded_iterations: 1,
         var_floor_ratio: 0.01,
         optional_sp: true,
+        estep_chunk: 2000,
     };
     let mut t_bw = Vec::new();
     for _ in 0..bw_repeats {

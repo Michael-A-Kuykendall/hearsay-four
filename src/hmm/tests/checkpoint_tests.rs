@@ -70,6 +70,7 @@ fn checkpoint_selection_beats_flat_start_paired_ci() {
         embedded_iterations: 1,
         var_floor_ratio: 0.01,
         optional_sp: true,
+        estep_chunk: 2000,
     };
     let run = model
         .train_checkpoints(&train, &dev, &cfg, &[2, 4, 8])
@@ -281,6 +282,7 @@ fn real_partition_checkpoint_gate() {
         embedded_iterations: 1,
         var_floor_ratio: 0.01,
         optional_sp: true,
+        estep_chunk: 2000,
     };
     let run = model
         .train_checkpoints(&train, &dev, &cfg, &[2, 4, 8])

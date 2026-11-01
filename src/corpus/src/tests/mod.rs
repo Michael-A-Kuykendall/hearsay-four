@@ -13,3 +13,4 @@ mod ground_truth_tests;
 mod ingest_tests;
 mod manifest_tests;
 mod ppt_tests;
+mod sample_tests;

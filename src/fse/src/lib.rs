@@ -12,6 +12,7 @@
 
 pub mod boundaries;
 pub mod dtw;
+pub mod featcache;
 pub mod frontend;
 pub mod gate;
 pub mod instrument;
@@ -21,7 +22,7 @@ use std::f64::consts::PI;
 
 use invariant_ppt::assert_invariant;
 
-pub use calibration::{Baseline, FEATURE_DIM, Frame};
+pub use calibration::{Baseline, Frame, FEATURE_DIM};
 
 /// The 39-phone ARPABET alphabet (phoneme-alphabet.md §2).
 pub const ARPABET: [&str; 39] = [
@@ -178,6 +179,71 @@ fn hamming_window(n: usize) -> Vec<f64> {
 ///
 /// Enforces INV `feature_vector_length`: every vector is exactly 39
 /// components and finite. Empty input returns `Err` (no panic).
+/// HMM front-end version id (hmm-fe2 = per-utterance CMVN). Bump on any
+/// change to the vectors; consumed by the feature-cache key.
+pub const HMM_FRONTEND_ID: &str = "hmm-fe2.cmvn-pop-floor1e-6";
+/// Raw (non-CMVN) frontend id: same MFCC+deltas as [`HMM_FRONTEND_ID`] minus
+/// per-utterance CMVN. Stamped on models trained by raw-feature binaries.
+pub const HMM_FRONTEND_ID_RAW: &str = "hmm-fe1.raw";
+
+/// CMVN std floor, same family as A1 frozen `cmvn_replaces_cmn`
+/// (frontend.rs). Shared by batch and live paths.
+pub const CMVN_STD_FLOOR: f64 = 1e-6;
+
+/// Running (cumulative) CMVN accumulator for the live path.
+/// LIVE RULE: the caller folds each chunk's NEW static frames via `update`
+/// and applies `stats` only once the buffer holds >= 100 frames (~1 s at
+/// 10 ms shift); before that, features pass through unnormalized.
+/// Matches batch stats on a full buffer up to float reassociation.
+#[derive(Debug, Clone, Default)]
+pub struct CmvnLive {
+    n: u64,
+    mean: Vec<f64>,
+    m2: Vec<f64>,
+}
+
+impl CmvnLive {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Fold a chunk of static frames into the running estimate (Welford).
+    /// Dim is taken from the first row seen.
+    pub fn update(&mut self, statics: &[Vec<f64>]) {
+        for r in statics {
+            if self.mean.is_empty() {
+                self.mean = vec![0.0; r.len()];
+                self.m2 = vec![0.0; r.len()];
+            }
+            self.n += 1;
+            let n = self.n as f64;
+            for (j, &x) in r.iter().enumerate() {
+                let delta = x - self.mean[j];
+                self.mean[j] += delta / n;
+                self.m2[j] += delta * (x - self.mean[j]);
+            }
+        }
+    }
+
+    /// Current population stats, or None before any frames.
+    pub fn stats(&self) -> Option<(Vec<f64>, Vec<f64>)> {
+        if self.n == 0 {
+            return None;
+        }
+        let n = self.n as f64;
+        let std = self
+            .m2
+            .iter()
+            .map(|&m| (m / n).sqrt().max(CMVN_STD_FLOOR))
+            .collect();
+        Some((self.mean.clone(), std))
+    }
+
+    pub fn frames_seen(&self) -> u64 {
+        self.n
+    }
+}
+
 pub fn extract_features(windows: &[Window], sample_rate: u32) -> Result<Vec<Frame>, FeatureError> {
     if sample_rate < 8_000 {
         return Err(FeatureError::UnsupportedSampleRate(sample_rate));
@@ -186,7 +252,10 @@ pub fn extract_features(windows: &[Window], sample_rate: u32) -> Result<Vec<Fram
         return Err(FeatureError::EmptyInput);
     }
     let statics = static_features(windows, sample_rate)?;
-    let delta = deltas(&statics);
+    Ok(frames_from_statics(&statics))
+}
+fn frames_from_statics(statics: &[Vec<f64>]) -> Vec<Frame> {
+    let delta = deltas(statics);
     let delta2 = deltas(&delta);
 
     let mut frames = Vec::with_capacity(statics.len());
@@ -209,9 +278,86 @@ pub fn extract_features(windows: &[Window], sample_rate: u32) -> Result<Vec<Fram
         );
         frames.push(f);
     }
-    Ok(frames)
+    frames
 }
-
+/// Population mean + floored std per dim over static frames (batch core).
+pub fn cmvn_stats(statics: &[Vec<f64>]) -> (Vec<f64>, Vec<f64>) {
+    if statics.is_empty() {
+        return (Vec::new(), Vec::new());
+    }
+    let d = statics[0].len();
+    let t = statics.len() as f64;
+    let mut mean = vec![0.0; d];
+    let mut std = vec![0.0; d];
+    for j in 0..d {
+        let m: f64 = statics.iter().map(|r| r[j]).sum::<f64>() / t;
+        let v: f64 = statics.iter().map(|r| (r[j] - m) * (r[j] - m)).sum::<f64>() / t;
+        mean[j] = m;
+        std[j] = v.sqrt().max(CMVN_STD_FLOOR);
+    }
+    (mean, std)
+}
+/// Apply precomputed CMVN stats in place (shared batch/live core).
+pub fn apply_cmvn(statics: &mut [Vec<f64>], mean: &[f64], std: &[f64]) {
+    for r in statics.iter_mut() {
+        for (j, v) in r.iter_mut().enumerate() {
+            *v = (*v - mean[j]) / std[j];
+        }
+    }
+}
+/// CMVN batch entry for the HMM/decoder path (hmm-fe2). Raw statics are
+/// mean/variance normalized per utterance BEFORE deltas, same family as
+/// A1 `cmvn_replaces_cmn`. Non-HMM callers stay on `extract_features`.
+pub fn extract_features_cmvn(
+    windows: &[Window],
+    sample_rate: u32,
+) -> Result<Vec<Frame>, FeatureError> {
+    if sample_rate < 8_000 {
+        return Err(FeatureError::UnsupportedSampleRate(sample_rate));
+    }
+    if windows.is_empty() {
+        return Err(FeatureError::EmptyInput);
+    }
+    let mut statics = static_features(windows, sample_rate)?;
+    if !statics.is_empty() {
+        let (mean, std) = cmvn_stats(&statics);
+        apply_cmvn(&mut statics, &mean, &std);
+    }
+    Ok(frames_from_statics(&statics))
+}
+/// Raw static vectors (pre-delta, pre-CMVN) for callers that normalize
+/// externally (live path, feature cache builders).
+pub fn extract_statics(
+    windows: &[Window],
+    sample_rate: u32,
+) -> Result<Vec<Vec<f64>>, FeatureError> {
+    if sample_rate < 8_000 {
+        return Err(FeatureError::UnsupportedSampleRate(sample_rate));
+    }
+    if windows.is_empty() {
+        return Err(FeatureError::EmptyInput);
+    }
+    static_features(windows, sample_rate)
+}
+/// Pack frames from windows with caller-supplied CMVN stats (`None` =
+/// raw). Live entry: the caller owns the running estimate.
+pub fn extract_features_with_stats(
+    windows: &[Window],
+    sample_rate: u32,
+    stats: Option<(&[f64], &[f64])>,
+) -> Result<Vec<Frame>, FeatureError> {
+    if sample_rate < 8_000 {
+        return Err(FeatureError::UnsupportedSampleRate(sample_rate));
+    }
+    if windows.is_empty() {
+        return Err(FeatureError::EmptyInput);
+    }
+    let mut statics = static_features(windows, sample_rate)?;
+    if let Some((mean, std)) = stats {
+        apply_cmvn(&mut statics, mean, std);
+    }
+    Ok(frames_from_statics(&statics))
+}
 /// Per-frame static features: `[c1..c12, logE]` (13 values).
 fn static_features(windows: &[Window], sample_rate: u32) -> Result<Vec<Vec<f64>>, FeatureError> {
     let window_len = windows[0].len();

@@ -86,3 +86,9 @@ result doc before its bead closes (GO rule).
 ## Changelog
 
 - v1, 2026-10-31: initial freeze (REFOCUS §6 six interfaces).
+- v1+fe2, 2026-11-01: HMM front end hmm-fe1 (raw c1..c12+logE+deltas, no
+  norm) → hmm-fe2 (per-utterance CMVN, population mean/var, std floor
+  1e-6, A1 `cmvn_replaces_cmn` family; `fse::HMM_FRONTEND_ID`). Decoder
+  trait I4 signatures unchanged (`DecoderConfig.cmvn` defaults true;
+  `--no-cmvn`/`--raw` escape hatches decode pre-CMVN models), so no
+  v1→v2 bump. A1 frozen config + results stand as-is (separate path).

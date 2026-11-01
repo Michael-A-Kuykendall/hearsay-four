@@ -7,8 +7,13 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use corpus::audio::{decode_file, to_mono};
-use fse::{FEATURE_DIM, extract_features, window_audio};
-use hmm::HmmSet;
+use fse::featcache::{cache_path, load as cache_load, store as cache_store};
+use fse::instrument::sha256_hex;
+use fse::{
+    FEATURE_DIM, HMM_FRONTEND_ID, HMM_FRONTEND_ID_RAW, extract_features, extract_features_cmvn,
+    window_audio,
+};
+use hmm::{HmmSet, check_frontend};
 use lexicon::{TieredLexicon, load_tiered};
 
 type Lexicon = HashMap<String, Vec<Vec<String>>>;
@@ -102,22 +107,88 @@ fn phones_for_train(lex: &Lexicon, text: &str) -> Option<Vec<String>> {
     }
     Some(out)
 }
-
+/// Cache-aware feature fetch: hit returns frames, miss computes, stores,
+/// and returns. `raw` selects the hmm-fe1 namespace (pre-CMVN models);
+/// CMVN uses [`HMM_FRONTEND_ID`]. Duplicated in train_si (not diverged).
+fn cached_frames(
+    cache_root: &Option<PathBuf>,
+    raw: bool,
+    wav_path: &Path,
+    rate: u32,
+    mono: &[i16],
+) -> Option<Vec<fse::Frame>> {
+    let fid = if raw {
+        HMM_FRONTEND_ID_RAW
+    } else {
+        HMM_FRONTEND_ID
+    };
+    if let Some(root) = cache_root {
+        let bytes = std::fs::read(wav_path).ok()?;
+        let sha = sha256_hex(&bytes);
+        let path = cache_path(root, fid, &sha);
+        if let Some(frames) = cache_load(&path, rate) {
+            return Some(frames);
+        }
+        let windows = window_audio(mono, rate);
+        if windows.is_empty() {
+            return None;
+        }
+        let frames = if raw {
+            extract_features(&windows, rate).ok()?
+        } else {
+            extract_features_cmvn(&windows, rate).ok()?
+        };
+        let _ = cache_store(&path, rate, &frames);
+        return Some(frames);
+    }
+    let windows = window_audio(mono, rate);
+    if windows.is_empty() {
+        return None;
+    }
+    if raw {
+        extract_features(&windows, rate).ok()
+    } else {
+        extract_features_cmvn(&windows, rate).ok()
+    }
+}
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    // Optional --cache <dir> pair (position-independent; stripped before positional parse).
+    let mut cache_root: Option<PathBuf> = None;
+    let mut argv: Vec<String> = Vec::with_capacity(args.len());
+    let mut arg_it = args.into_iter();
+    argv.push(arg_it.next().expect("argv0"));
+    while let Some(a) = arg_it.next() {
+        if a == "--cache" {
+            cache_root = Some(PathBuf::from(arg_it.next().expect("--cache needs <dir>")));
+        } else {
+            argv.push(a);
+        }
+    }
+    let args = argv;
     assert!(
-        args.len() == 4,
-        "usage: eval_si <model.json> <manifest.tsv> <wav_root>"
+        args.len() == 4 || args.len() == 5,
+        "usage: eval_si <model.json> <manifest.tsv> <wav_root> [--raw] [--cache <dir>]"
     );
+    let raw = args.len() == 5 && args[4] == "--raw";
+    assert!(args.len() == 4 || raw, "5th arg must be --raw");
     let model = HmmSet::load_text(&PathBuf::from(&args[1])).expect("load model");
-    let tiered: TieredLexicon = load_tiered(&lexicon_table_path(), &librispeech_lexicon_path())
-        .expect("tiered lexicon");
+    let selected_frontend = if raw {
+        HMM_FRONTEND_ID_RAW
+    } else {
+        HMM_FRONTEND_ID
+    };
+    check_frontend(&model.frontend_id, selected_frontend, &args[1]).expect("frontend guard");
+    let tiered: TieredLexicon =
+        load_tiered(&lexicon_table_path(), &librispeech_lexicon_path()).expect("tiered lexicon");
     let lex: Lexicon = tiered.table;
     let text = std::fs::read_to_string(&args[2]).expect("manifest");
     let wav_root = PathBuf::from(&args[3]);
     let mut pairs: Vec<(Vec<String>, Vec<Vec<f64>>)> = Vec::new();
     let mut oov_dropped = 0usize;
     let mut ll_min = f64::INFINITY;
+    // Parse is cheap and sequential; decode+align below is parallel.
+    let mut rows: Vec<(String, String, Vec<String>)> = Vec::new();
     for line in text.lines() {
         if line.trim().is_empty() {
             continue;
@@ -136,32 +207,40 @@ fn main() {
             oov_dropped += 1;
             continue;
         };
-        let pcm = match decode_file(&wav_root.join(rel)) {
-            Ok(p) => p,
-            Err(_) => continue,
-        };
-        let mono = to_mono(&pcm);
-        if mono.is_empty() {
-            continue;
-        }
-        let windows = window_audio(&mono, pcm.sample_rate);
-        if windows.is_empty() {
-            continue;
-        }
-        let frames = match extract_features(&windows, pcm.sample_rate) {
-            Ok(f) => f,
-            Err(_) => continue,
-        };
-        if frames.is_empty() || frames[0].len() != FEATURE_DIM {
-            continue;
-        }
-        let obs: Vec<Vec<f64>> = frames.iter().map(|f| f.to_vec()).collect();
-        let (_, ll) = model.forced_align(&phones, &obs).expect("forced_align");
-        assert!(ll.is_finite(), "non-finite dev likelihood: {id}");
-        ll_min = ll_min.min(ll);
-        pairs.push((phones, obs));
+        rows.push((id.to_string(), rel.to_string(), phones));
     }
-    let per = model.phone_error_rate(&pairs).expect("phone_error_rate").per;
+    {
+        use rayon::prelude::*;
+        let done: Vec<Option<(Vec<String>, Vec<Vec<f64>>, f64)>> = rows
+            .par_iter()
+            .map(|(id, rel, phones)| {
+                let wav_path = wav_root.join(rel);
+                let pcm = decode_file(&wav_path).ok()?;
+                let mono = to_mono(&pcm);
+                if mono.is_empty() {
+                    return None;
+                }
+                let frames =
+                    cached_frames(&cache_root, raw, &wav_path, pcm.sample_rate, &mono)?;
+                if frames.is_empty() || frames[0].len() != FEATURE_DIM {
+                    return None;
+                }
+                let obs: Vec<Vec<f64>> = frames.iter().map(|f| f.to_vec()).collect();
+                let (_, ll) = model.forced_align(phones, &obs).expect("forced_align");
+                assert!(ll.is_finite(), "non-finite dev likelihood: {id}");
+                Some((phones.clone(), obs, ll))
+            })
+            .collect();
+        for item in done.into_iter().flatten() {
+            let (phones, obs, ll) = item;
+            ll_min = ll_min.min(ll);
+            pairs.push((phones, obs));
+        }
+    }
+    let per = model
+        .phone_error_rate(&pairs)
+        .expect("phone_error_rate")
+        .per;
     println!("dev_n={}", pairs.len());
     println!("dev_oov_dropped={oov_dropped}");
     println!("dev_ll_min={ll_min:.1}");

@@ -184,3 +184,64 @@ fn parallel_estep_is_deterministic() {
     );
     assert!(a == b, "iter2 models must be identical");
 }
+#[test]
+fn estep_chunking_matches_single_chunk_within_tolerance() {
+    // d7qe: bounded-memory chunked merge must not change numerics beyond
+    // 1e-9 (many small chunks vs one single chunk on the same fixture).
+    let data = synth(13, 20, 10);
+    let obs_only: Vec<Vec<Vec<f64>>> = data.iter().map(|(_, o)| o.clone()).collect();
+    let with_ids: Vec<(String, Vec<String>, Vec<Vec<f64>>)> = data
+        .iter()
+        .enumerate()
+        .map(|(i, (s, o))| (format!("u{i}"), s.clone(), o.clone()))
+        .collect();
+    let tiny = TrainConfig {
+        bw_iterations: 1,
+        estep_chunk: 3,
+        ..Default::default()
+    };
+    let huge = TrainConfig {
+        bw_iterations: 1,
+        estep_chunk: usize::MAX,
+        ..Default::default()
+    };
+    let mut a = HmmSet::flat_start(&["AA", "BB"], &obs_only, 0.01).unwrap();
+    let mut b = a.clone();
+    let ll_a = a.baum_welch_ids(&with_ids, &tiny).unwrap();
+    let ll_b = b.baum_welch_ids(&with_ids, &huge).unwrap();
+    assert!(
+        ll_a == ll_b,
+        "chunked LL must be bit-identical: {ll_a} vs {ll_b}"
+    );
+    for ((name_a, ha), (name_b, hb)) in a.phones.iter().zip(b.phones.iter()) {
+        assert_eq!(name_a, name_b, "phone inventory must match");
+        for s in 0..ha.n_states {
+            for (ca, cb) in ha.emissions[s]
+                .components
+                .iter()
+                .zip(hb.emissions[s].components.iter())
+            {
+                assert!(
+                    (ca.weight - cb.weight).abs() < 1e-9,
+                    "{name_a} s{s} weight: {} vs {}",
+                    ca.weight,
+                    cb.weight
+                );
+                for d in 0..ca.gaussian.mean.len() {
+                    assert!(
+                        (ca.gaussian.mean[d] - cb.gaussian.mean[d]).abs() < 1e-9,
+                        "{name_a} s{s} mean[{d}]: {} vs {}",
+                        ca.gaussian.mean[d],
+                        cb.gaussian.mean[d]
+                    );
+                    assert!(
+                        (ca.gaussian.var[d] - cb.gaussian.var[d]).abs() < 1e-9,
+                        "{name_a} s{s} var[{d}]: {} vs {}",
+                        ca.gaussian.var[d],
+                        cb.gaussian.var[d]
+                    );
+                }
+            }
+        }
+    }
+}

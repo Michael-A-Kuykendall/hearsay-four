@@ -13,8 +13,10 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use corpus::audio::{decode_file, to_mono};
-use fse::{FEATURE_DIM, extract_features, window_audio};
-use hmm::{HmmSet, TrainConfig, UttData};
+use fse::featcache::{cache_path, load as cache_load, store as cache_store};
+use fse::instrument::sha256_hex;
+use fse::{FEATURE_DIM, HMM_FRONTEND_ID, extract_features_cmvn, window_audio};
+use hmm::{HmmSet, TrainConfig, UttData, check_frontend};
 use lexicon::{TIER1_IDENTITY, TieredLexicon, load_tiered};
 
 type Lexicon = HashMap<String, Vec<Vec<String>>>;
@@ -120,7 +122,35 @@ fn phones_for_train(lex: &Lexicon, text: &str) -> Option<Vec<String>> {
     }
     Some(out)
 }
-
+/// Cache-aware CMVN feature fetch: hit returns frames, miss computes,
+/// stores, and returns. Duplicated in eval_si (not diverged).
+fn cached_frames(
+    cache_root: &Option<PathBuf>,
+    wav_path: &Path,
+    rate: u32,
+    mono: &[i16],
+) -> Option<Vec<fse::Frame>> {
+    if let Some(root) = cache_root {
+        let bytes = std::fs::read(wav_path).ok()?;
+        let sha = sha256_hex(&bytes);
+        let path = cache_path(root, HMM_FRONTEND_ID, &sha);
+        if let Some(frames) = cache_load(&path, rate) {
+            return Some(frames);
+        }
+        let windows = window_audio(mono, rate);
+        if windows.is_empty() {
+            return None;
+        }
+        let frames = extract_features_cmvn(&windows, rate).ok()?;
+        let _ = cache_store(&path, rate, &frames);
+        return Some(frames);
+    }
+    let windows = window_audio(mono, rate);
+    if windows.is_empty() {
+        return None;
+    }
+    extract_features_cmvn(&windows, rate).ok()
+}
 struct Row {
     id: String,
     rel: String,
@@ -134,12 +164,28 @@ fn speaker_of(id: &str) -> String {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    // Optional --cache <dir> pair (position-independent; stripped before positional parse).
+    let mut cache_root: Option<PathBuf> = None;
+    let mut argv: Vec<String> = Vec::with_capacity(args.len());
+    let mut arg_it = args.into_iter();
+    argv.push(arg_it.next().expect("argv0"));
+    while let Some(a) = arg_it.next() {
+        if a == "--cache" {
+            cache_root = Some(PathBuf::from(arg_it.next().expect("--cache needs <dir>")));
+        } else {
+            argv.push(a);
+        }
+    }
+    let args = argv;
     assert!(
         args.len() == 9 || args.len() == 10,
-        "usage: train_si <manifest.tsv> <wav_root> <out_dir> <target_h> <i1> <i2> <i4> <i8> [resume_ckpt]"
+        "usage: train_si <manifest.tsv> <wav_root> <out_dir> <target_h> <i1> <i2> <i4> <i8> [resume_ckpt] [--cache <dir>]"
     );
-    let (manifest_path, wav_root, out_dir) =
-        (PathBuf::from(&args[1]), PathBuf::from(&args[2]), PathBuf::from(&args[3]));
+    let (manifest_path, wav_root, out_dir) = (
+        PathBuf::from(&args[1]),
+        PathBuf::from(&args[2]),
+        PathBuf::from(&args[3]),
+    );
     let target_h: f64 = args[4].parse().expect("target_h");
     let iters: [usize; 4] = [
         args[5].parse().expect("i1"),
@@ -149,7 +195,10 @@ fn main() {
     ];
     let resume = args.get(9).map(PathBuf::from);
     std::fs::create_dir_all(&out_dir).expect("out_dir");
-    println!("train_si threads={} target_h={target_h} iters={iters:?}", rayon::current_num_threads());
+    println!(
+        "train_si threads={} target_h={target_h} iters={iters:?}",
+        rayon::current_num_threads()
+    );
     println!("train_si tier1={TIER1_IDENTITY}");
 
     let tiered = load_lexicon();
@@ -179,10 +228,12 @@ fn main() {
             n_oov += 1;
             continue;
         }
-        by_spk
-            .entry(speaker_of(&id))
-            .or_default()
-            .push(Row { id, rel, seconds: sec, text: txt });
+        by_spk.entry(speaker_of(&id)).or_default().push(Row {
+            id,
+            rel,
+            seconds: sec,
+            text: txt,
+        });
     }
     // Water-filling round-robin over speakers (deterministic manifest order).
     let budget = target_h * 3600.0;
@@ -240,7 +291,8 @@ fn main() {
     let mut data: Vec<UttData> = Vec::new();
     let mut audio_sec = 0.0;
     for r in &rows {
-        let pcm = match decode_file(&wav_root.join(&r.rel)) {
+        let wav_path = wav_root.join(&r.rel);
+        let pcm = match decode_file(&wav_path) {
             Ok(p) => p,
             Err(e) => {
                 eprintln!("train_si SKIP {} decode: {e}", r.id);
@@ -251,13 +303,9 @@ fn main() {
         if mono.is_empty() {
             continue;
         }
-        let windows = window_audio(&mono, pcm.sample_rate);
-        if windows.is_empty() {
-            continue;
-        }
-        let frames = match extract_features(&windows, pcm.sample_rate) {
-            Ok(f) => f,
-            Err(_) => continue,
+        let frames = match cached_frames(&cache_root, &wav_path, pcm.sample_rate, &mono) {
+            Some(f) => f,
+            None => continue,
         };
         if frames.is_empty() || frames[0].len() != FEATURE_DIM {
             continue;
@@ -289,7 +337,13 @@ fn main() {
     let sched_path = out_dir.join("schedule.json");
     let (mut model, mut stage_done) = match &resume {
         Some(p) => {
-            let m = HmmSet::load_text(p).expect("load checkpoint");
+            let mut m = HmmSet::load_text(p).expect("load checkpoint");
+            // Resume continues training on this binary's (CMVN) features.
+            check_frontend(&m.frontend_id, HMM_FRONTEND_ID, &p.to_string_lossy())
+                .expect("frontend guard");
+            if m.frontend_id.is_none() {
+                m.frontend_id = Some(HMM_FRONTEND_ID.to_string());
+            }
             let sched: serde_json::Value =
                 serde_json::from_str(&std::fs::read_to_string(&sched_path).expect("schedule.json"))
                     .expect("parse schedule");
@@ -318,9 +372,9 @@ fn main() {
             (m, done)
         }
         None => {
-            let obs: Vec<Vec<Vec<f64>>> =
-                data.iter().map(|(_, _, o)| o.clone()).collect();
-            let m = HmmSet::flat_start(&inv_ref, &obs, 0.01).expect("flat_start");
+            let obs: Vec<Vec<Vec<f64>>> = data.iter().map(|(_, _, o)| o.clone()).collect();
+            let mut m = HmmSet::flat_start(&inv_ref, &obs, 0.01).expect("flat_start");
+            m.frontend_id = Some(HMM_FRONTEND_ID.to_string());
             let t2 = Instant::now();
             let mut align_ll = 0.0;
             for (_, seq, o) in &data {
@@ -331,7 +385,8 @@ fn main() {
                 "train_si viterbi_align ll={align_ll:.1} s={:.0}",
                 t2.elapsed().as_secs_f64()
             );
-            m.save_text(&out_dir.join("ckpt-flat.json")).expect("ckpt flat");
+            m.save_text(&out_dir.join("ckpt-flat.json"))
+                .expect("ckpt flat");
             (m, [0, 0, 0, 0])
         }
     };
@@ -341,6 +396,7 @@ fn main() {
         embedded_iterations: 1,
         var_floor_ratio: 0.01,
         optional_sp: true,
+        estep_chunk: 2000,
     };
     let mixes = [1usize, 2, 4, 8];
     for (s, &mix) in mixes.iter().enumerate() {
@@ -372,7 +428,10 @@ fn main() {
             });
             std::fs::write(&sched_path, serde_json::to_string_pretty(&sched).unwrap())
                 .expect("schedule");
-            println!("train_si mix={mix} iter={}/{} ll={ll:.1} s={el:.0} {name}", stage_done[s], iters[s]);
+            println!(
+                "train_si mix={mix} iter={}/{} ll={ll:.1} s={el:.0} {name}",
+                stage_done[s], iters[s]
+            );
         }
     }
     model

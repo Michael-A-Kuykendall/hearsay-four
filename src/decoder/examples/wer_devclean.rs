@@ -41,11 +41,12 @@ struct Args {
     lookahead_weight: Option<f64>,
     lm_weight: Option<f64>,
     word_penalty: Option<f64>,
+    no_cmvn: bool,
 }
 
 fn usage() -> ! {
     eprintln!(
-        "usage: wer_devclean --am <model.json> --lm <lm-file> --tier1 <master.tsv> --tier2 <lex.txt> --wav-root <dir> --manifest <tsv> --out <tsv> [--top-n N] [--book <txt>] [--limit N] [--beam F] [--max-tokens N] [--lookahead-weight F] [--lm-weight F] [--word-penalty F]"
+        "usage: wer_devclean --am <model.json> --lm <lm-file> --tier1 <master.tsv> --tier2 <lex.txt> --wav-root <dir> --manifest <tsv> --out <tsv> [--top-n N] [--book <txt>] [--limit N] [--beam F] [--max-tokens N] [--lookahead-weight F] [--lm-weight F] [--word-penalty F] [--no-cmvn]"
     );
     std::process::exit(2);
 }
@@ -100,6 +101,7 @@ fn parse_args() -> Args {
         lookahead_weight: parse_f64("--lookahead-weight"),
         lm_weight: parse_f64("--lm-weight"),
         word_penalty: parse_f64("--word-penalty"),
+        no_cmvn: args.iter().any(|a| a == "--no-cmvn"),
     }
 }
 
@@ -211,6 +213,9 @@ fn main() {
     }
     if let Some(p) = args.word_penalty {
         cfg.word_penalty = p;
+    }
+    if args.no_cmvn {
+        cfg.cmvn = false;
     }
     let t0 = Instant::now();
     let decoder = MooreDecoder::load_with_vocab(&args.am, Some(&args.lm), &entries, cfg)

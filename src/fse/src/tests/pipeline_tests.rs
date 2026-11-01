@@ -2,10 +2,10 @@
 //! empty-input safety, and a real 16 kHz PCM corpus clip end to end.
 
 use crate::{
-    ARPABET, CLOSED_VOCABULARY, FEATURE_DIM, FeatureError, SHIFT_MS, WINDOW_MS, extract_features,
-    process_clip, score_frame, window_audio, window_len,
+    extract_features, process_clip, score_frame, window_audio, window_len, FeatureError, ARPABET,
+    CLOSED_VOCABULARY, FEATURE_DIM, SHIFT_MS, WINDOW_MS,
 };
-use calibration::{Frame, fit_baseline};
+use calibration::{fit_baseline, Frame};
 
 /// Synthetic PCM: a constant-amplitude tone-ish buffer at a given rate.
 fn synth_pcm(rate: u32, seconds: f64) -> Vec<i16> {
@@ -153,11 +153,9 @@ fn closed_vocabulary_is_30_words_subsetting_phrase_training() {
     sorted.sort_unstable();
     sorted.dedup();
     assert_eq!(sorted.len(), 30, "no duplicate words");
-    assert!(
-        CLOSED_VOCABULARY
-            .iter()
-            .all(|w| !w.is_empty() && w.chars().all(|c| c.is_ascii_lowercase()))
-    );
+    assert!(CLOSED_VOCABULARY
+        .iter()
+        .all(|w| !w.is_empty() && w.chars().all(|c| c.is_ascii_lowercase())));
 
     if !corpus::manifest::CorpusManifest::is_available() {
         eprintln!("SKIP: better-voice checkout absent (set $BETTER_VOICE_ROOT)");

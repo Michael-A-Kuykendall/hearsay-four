@@ -1,7 +1,7 @@
 //! A1 tunable MFCC front end (bead hearsay-four-b7p).
 //! Knobs tuned on DEV only: pre-emphasis, liftering, CMN, deltas, band.
 
-use crate::{FeatureError, MEL_FILTERS, shift_len, window_len};
+use crate::{shift_len, window_len, FeatureError, MEL_FILTERS};
 use std::f64::consts::PI;
 
 #[derive(Debug, Clone, PartialEq)]
