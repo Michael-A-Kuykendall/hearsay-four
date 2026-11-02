@@ -1,0 +1,18 @@
+# Lane/bead timeline data — every row verified Nov 2 ~20:00 UTC.
+# Sources: `bd show` (created/updated/status/close reason per bead),
+# `git log` (merge commits + dates). Statuses: closed | in_progress | open.
+# Columns (7, tab-separated): lane | bead | label | start | end | status | note
+# ">" as end means continues past Nov 2 (in flight at time of writing).
+pre	—	Fabric core (pre-existing): saturation fabric, D-1 fix, 204 tests	2026-08-15	2026-10-25	closed	11 crates, ~78 beads; not hackathon work
+oct26	—	Oct 26 lap: 11 subagents, 15 beads + 5 epics, 204 -> 243	2026-10-26	2026-10-26	closed	$0 of $150 credits; see META-HACKATHON.md
+oct28	—	Acoustic track: hmm/lm/lattice/eval/decoder/a2 + R1/R3	2026-10-28	2026-10-31	closed	crate-add commits 7c67e66..449558a
+A1	8znj	Main-model pick, full tune, headline gate	2026-11-01	>	in_progress	verdict CMVN_WINS landed; fullgate running
+A0	qi9u	CMVN retrain run + verdict	2026-11-01	>	in_progress	4 iters staged, verdict line landed Nov 2
+B1	ivpu+zs89	Triphone tying + 1h pipeline	2026-11-01	2026-11-02	closed	merged c940b45; probe re-measure queued (3n2g)
+C1	0htm	Frontend guard + streaming path	2026-11-01	2026-11-02	closed	merged cd37544
+D1	xels+wgit	File transcription + why panel + demo	2026-11-01	2026-11-02	closed	merged 2fba434; web/demo.sh green
+E1	9ud8	Adaptation plumbing + runbook	2026-11-01	2026-11-02	closed	merged 1c8e74c
+F1	7zuh	Number ledger + writeup draft	2026-11-01	2026-11-02	closed	merged 729f7d9
+W2	3n2g+r3pg	Triphone re-measure + 16-mix overnight	2026-11-02	>	open	16-mix runs night of Nov 2 after gate
+K	0u3z	Headline error analysis + charts	2026-11-02	>	open	waits on fullgate/cell.tsv
+L	xehu	Submission package drafts	2026-11-02	>	open	this lane; docs only
