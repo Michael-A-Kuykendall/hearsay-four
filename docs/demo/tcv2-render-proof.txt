@@ -1,0 +1,104 @@
+TCV2 DEMO UI — RENDER PROOF (text-mode; no browser in sandbox)
+method: jsdom headless DOM executes web/tcv2-demo.html scripts for real;
+this log captures clicked-word panel text + Correct/Undo round-trip.
+
+PASS: transcript renders 8 clickable word chips (got 8)
+sentence: HE HAD NOTHING TO SAY ABOUT THE WAR
+status: fixture loaded: 8 words (tcv2-demo-01). Click any word.
+meta: tcv2-demo-01 · embedded fixture · 1.98s audio · 0.41s decode · 8 words
+
+PASS: word 1 "HE": all six data-sec sections render
+PASS: word 1 "HE": all six headers visible
+PASS: word 1: alt "SHE" shown
+PASS: word 1: acoustic score shown
+PASS: word 1: LM prob shown
+PASS: word 1: lexicon tag shown
+PASS: word 1: why sentence shown
+--- panel for word 1 "HE" ---
+HE [0ms–180ms] conf 0.97ALTERNATIVES SHE score -12.6 — lost: initial SH fricative unsupported WE score -13.9 — lost: no labial onset energyrunner-up SHE trails by 4.4SCORESacoustic -8.2 — vowel HH-IY matched 14 of 18 framesLM PROBABILITYP(HE | <s>, <s>) = 0.31LEXICON SOURCEcmudictWHY, IN PLAIN ENGLISH“HE” won because the opening vowel matched the audio cleanly and it is the most likely sentence opener here.CORRECT / UNDOCorrectpick an alternative above, then Correct.
+
+PASS: word 2 "HAD": all six data-sec sections render
+PASS: word 2 "HAD": all six headers visible
+PASS: word 2: alt "DID" shown
+PASS: word 2: acoustic score shown
+PASS: word 2: LM prob shown
+PASS: word 2: lexicon tag shown
+PASS: word 2: why sentence shown
+--- panel for word 2 "HAD" ---
+HAD [180ms–420ms] conf 0.93ALTERNATIVES DID score -14.2 — lost: vowel formants closer to AA than IH HAS score -15.8 — lost: final fricative S absentrunner-up DID trails by 2.5SCORESacoustic -11.7 — closure burst for D visible at 390msLM PROBABILITYP(HAD | <s>, HE) = 0.18LEXICON SOURCEcmudictWHY, IN PLAIN ENGLISH“HAD” won on the AA vowel and the D-burst at 390ms; “DID” was closest but its vowel did not fit.CORRECT / UNDOCorrectpick an alternative above, then Correct.
+
+PASS: word 3 "NOTHING": all six data-sec sections render
+PASS: word 3 "NOTHING": all six headers visible
+PASS: word 3: alt "SOMETHING" shown
+PASS: word 3: acoustic score shown
+PASS: word 3: LM prob shown
+PASS: word 3: lexicon tag shown
+PASS: word 3: why sentence shown
+--- panel for word 3 "NOTHING" ---
+NOTHING [420ms–780ms] conf 0.91ALTERNATIVES SOMETHING score -16.9 — lost: extra initial syllable unsupported ANYTHING score -17.4 — lost: onset vowel does not match Nrunner-up SOMETHING trails by 3.8SCORESacoustic -13.1 — two-syllable stress pattern matchedLM PROBABILITYP(NOTHING | HE, HAD) = 0.07LEXICON SOURCElibrispeech-g2pWHY, IN PLAIN ENGLISH“NOTHING” won because the two-syllable stress fit and its G2P pronunciation covers this speaker’s reduced vowel.CORRECT / UNDOCorrectpick an alternative above, then Correct.
+
+PASS: word 4 "TO": all six data-sec sections render
+PASS: word 4 "TO": all six headers visible
+PASS: word 4: alt "TWO" shown
+PASS: word 4: acoustic score shown
+PASS: word 4: LM prob shown
+PASS: word 4: lexicon tag shown
+PASS: word 4: why sentence shown
+--- panel for word 4 "TO" ---
+TO [780ms–930ms] conf 0.96ALTERNATIVES TWO score -6.6 — homophone: acoustics tied, LM broke it TOO score -6.9 — homophone: acoustics tied, LM broke ithomophone tie broken by the language modelSCORESacoustic -6.4 — short function word, 15 framesLM PROBABILITYP(TO | HAD, NOTHING) = 0.52LEXICON SOURCEcmudictWHY, IN PLAIN ENGLISH“TO”, “TWO” and “TOO” sound identical; the language model picked “TO” as far more likely after “NOTHING”.CORRECT / UNDOCorrectpick an alternative above, then Correct.
+
+PASS: word 5 "SAY": all six data-sec sections render
+PASS: word 5 "SAY": all six headers visible
+PASS: word 5: alt "STAY" shown
+PASS: word 5: acoustic score shown
+PASS: word 5: LM prob shown
+PASS: word 5: lexicon tag shown
+PASS: word 5: why sentence shown
+--- panel for word 5 "SAY" ---
+SAY [930ms–1180ms] conf 0.89ALTERNATIVES STAY score -15.1 — lost: no ST cluster before the vowel SAYS score -16.2 — lost: final Z sibilant absentrunner-up STAY trails by 2.2SCORESacoustic -12.9 — diphthong EY glide tracked across 20 framesLM PROBABILITYP(SAY | NOTHING, TO) = 0.11LEXICON SOURCEcmudictWHY, IN PLAIN ENGLISH“SAY” won on the clean EY glide; “STAY” lost because no ST cluster precedes the vowel.CORRECT / UNDOCorrectpick an alternative above, then Correct.
+
+PASS: word 6 "ABOUT": all six data-sec sections render
+PASS: word 6 "ABOUT": all six headers visible
+PASS: word 6: alt "AROUND" shown
+PASS: word 6: acoustic score shown
+PASS: word 6: LM prob shown
+PASS: word 6: lexicon tag shown
+PASS: word 6: why sentence shown
+--- panel for word 6 "ABOUT" ---
+ABOUT [1180ms–1480ms] conf 0.94ALTERNATIVES AROUND score -16.4 — lost: final ND cluster unsupported ABOVE score -17.9 — lost: final VV fricative absentrunner-up AROUND trails by 4.2SCORESacoustic -12.2 — unstressed schwa onset then stressed BAWLM PROBABILITYP(ABOUT | TO, SAY) = 0.22LEXICON SOURCEcmudictWHY, IN PLAIN ENGLISH“ABOUT” won on the schwa-BAW stress shape and the clean T closure at the end.CORRECT / UNDOCorrectpick an alternative above, then Correct.
+
+PASS: word 7 "THE": all six data-sec sections render
+PASS: word 7 "THE": all six headers visible
+PASS: word 7: alt "A" shown
+PASS: word 7: acoustic score shown
+PASS: word 7: LM prob shown
+PASS: word 7: lexicon tag shown
+PASS: word 7: why sentence shown
+--- panel for word 7 "THE" ---
+THE [1480ms–1620ms] conf 0.98ALTERNATIVES A score -12.9 — lost: initial DH consonant clearly present THEE score -14.4 — lost: full IY vowel unsupportedrunner-up A trails by 7.8SCORESacoustic -5.1 — canonical DH-ah, 14 framesLM PROBABILITYP(THE | SAY, ABOUT) = 0.61LEXICON SOURCEcmudictWHY, IN PLAIN ENGLISH“THE” won easily: the DH onset is clear and it is the most likely word after “ABOUT”.CORRECT / UNDOCorrectpick an alternative above, then Correct.
+
+PASS: word 8 "WAR": all six data-sec sections render
+PASS: word 8 "WAR": all six headers visible
+PASS: word 8: alt "WORE" shown
+PASS: word 8: acoustic score shown
+PASS: word 8: LM prob shown
+PASS: word 8: lexicon tag shown
+PASS: word 8: why sentence shown
+--- panel for word 8 "WAR" ---
+WAR [1620ms–1980ms] conf 0.9ALTERNATIVES WORE score -15.7 — near-homophone: vowel length decided it MORE score -17.2 — lost: initial M nasal unsupportedrunner-up WORE trails by 1.9SCORESacoustic -13.8 — rhotic AR nucleus, final silence cut at 1980msLM PROBABILITYP(WAR | ABOUT, THE) = 0.09LEXICON SOURCEcmudictWHY, IN PLAIN ENGLISH“WAR” beat near-homophone “WORE” on vowel length, and it fits the history “ABOUT THE”.CORRECT / UNDOCorrectpick an alternative above, then Correct.
+
+PASS: Correct button enables after picking an alternative (got: Correct to “SHE”)
+PASS: Correct applies: chip "HE" -> "SHE ✎"
+PASS: button flips to Undo after Correct
+status after Correct: corrected word 1: HE → SHE (Undo to revert).
+PASS: Undo restores: chip -> "HE"
+status after Undo: undone: word 1 restored to HE.
+
+PASS: demo-out array shape: first item shown + note
+PASS: audio file: friendly hearsay-transcribe note (not a crash)
+PASS: non-JSON text: clean error
+PASS: empty words[]: clean error
+PASS: missing why_sentence: fallback sentence composed
+PASS: string-form alternatives render with score placeholder
+
+RESULT: ALL RENDER CHECKS PASSED
