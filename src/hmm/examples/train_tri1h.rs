@@ -3,14 +3,20 @@
 //! Clone the main CMVN monophone -> align a fixed 1 h subset once ->
 //! accumulate triphone stats -> grow decision trees -> tie states ->
 //! Baum-Welch 4 iters with mixtures 1->2->4->8 (retie after every round).
-//! Prints triphone PER next to monophone PER on the same PER subset.
+//! Prints triphone PER next to monophone PER on a DISJOINT held-out PER
+//! subset, both through the same free-loop path (decode_phones over each
+//! model's full inventory; triphone units map to centers before scoring).
 //!
 //! Features come from the frozen fe2 CMVN cache (HFC1 files keyed by
 //! sha256 of the wav bytes); no MFCC is recomputed here.
 //!
 //! usage: train_tri1h <mono_model.json> <manifest.tsv> <wav_root> <feat_cache>
 //!        <out_dir> --subset-size <N> --subset-seed <S> [--per-utts <K>]
-//!        [--gain <G>] [--minocc <O>] [--max-leaves <L>]
+//!        [--per-manifest <tsv>] [--gain <G>] [--minocc <O>] [--max-leaves <L>]
+//!
+//! Without --per-manifest the PER set is a disjoint slice of the train
+//! manifest; with it (e.g. dev-clean while training on train data) the PER
+//! set comes from a separate manifest held out from every training stage.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
@@ -19,10 +25,10 @@ use std::time::Instant;
 use fse::instrument::sha256_hex;
 use hmm::triphone::{
     MAX_PROV_UTTS, TyingConfig, accumulate_stats, build_tied_model, build_tying,
-    cap_model_provenance, center_of_unit, default_questions, merge_stats, retie_averaging,
-    sample_subset, unit_keys_for_word,
+    cap_model_provenance, default_questions, merge_stats, retie_averaging, sample_disjoint,
+    sample_subset, tied_phone_error_rate, unit_keys_for_word,
 };
-use hmm::{HmmSet, SIL, SP, TrainConfig, UttData, phone_edit_distance};
+use hmm::{HmmSet, TrainConfig, UttData};
 use lexicon::{TIER1_IDENTITY, TieredLexicon, load_tiered};
 
 type Lexicon = HashMap<String, Vec<Vec<String>>>;
@@ -126,6 +132,43 @@ fn flag(args: &[String], name: &str) -> Option<String> {
     args.windows(2).find(|w| w[0] == name).map(|w| w[1].clone())
 }
 
+/// Usable manifest rows: non-empty id/rel, positive duration, every word
+/// in the lexicon (same usability rule as train_si). Returns
+/// (usable rows, total rows, oov-dropped rows).
+fn load_usable_rows(manifest_path: &Path, lex: &Lexicon) -> (Vec<Row>, usize, usize) {
+    let text = std::fs::read_to_string(manifest_path).expect("read manifest");
+    let mut usable: Vec<Row> = Vec::new();
+    let mut n_rows = 0usize;
+    let mut n_oov = 0usize;
+    for line in text.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let mut cols = line.splitn(4, '\t');
+        let (id, rel, sec, txt) = (
+            cols.next().unwrap_or("").to_string(),
+            cols.next().unwrap_or("").to_string(),
+            cols.next().unwrap_or("0").parse::<f64>().unwrap_or(0.0),
+            cols.next().unwrap_or("").to_string(),
+        );
+        if id.is_empty() || rel.is_empty() || sec <= 0.0 {
+            continue;
+        }
+        n_rows += 1;
+        if phones_for_words(lex, &txt).is_none() {
+            n_oov += 1;
+            continue;
+        }
+        usable.push(Row {
+            id,
+            rel,
+            seconds: sec,
+            text: txt,
+        });
+    }
+    (usable, n_rows, n_oov)
+}
+
 /// Frozen HFC1 feature cache: magic + u32 dim + u32 nframes + u32 sr,
 /// then nframes*dim f64 LE. Keyed by sha256 of the wav file bytes.
 fn load_cached_frames(
@@ -187,128 +230,6 @@ struct Utt {
     obs: Vec<Vec<f64>>,
 }
 
-/// Inventory-constrained triphone decode: free phone loop over the monophone
-/// inventory plus this utterance's own triphone/biphone units (the full
-/// cross-product loop is infeasible; the constraint is recorded in run.json).
-/// Decoded units map to centers before scoring.
-fn triphone_per(model: &HmmSet, utts: &[Utt]) -> (f64, usize, usize) {
-    let mono: Vec<String> = model
-        .phones
-        .keys()
-        .filter(|k| !k.contains('-') && !k.contains('+'))
-        .cloned()
-        .collect();
-    let strip = |seq: &[String]| -> Vec<String> {
-        seq.iter()
-            .filter(|p| *p != SIL && *p != SP)
-            .cloned()
-            .collect()
-    };
-    let (mut errors, mut total) = (0usize, 0usize);
-    for (ui, u) in utts.iter().enumerate() {
-        let mut units: BTreeSet<String> = mono.iter().cloned().collect();
-        units.extend(u.units.iter().cloned());
-        let nunits = units.len() as f64;
-        let mut states: Vec<(String, usize)> = Vec::new();
-        for name in &units {
-            for s in 0..model.phones[name].n_states {
-                states.push((name.clone(), s));
-            }
-        }
-        let n = states.len();
-        let neg = f64::NEG_INFINITY;
-        let start_log = -nunits.ln();
-        let jump_log = 0.5f64.ln() - nunits.ln();
-        let half = 0.5f64.ln();
-        let log_emit: Vec<Vec<f64>> = u
-            .obs
-            .iter()
-            .map(|o| {
-                states
-                    .iter()
-                    .map(|(p, s)| model.emission(p, *s).unwrap().log_prob(o))
-                    .collect()
-            })
-            .collect();
-        let mut delta = vec![neg; n];
-        for (j, st) in states.iter().enumerate() {
-            if st.1 == 0 {
-                delta[j] = start_log + log_emit[0][j];
-            }
-        }
-        let mut psi = vec![vec![0usize; n]; u.obs.len()];
-        for t in 1..u.obs.len() {
-            let mut nd = vec![neg; n];
-            // Best cross-unit entry per frame: any last-state -> any first-state.
-            let mut best_jump = neg;
-            let mut arg_jump = 0usize;
-            for (i, (ip, is)) in states.iter().enumerate() {
-                if delta[i] == neg {
-                    continue;
-                }
-                if *is == model.phones[ip].n_states - 1 && delta[i] > best_jump {
-                    best_jump = delta[i];
-                    arg_jump = i;
-                }
-            }
-            for j in 0..n {
-                let e = log_emit[t][j];
-                let (mut best, mut arg) = (delta[j] + half, j);
-                let (jp, js) = &states[j];
-                if *js > 0 {
-                    let i = j - 1;
-                    if states[i].0 == *jp && delta[i] + half > best {
-                        best = delta[i] + half;
-                        arg = i;
-                    }
-                } else if best_jump + jump_log > best {
-                    best = best_jump + jump_log;
-                    arg = arg_jump;
-                }
-                nd[j] = best + e;
-                psi[t][j] = arg;
-            }
-            delta = nd;
-        }
-        let (mut best, mut last) = (neg, 0usize);
-        for (j, &dj) in delta.iter().enumerate() {
-            if dj > best {
-                best = dj;
-                last = j;
-            }
-        }
-        let mut path = vec![0usize; u.obs.len()];
-        path[u.obs.len() - 1] = last;
-        for t in (1..u.obs.len()).rev() {
-            path[t - 1] = psi[t][path[t]];
-        }
-        let mut hyp_units: Vec<String> = Vec::new();
-        for &idx in &path {
-            let p = states[idx].0.clone();
-            if hyp_units.last() != Some(&p) {
-                hyp_units.push(p);
-            }
-        }
-        let hyp: Vec<String> = hyp_units
-            .iter()
-            .map(|k| center_of_unit(k).to_string())
-            .collect();
-        let reference = strip(&u.seq);
-        let hyp = strip(&hyp);
-        errors += phone_edit_distance(&reference, &hyp);
-        total += reference.len();
-        if (ui + 1) % 10 == 0 {
-            println!("train_tri1h tri-per decoded {}/{}", ui + 1, utts.len());
-        }
-    }
-    let per = if total == 0 {
-        0.0
-    } else {
-        errors as f64 / total as f64
-    };
-    (per, errors, total)
-}
-
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     assert!(
@@ -355,52 +276,62 @@ fn main() {
         load_tiered(lexicon_table_path(), librispeech_lexicon_path()).expect("tiered lexicon");
     let lex: Lexicon = tiered.table;
 
+    let per_manifest: Option<PathBuf> = flag(&args, "--per-manifest").map(PathBuf::from);
     // ---- manifest + deterministic subset ----
-    let text = std::fs::read_to_string(&manifest_path).expect("read manifest");
-    let mut usable: Vec<Row> = Vec::new();
-    let mut n_rows = 0usize;
-    let mut n_oov = 0usize;
-    for line in text.lines() {
-        if line.trim().is_empty() {
-            continue;
-        }
-        let mut cols = line.splitn(4, '\t');
-        let (id, rel, sec, txt) = (
-            cols.next().unwrap_or("").to_string(),
-            cols.next().unwrap_or("").to_string(),
-            cols.next().unwrap_or("0").parse::<f64>().unwrap_or(0.0),
-            cols.next().unwrap_or("").to_string(),
-        );
-        if id.is_empty() || rel.is_empty() || sec <= 0.0 {
-            continue;
-        }
-        n_rows += 1;
-        if phones_for_words(&lex, &txt).is_none() {
-            n_oov += 1;
-            continue;
-        }
-        usable.push(Row {
-            id,
-            rel,
-            seconds: sec,
-            text: txt,
-        });
+    let (usable, n_rows, n_oov) = load_usable_rows(&manifest_path, &lex);
+    // PER pool: a separate held-out manifest when given (dev-clean while
+    // training on train data), else a disjoint slice of the train manifest.
+    // Either way PER never overlaps training (id-level assert below).
+    let per_usable: Vec<Row>;
+    let per_pool: &Vec<Row>;
+    let train_picks: Vec<usize>;
+    let per_picks: Vec<usize>;
+    if let Some(pm) = &per_manifest {
+        let (pu, pn, po) = load_usable_rows(pm, &lex);
+        println!("train_tri1h per_manifest rows={pn} oov_dropped={po} usable={}", pu.len());
+        per_usable = pu;
+        train_picks = sample_subset(usable.len(), subset_size, subset_seed);
+        per_picks = sample_subset(per_usable.len(), per_utts, subset_seed);
+        per_pool = &per_usable;
+    } else {
+        (train_picks, per_picks) =
+            sample_disjoint(usable.len(), subset_size, per_utts, subset_seed);
+        per_pool = &usable;
     }
-    let picks = sample_subset(usable.len(), subset_size, subset_seed);
-    let kept_sec: f64 = picks.iter().map(|&i| usable[i].seconds).sum();
+    assert!(
+        !per_picks.is_empty(),
+        "no PER rows left after train split (usable={}, subset_size={subset_size})",
+        usable.len()
+    );
+    let kept_sec: f64 = train_picks.iter().map(|&i| usable[i].seconds).sum();
     println!(
-        "train_tri1h subset rows={n_rows} oov_dropped={n_oov} usable={} kept_utts={} kept_h={:.3} seed={subset_seed}",
+        "train_tri1h subset rows={n_rows} oov_dropped={n_oov} usable={} kept_utts={} kept_h={:.3} per_utts={} seed={subset_seed}",
         usable.len(),
-        picks.len(),
-        kept_sec / 3600.0
+        train_picks.len(),
+        kept_sec / 3600.0,
+        per_picks.len(),
     );
     {
         let mut s = String::new();
-        for &i in &picks {
+        for &i in &train_picks {
             let r = &usable[i];
             s.push_str(&format!("{}\t{}\t{}\t{}\n", r.id, r.rel, r.seconds, r.text));
         }
         std::fs::write(out_dir.join("subset.tsv"), s).expect("subset.tsv");
+        let mut p = String::new();
+        for &i in &per_picks {
+            let r = &per_pool[i];
+            p.push_str(&format!("{}\t{}\t{}\t{}\n", r.id, r.rel, r.seconds, r.text));
+        }
+        std::fs::write(out_dir.join("persubset.tsv"), p).expect("persubset.tsv");
+        let train_ids: BTreeSet<&str> = train_picks.iter().map(|&i| usable[i].id.as_str()).collect();
+        for &i in &per_picks {
+            assert!(
+                !train_ids.contains(per_pool[i].id.as_str()),
+                "PER/train overlap on {}",
+                per_pool[i].id
+            );
+        }
     }
 
     // ---- model + cached features ----
@@ -418,7 +349,7 @@ fn main() {
     println!("train_tri1h prov_cap={MAX_PROV_UTTS} prov_ids {prov_before}->{prov_after}");
     let mut utts: Vec<Utt> = Vec::new();
     let mut n_cache_miss = 0usize;
-    for &i in &picks {
+    for &i in &train_picks {
         let r = &usable[i];
         let words = phones_for_words(&lex, &r.text).expect("usable");
         let mut seq = Vec::new();
@@ -541,14 +472,32 @@ fn main() {
     tri.save_text(&out_dir.join("tri-final.json"))
         .expect("save final");
 
-    // ---- PER: monophone vs triphone on the same PER subset ----
-    let per_n = per_utts.min(utts.len());
-    let per_utts_slice = &utts[..per_n];
+    // ---- PER: monophone vs triphone on the DISJOINT per picks, same
+    // free-loop path (decode_phones over each model's full inventory) ----
+    let mut per_ids: Vec<String> = Vec::new();
+    let mut pairs: Vec<(Vec<String>, Vec<Vec<f64>>)> = Vec::new();
+    let mut n_per_miss = 0usize;
+    for &i in &per_picks {
+        let r = &per_pool[i];
+        let words = phones_for_words(&lex, &r.text).expect("usable");
+        let mut seq = Vec::new();
+        for w in &words {
+            seq.extend(w.iter().cloned());
+        }
+        match load_cached_frames(&cache_dir, &wav_root.join(&r.rel), mono.dim) {
+            Ok(o) if !o.is_empty() => {
+                per_ids.push(r.id.clone());
+                pairs.push((seq, o));
+            }
+            _ => n_per_miss += 1,
+        }
+    }
+    assert!(!pairs.is_empty(), "no usable PER utterances");
+    println!(
+        "train_tri1h per_eval utts={} cache_miss={n_per_miss}",
+        pairs.len()
+    );
     let t3 = Instant::now();
-    let pairs: Vec<(Vec<String>, Vec<Vec<f64>>)> = per_utts_slice
-        .iter()
-        .map(|u| (u.seq.clone(), u.obs.clone()))
-        .collect();
     let mono_rep = mono.phone_error_rate(&pairs).expect("mono per");
     println!(
         "train_tri1h mono_per={:.4} errors={} ref_phones={} s={:.0}",
@@ -558,15 +507,30 @@ fn main() {
         t3.elapsed().as_secs_f64()
     );
     let t4 = Instant::now();
-    let (tri_per, tri_err, tri_tot) = triphone_per(&tri, per_utts_slice);
+    let tri_rep = tied_phone_error_rate(&tri, &pairs).expect("tri per");
     println!(
-        "train_tri1h tri_per={tri_per:.4} errors={tri_err} ref_phones={tri_tot} s={:.0}",
+        "train_tri1h tri_per={:.4} errors={} ref_phones={} s={:.0}",
+        tri_rep.per,
+        tri_rep.total_errors,
+        tri_rep.total_ref_phones,
         t4.elapsed().as_secs_f64()
     );
+    {
+        let mut s = String::from("id\tmono_per\ttri_per\n");
+        for ((id, m), t) in per_ids
+            .iter()
+            .zip(mono_rep.per_utterance.iter())
+            .zip(tri_rep.per_utterance.iter())
+        {
+            s.push_str(&format!("{id}\t{m:.6}\t{t:.6}\n"));
+        }
+        std::fs::write(out_dir.join("per_utt.tsv"), s).expect("per_utt.tsv");
+    }
 
     let run = serde_json::json!({
         "mono_model": mono_path.display().to_string(),
         "manifest": manifest_path.display().to_string(),
+        "per_manifest": per_manifest.as_ref().map(|p| p.display().to_string()),
         "subset_size": subset_size,
         "subset_seed": subset_seed,
         "kept_utts": utts.len(),
@@ -583,12 +547,14 @@ fn main() {
         "estep_chunk": one.estep_chunk,
         "units": units.len(),
         "bw_ll": bw_ll,
-        "per_utts": per_n,
+        "per_utts": pairs.len(),
+        "per_cache_miss": n_per_miss,
+        "per_ids": "persubset.tsv",
         "mono_per": mono_rep.per,
         "mono_errors": mono_rep.total_errors,
-        "tri_per": tri_per,
-        "tri_errors": tri_err,
-        "decode": "inventory-constrained free loop (mono inventory + utterance units), centers scored",
+        "tri_per": tri_rep.per,
+        "tri_errors": tri_rep.total_errors,
+        "decode": "free loop via decode_phones over each model's full inventory (tri: mono + all training units), centers scored; PER set disjoint from train",
         "peak_rss_mb": peak_rss_mb(),
     });
     std::fs::write(

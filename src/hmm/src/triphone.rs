@@ -10,7 +10,10 @@
 //! corpus. Trees grow from pooled sufficient stats only. Provenance is
 //! capped (see MAX_PROV_UTTS) to hold the 8 GB RSS gate at 1 h scale.
 
-use crate::{Gaussian, HmmError, HmmSet, Mixture, ParamStats, PhoneHmm, Provenance, Result};
+use crate::{
+    Gaussian, HmmError, HmmSet, Mixture, ParamStats, PerReport, PhoneHmm, Provenance, Result, SIL,
+    SP, phone_edit_distance,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -763,4 +766,74 @@ pub fn sample_subset(nrows: usize, size: usize, seed: u64) -> Vec<usize> {
     }
     idx.truncate(size.min(nrows));
     idx
+}
+
+/// Deterministic disjoint train/PER split: one shuffle on the same stream
+/// as [`sample_subset`], first `train_size` rows are train, the next
+/// `per_size` are PER. PER never overlaps train (train-on-test guard).
+pub fn sample_disjoint(
+    nrows: usize,
+    train_size: usize,
+    per_size: usize,
+    seed: u64,
+) -> (Vec<usize>, Vec<usize>) {
+    let all = sample_subset(nrows, train_size.saturating_add(per_size), seed);
+    let t = train_size.min(all.len());
+    (all[..t].to_vec(), all[t..].to_vec())
+}
+
+/// Decode one observation sequence with a tied (monophone + unit) model
+/// and map decoded units to center phones.
+///
+/// Pure function of (model, obs): the loop inventory is the model's full
+/// phone set (monophones plus every training-observed unit), fixed for
+/// every utterance. It takes no reference, so the decode cannot see
+/// reference word identities or boundaries.
+pub fn decode_centers(model: &HmmSet, obs: &[Vec<f64>]) -> Result<Vec<String>> {
+    let hyp_units = model.decode_phones(obs)?;
+    Ok(hyp_units
+        .iter()
+        .map(|k| center_of_unit(k).to_string())
+        .filter(|p| p != SIL && p != SP)
+        .collect())
+}
+
+/// PER for a tied model through the SAME free-loop path as the monophone
+/// [`HmmSet::phone_error_rate`]: full model inventory, uniform loop,
+/// centers scored. Returns per-utterance PERs for bootstrap CIs.
+pub fn tied_phone_error_rate(
+    model: &HmmSet,
+    data: &[(Vec<String>, Vec<Vec<f64>>)],
+) -> Result<PerReport> {
+    let strip = |seq: &[String]| -> Vec<String> {
+        seq.iter()
+            .filter(|p| *p != SIL && *p != SP)
+            .cloned()
+            .collect()
+    };
+    let mut per_utterance = Vec::with_capacity(data.len());
+    let (mut errors, mut total) = (0usize, 0usize);
+    for (seq, obs) in data {
+        let reference = strip(seq);
+        let hyp = decode_centers(model, obs)?;
+        let e = phone_edit_distance(&reference, &hyp);
+        let pu = if reference.is_empty() {
+            0.0
+        } else {
+            e as f64 / reference.len() as f64
+        };
+        errors += e;
+        total += reference.len();
+        per_utterance.push(pu);
+    }
+    Ok(PerReport {
+        per: if total == 0 {
+            0.0
+        } else {
+            errors as f64 / total as f64
+        },
+        per_utterance,
+        total_errors: errors,
+        total_ref_phones: total,
+    })
 }

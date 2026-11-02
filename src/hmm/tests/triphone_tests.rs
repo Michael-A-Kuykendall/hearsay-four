@@ -267,3 +267,107 @@ fn provenance_is_bounded() {
     assert!(after > 0);
     model.validate_provenance().unwrap();
 }
+
+#[test]
+fn disjoint_sampler_splits_train_and_per() {
+    use hmm::triphone::sample_disjoint;
+    let (train, per) = sample_disjoint(285, 200, 30, 20261101);
+    assert_eq!(train.len(), 200);
+    assert_eq!(per.len(), 30);
+    // PER never overlaps train (train-on-test guard).
+    let tset: BTreeSet<_> = train.iter().collect();
+    assert!(per.iter().all(|i| !tset.contains(i)));
+    let pset: BTreeSet<_> = per.iter().collect();
+    assert_eq!(pset.len(), 30, "PER picks must be distinct rows");
+    // Deterministic.
+    assert_eq!(
+        (train.clone(), per.clone()),
+        sample_disjoint(285, 200, 30, 20261101)
+    );
+    // Same shuffle stream as sample_subset: PER is the slice after train.
+    let full = hmm::triphone::sample_subset(285, 230, 20261101);
+    assert_eq!(train, full[..200]);
+    assert_eq!(per, full[200..]);
+    // Shortages cap gracefully, PER still disjoint.
+    let (t2, p2) = sample_disjoint(10, 8, 5, 1);
+    assert_eq!(t2.len(), 8);
+    assert_eq!(p2.len(), 2);
+    let t2set: BTreeSet<_> = t2.iter().collect();
+    assert!(p2.iter().all(|i| !t2set.contains(i)));
+}
+
+fn tiny_tied_model() -> HmmSet {
+    use hmm::triphone::{build_tied_model, build_tying};
+    let utterances = vec![vec![vec![0.0, 0.0]]];
+    let mono = HmmSet::flat_start(&["B", "AE", "T", "D", "IY", "UW"], &utterances, 0.01).unwrap();
+    let stats = fixed_stats();
+    let pooled: BTreeMap<(Triphone, usize), TriStateStats> = stats
+        .into_iter()
+        .map(|s| ((s.key.clone(), s.state), s))
+        .collect();
+    let tied = build_tying(&pooled.values().cloned().collect::<Vec<_>>(), &default_questions(), &TyingConfig::default());
+    let units: BTreeSet<String> = ["B-AE+T", "D-AE+T", "IY-AE+T", "UW-AE+T"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    build_tied_model(&mono, &pooled, &tied, &units).unwrap()
+}
+
+#[test]
+fn tied_decode_centers_ignore_reference() {
+    use hmm::triphone::decode_centers;
+    let tri = tiny_tied_model();
+    let obs = vec![vec![4.9, 5.1], vec![5.2, 4.8], vec![-5.0, -4.9]];
+    // decode_centers takes no reference: same (model, obs) -> same hyp.
+    let hyp1 = decode_centers(&tri, &obs).unwrap();
+    let hyp2 = decode_centers(&tri, &obs).unwrap();
+    assert_eq!(hyp1, hyp2);
+    // Hypothesized phones are bare centers of the model inventory.
+    let centers: BTreeSet<String> = tri
+        .phones
+        .keys()
+        .map(|k| center_of_unit(k).to_string())
+        .collect();
+    assert!(!hyp1.is_empty());
+    for p in &hyp1 {
+        assert!(
+            !p.contains('-') && !p.contains('+'),
+            "hyp phone {p} is not a bare center"
+        );
+        assert!(centers.contains(p), "hyp phone {p} outside model inventory");
+    }
+}
+
+#[test]
+fn tied_per_matches_monophone_path_shape() {
+    use hmm::triphone::tied_phone_error_rate;
+    let tri = tiny_tied_model();
+    let data = vec![
+        (
+            vec!["AE".to_string(), "T".to_string()],
+            vec![vec![4.9, 5.1], vec![5.2, 4.8]],
+        ),
+        (
+            vec!["B".to_string()],
+            vec![vec![-5.0, -4.9], vec![0.1, 0.0]],
+        ),
+    ];
+    let rep = tied_phone_error_rate(&tri, &data).unwrap();
+    // Same report shape as HmmSet::phone_error_rate: per-utt vector for
+    // bootstrap CIs, totals consistent.
+    assert_eq!(rep.per_utterance.len(), 2);
+    assert_eq!(
+        rep.total_ref_phones,
+        data.iter().map(|(s, _)| s.len()).sum::<usize>()
+    );
+    assert!(
+        (rep.per - rep.total_errors as f64 / rep.total_ref_phones as f64).abs() < 1e-12
+    );
+    for pu in &rep.per_utterance {
+        assert!(pu.is_finite() && *pu >= 0.0);
+    }
+    // Deterministic.
+    let rep2 = tied_phone_error_rate(&tri, &data).unwrap();
+    assert_eq!(rep.per, rep2.per);
+    assert_eq!(rep.per_utterance, rep2.per_utterance);
+}
