@@ -1,0 +1,5 @@
+# Smoke sealed session: 3 short takes to prove sealed mode + redo + validate.
+# content_lines=3
+the birch canoe slid on the smooth planks
+glue the sheet to the dark blue background
+the small pup gnawed a hole in the sock

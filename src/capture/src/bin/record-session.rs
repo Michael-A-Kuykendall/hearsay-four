@@ -1,14 +1,21 @@
 //! record-session: live recording tool for the human fail-fast run.
 //!
-//! Behind the `mic` feature (cpal). Two modes:
+//! Behind the `mic` feature (cpal). Modes:
 //!
 //! - `--list-devices` — print input devices, no recording.
-//! - default — capture enrollment (fixed prompt) then one WAV per line of
-//!   `--script`, plus a `manifest.tsv` mapping file → expected transcript.
+//! - default (legacy) — capture enrollment (fixed prompt) then one WAV per
+//!   line of `--script`, plus a `manifest.tsv` mapping file → expected
+//!   transcript. Every take offers `[r]`edo.
+//! - `--sealed` — precommitted-order session (order.txt hash first, then
+//!   takes, then manifest + seal files). Every take offers `[r]`edo: the
+//!   redo replaces the take in place, is logged in session.log, and never
+//!   changes the precommitted order, so the seal stays valid.
 //!
-//! Layout: `<out>/<utterance>.wav` at the device sample rate, mono i16.
-//! The manifest's third/fourth columns (rate, samples) let the scorer
-//! verify provenance without trusting filenames.
+//! Both modes capture at the device NATIVE rate (RS-1 section 1: no
+//! capture-time resampling; the canonicalizer resamples once downstream).
+//! Layout: `<out>/<utterance>.wav` mono i16. The manifest's third/fourth
+//! columns (rate, samples) let the scorer verify provenance without
+//! trusting filenames.
 
 use std::fs::File;
 use std::io::Write;
@@ -21,14 +28,15 @@ fn usage() -> ! {
     eprintln!(
         "  record-session --script LINES --out DIR            legacy takes (enroll + native rate)"
     );
-    eprintln!("  record-session --script LINES --out DIR --sealed --rate 16000 [--dur SECS]");
-    eprintln!("  record-session --out DIR --continuous SECS --rate 16000");
+    eprintln!("  record-session --script LINES --out DIR --sealed [--dur SECS]");
+    eprintln!("  record-session --out DIR --continuous SECS");
     eprintln!(
         "  record-session --validate DIR [--labels N --dur S]  check a sealed session (VALID/REJECT)"
     );
     eprintln!("  record-session --list-devices");
-    eprintln!("flags: --enroll-only --resume-at N --utterances N --no-enroll --rate HZ --dur SECS");
-    eprintln!("(--rate is sealed-only; --dur applies to both modes; sealed implies --no-enroll)");
+    eprintln!("flags: --enroll-only --resume-at N --utterances N --no-enroll --dur SECS");
+    eprintln!("(all modes capture at device native rate; --dur applies to both modes; sealed implies --no-enroll)");
+    eprintln!("(new sealed sessions validate via --labels N --dur S; bare --validate is the frozen 30-word 16kHz seal)");
     std::process::exit(2);
 }
 fn utterance_stem(index: usize) -> String {
@@ -117,28 +125,56 @@ fn write_wav(path: &PathBuf, mono: &[i16], sample_rate: u32) -> hound::Result<()
 }
 
 /// Prompt on stdout, wait for Enter, then record and save under `stem`.
+/// RS1-a: 250 ms click guard after Enter (keystroke never inside the
+/// window), peak print + `[r]`edo loop, SILENT TAKE auto-retry below
+/// -40 dBFS. Every attempt is appended to `session.log`. Returns the
+/// accepted take's (rate, samples); the manifest write stays single.
 fn capture_one(
     cap: &mut MicCapture,
     out: &Path,
     stem: &str,
     say: &str,
     dur_secs: f64,
+    log: &mut File,
 ) -> (u32, usize) {
     println!("---");
     println!("Say:  {say}");
-    print!("Press Enter to record {stem} ... ");
-    std::io::stdout().flush().ok();
-    let mut line = String::new();
-    std::io::stdin().read_line(&mut line).ok();
-    println!("Recording {dur_secs}s ...");
-    let (mono, rate) = cap.record_raw();
-    let n = mono.len();
-    let path = out.join(format!("{stem}.wav"));
-    match write_wav(&path, &mono, rate) {
-        Ok(()) => println!("saved {} ({n} samples @ {rate} Hz)", path.display()),
-        Err(e) => eprintln!("WAV write failed for {}: {e}", path.display()),
+    let mut attempt: u32 = 0;
+    loop {
+        attempt += 1;
+        print!("Press Enter to record {stem} ... ");
+        std::io::stdout().flush().ok();
+        let mut line = String::new();
+        std::io::stdin().read_line(&mut line).ok();
+        // RS1-a click guard: wait out the keystroke before opening the window.
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        println!("SPEAK NOW - Recording {dur_secs}s ...");
+        let (mono, rate) = cap.record_raw();
+        let n = mono.len();
+        let peak_db = peak_dbfs(&mono);
+        let path = out.join(format!("{stem}.wav"));
+        match write_wav(&path, &mono, rate) {
+            Ok(()) => println!("saved {} ({n} samples @ {rate} Hz)", path.display()),
+            Err(e) => eprintln!("WAV write failed for {}: {e}", path.display()),
+        }
+        writeln!(log, "take {stem} attempt {attempt} peak_dbfs={peak_db:.1}").ok();
+        if take_is_silent(&mono) {
+            println!(
+                "SILENT TAKE: peak {peak_db:.1} dBFS below floor -40.0 dBFS - retrying same prompt"
+            );
+            writeln!(log, "take {stem} attempt {attempt} SILENT auto-retry").ok();
+            continue;
+        }
+        println!("peak {peak_db:.1} dBFS  [Enter]=next  [r]=redo");
+        std::io::stdout().flush().ok();
+        let mut choice = String::new();
+        std::io::stdin().read_line(&mut choice).ok();
+        if choice.trim().eq_ignore_ascii_case("r") {
+            writeln!(log, "take {stem} attempt {attempt} REDO requested").ok();
+            continue;
+        }
+        return (rate, n);
     }
-    (rate, n)
 }
 fn peak_dbfs(mono: &[i16]) -> f32 {
     let peak = mono
@@ -163,8 +199,12 @@ fn take_is_silent(mono: &[i16]) -> bool {
         .fold(0.0f32, f32::max);
     peak < SILENT_TAKE_PEAK_FLOOR
 }
-/// Sealed take: single Enter, exact-frame capture, no redo.
-/// Returns `None` when the take came up short (caller re-prompts the same index).
+/// Sealed take: Enter, exact-frame capture, then `[r]`edo. A redo
+/// re-captures the SAME position in place (same stem, same order slot);
+/// the order never changes, so the seal stays valid. Every attempt is
+/// appended to `session.log`. Short/silent takes auto-retry; a device
+/// rate change mid-session fails closed (partial sessions never validate).
+/// Returns the accepted take's (rate, samples).
 #[allow(clippy::too_many_arguments)]
 fn capture_one_sealed(
     cap: &mut MicCapture,
@@ -175,53 +215,79 @@ fn capture_one_sealed(
     total: usize,
     dur_secs: f64,
     expected_frames: usize,
-) -> Option<(u32, usize)> {
-    println!("=== [{position}/{total}] Say:  {say}   (Enter = record {dur_secs}s) ===");
-    print!("Press Enter ... ");
-    std::io::stdout().flush().ok();
-    let mut line = String::new();
-    std::io::stdin().read_line(&mut line).ok();
-    println!("Recording {dur_secs}s ... speak NOW:  {say}");
-    let (mono, rate) = cap.record_exact();
-    if mono.len() < expected_frames {
-        eprintln!(
-            "SHORT TAKE: captured {} frames, need {expected_frames} — retrying same prompt (Ctrl-C abandons the session)",
-            mono.len()
-        );
-        return None;
-    }
-    if take_is_silent(&mono) {
-        eprintln!(
-            "SILENT TAKE: peak {:.1} dBFS below floor -40.0 dBFS (muted input?) — retrying same prompt (Ctrl-C abandons the session)",
-            peak_dbfs(&mono)
-        );
-        return None;
-    }
-    let n = mono.len();
-    let path = out.join(format!("{stem}.wav"));
-    match write_wav(&path, &mono, rate) {
-        Ok(()) => {
-            let tag = if take_is_silent(&mono) {
-                "SILENT"
-            } else {
-                "OK"
-            };
-            println!(
-                "wrote {stem}.wav: {n} frames @ {rate}Hz mono, peak {:.1} dBFS [{tag}]",
+    expected_rate: u32,
+    log: &mut File,
+) -> (u32, usize) {
+    let mut attempt: u32 = 0;
+    loop {
+        attempt += 1;
+        println!("=== [{position}/{total}] Say:  {say}   (Enter = record {dur_secs}s) ===");
+        print!("Press Enter ... ");
+        std::io::stdout().flush().ok();
+        let mut line = String::new();
+        std::io::stdin().read_line(&mut line).ok();
+        // Same click guard as legacy: the keystroke never lands in the window.
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        println!("Recording {dur_secs}s ... speak NOW:  {say}");
+        let (mono, rate) = cap.record_exact();
+        if rate != expected_rate {
+            eprintln!(
+                "RATE CHANGED: device gave {rate} Hz, session runs at {expected_rate} Hz — abandoning (partial sessions never validate)"
+            );
+            std::process::exit(1);
+        }
+        if mono.len() < expected_frames {
+            eprintln!(
+                "SHORT TAKE: captured {} frames, need {expected_frames} — retrying same prompt (Ctrl-C abandons the session)",
+                mono.len()
+            );
+            writeln!(log, "take {stem} attempt {attempt} SHORT {}/{} auto-retry", mono.len(), expected_frames).ok();
+            continue;
+        }
+        if take_is_silent(&mono) {
+            eprintln!(
+                "SILENT TAKE: peak {:.1} dBFS below floor -40.0 dBFS (muted input?) — retrying same prompt (Ctrl-C abandons the session)",
                 peak_dbfs(&mono)
-            )
+            );
+            writeln!(log, "take {stem} attempt {attempt} SILENT auto-retry").ok();
+            continue;
         }
-        Err(e) => {
-            eprintln!("WAV write failed for {}: {e}", path.display());
-            return None;
+        let n = mono.len();
+        let peak_db = peak_dbfs(&mono);
+        let path = out.join(format!("{stem}.wav"));
+        match write_wav(&path, &mono, rate) {
+            Ok(()) => println!(
+                "wrote {stem}.wav: {n} frames @ {rate}Hz mono, peak {peak_db:.1} dBFS [OK]"
+            ),
+            Err(e) => {
+                eprintln!("WAV write failed for {}: {e}", path.display());
+                writeln!(log, "take {stem} attempt {attempt} WRITE-FAIL auto-retry").ok();
+                continue;
+            }
         }
+        writeln!(
+            log,
+            "take {stem} attempt {attempt} peak_dbfs={peak_db:.1} frames={n}"
+        )
+        .ok();
+        println!("peak {peak_db:.1} dBFS  [Enter]=next  [r]=redo (replaces this take in place)");
+        std::io::stdout().flush().ok();
+        let mut choice = String::new();
+        std::io::stdin().read_line(&mut choice).ok();
+        if choice.trim().eq_ignore_ascii_case("r") {
+            writeln!(log, "take {stem} attempt {attempt} REDO requested").ok();
+            continue;
+        }
+        return (rate, n);
     }
-    Some((rate, n))
 }
-/// Sealed session: guards, precommit, single-Enter takes, seal files.
+/// Sealed session: guards, precommit, takes with redo, seal files.
 /// Prompts are recorded in script order (the prep beads own the order).
-/// Layout matches `fse::instrument::validate_session`.
-fn run_sealed(out: &Path, lines: &[String], rate_hz: u32, dur_secs: f64) {
+/// Captures at the device NATIVE rate (RS-1 section 1); the declared rate
+/// is queried up front and every take must match it. Layout validates via
+/// `fse::instrument::validate_session_general` (the frozen 30-word seal
+/// pins 16 kHz and only re-checks the October evidence).
+fn run_sealed(out: &Path, lines: &[String], dur_secs: f64) {
     use cpal::traits::{DeviceTrait, HostTrait};
     if lines.is_empty() {
         eprintln!("sealed session needs a non-empty --script");
@@ -238,55 +304,77 @@ fn run_sealed(out: &Path, lines: &[String], rate_hz: u32, dur_secs: f64) {
             .build_hasher()
             .finish()
     };
-    let device_name = cpal::default_host()
-        .default_input_device()
-        .and_then(|d| d.name().ok())
-        .unwrap_or_else(|| "<unnamed>".to_string());
+    let host = cpal::default_host();
+    let device = host.default_input_device().unwrap_or_else(|| {
+        eprintln!("no default input device");
+        std::process::exit(1);
+    });
+    let device_name = device.name().unwrap_or_else(|_| "<unnamed>".to_string());
+    // Native rate, queried once: no capture-time resampling, ever.
+    let native_rate = device
+        .default_input_config()
+        .map(|c| c.sample_rate().0)
+        .unwrap_or_else(|e| {
+            eprintln!("cannot query native input rate: {e}");
+            std::process::exit(1);
+        });
+    if !fse::instrument::is_plausible_rate(native_rate) {
+        eprintln!("native input rate {native_rate} Hz is not a plausible device rate — abandoning");
+        std::process::exit(1);
+    }
     let duration_ms = (dur_secs * 1000.0).round() as u64;
-    let expected_frames = (u64::from(rate_hz) * duration_ms / 1000) as usize;
+    let expected_frames = (u64::from(native_rate) * duration_ms / 1000) as usize;
 
     // Order is frozen before the first take: order.txt predates every wav.
     let order_txt = capture::seal::build_order_txt(seed, lines);
     let order_sha = fse::instrument::sha256_hex(order_txt.as_bytes());
-    println!("guards OK: {total} prompts, DUR={dur_secs}, RATE={rate_hz}");
+    println!("guards OK: {total} prompts, DUR={dur_secs}, RATE={native_rate} (native)");
     println!("PRECOMMIT seed={seed} order_sha256={order_sha}");
     println!("  (record this hash in the session bead notes BEFORE capturing)");
     std::fs::write(out.join("order.txt"), &order_txt).unwrap_or_else(|e| {
         eprintln!("cannot write order.txt: {e}");
         std::process::exit(1);
     });
+    let mut session_log = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(out.join("session.log"))
+        .unwrap_or_else(|e| {
+            eprintln!("cannot open session.log: {e}");
+            std::process::exit(1);
+        });
+    writeln!(
+        session_log,
+        "precommit seed={seed} order_sha256={order_sha} device={device_name} rate_hz={native_rate} dur_s={dur_secs}"
+    )
+    .ok();
     println!("--- session dir: {}", out.display());
-    println!("Mic: {device_name} @ {rate_hz}Hz mono | {total} prompts x {dur_secs}s");
+    println!("Mic: {device_name} @ {native_rate}Hz mono native | {total} prompts x {dur_secs}s");
     println!(
-        "Lead/trail silence is KEPT (do not trim). Ctrl-C abandons the session (a partial session will NOT validate)."
+        "Lead/trail silence is KEPT (do not trim). [r] redoes a take in place (logged, order unchanged). Ctrl-C abandons the session (a partial session will NOT validate)."
     );
 
-    let mut cap = MicCapture::new_with_rate(duration_ms, rate_hz).unwrap_or_else(|e| {
-        eprintln!("no usable input device at {rate_hz} Hz: {e}");
+    let mut cap = MicCapture::new(duration_ms).unwrap_or_else(|e| {
+        eprintln!("no usable input device: {e}");
         std::process::exit(1);
     });
 
     let mut rows: Vec<(String, String, u32, u32)> = Vec::new();
     for (position, prompt) in lines.iter().enumerate() {
         let stem = format!("utt{:03}", position);
-        loop {
-            match capture_one_sealed(
-                &mut cap,
-                out,
-                &stem,
-                prompt,
-                position + 1,
-                total,
-                dur_secs,
-                expected_frames,
-            ) {
-                Some((rate, n)) => {
-                    rows.push((format!("{stem}.wav"), prompt.clone(), rate, n as u32));
-                    break;
-                }
-                None => continue, // short take: same prompt again
-            }
-        }
+        let (rate, n) = capture_one_sealed(
+            &mut cap,
+            out,
+            &stem,
+            prompt,
+            position + 1,
+            total,
+            dur_secs,
+            expected_frames,
+            native_rate,
+            &mut session_log,
+        );
+        rows.push((format!("{stem}.wav"), prompt.clone(), rate, n as u32));
     }
 
     let manifest_tsv = capture::seal::build_manifest_tsv(&rows);
@@ -297,7 +385,7 @@ fn run_sealed(out: &Path, lines: &[String], rate_hz: u32, dur_secs: f64) {
     });
     let meta = capture::seal::build_session_meta(
         &device_name,
-        rate_hz,
+        native_rate,
         &capture::seal::utc_now_string(),
         seed,
         &order_sha,
@@ -326,8 +414,6 @@ fn main() {
     let mut enroll_only = false;
     let mut resume_at: Option<usize> = None;
     let mut max_utterances: Option<usize> = None;
-    let mut rate_hz: u32 = 44100;
-    let mut rate_given = false;
     let mut dur_secs: f64 = 3.0;
     let mut no_enroll = false;
     let mut sealed = false;
@@ -349,14 +435,6 @@ fn main() {
             }
             "--utterances" => {
                 max_utterances = args.next().unwrap_or_else(|| usage()).parse().ok();
-            }
-            "--rate" => {
-                rate_hz = args
-                    .next()
-                    .unwrap_or_else(|| usage())
-                    .parse()
-                    .unwrap_or_else(|_| usage());
-                rate_given = true;
             }
             "--dur" => {
                 dur_secs = args
@@ -397,10 +475,6 @@ fn main() {
     if sealed && (enroll_only || resume_at.is_some() || max_utterances.is_some()) {
         usage();
     }
-    if rate_given && !sealed && continuous.is_none() {
-        eprintln!("--rate is sealed-only");
-        usage();
-    }
     if let Some(secs) = continuous {
         if sealed || enroll_only || resume_at.is_some() || max_utterances.is_some() {
             eprintln!("--continuous takes no takes-mode flags");
@@ -408,10 +482,6 @@ fn main() {
         }
         if script.is_some() || dur_given {
             eprintln!("--continuous takes no --script/--dur (window is SECS)");
-            usage();
-        }
-        if !rate_given {
-            eprintln!("--continuous requires --rate (sealed sessions are 16kHz)");
             usage();
         }
         if !(1.0..=600.0).contains(&secs) {
@@ -471,7 +541,7 @@ fn main() {
     });
 
     if let Some(secs) = continuous {
-        run_sealed(&out, &[format!("continuous-{secs}s")], rate_hz, secs);
+        run_sealed(&out, &[format!("continuous-{secs}s")], secs);
         return;
     }
 
@@ -496,7 +566,7 @@ fn main() {
             eprintln!("sealed session requires --script");
             std::process::exit(1);
         }
-        run_sealed(&out, &lines, rate_hz, dur_secs);
+        run_sealed(&out, &lines, dur_secs);
         return;
     }
 
@@ -546,6 +616,26 @@ fn main() {
         })
     };
 
+    // RS1-a: per-attempt log (redos + silent retries) and guard metadata.
+    let mut session_log = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(out.join("session.log"))
+        .unwrap_or_else(|e| {
+            eprintln!("cannot open session.log: {e}");
+            std::process::exit(1);
+        });
+    if resume_at.is_none() {
+        std::fs::write(
+            out.join("session.meta"),
+            format!(
+                "host={}\nclick_guard_ms=250\ndur_s={dur_secs}\n",
+                std::env::consts::OS
+            ),
+        )
+        .ok();
+    }
+
     if resume_at.is_none() && !no_enroll {
         // Enrollment first: the fixed prompt, always `enroll.wav`.
         let (rate, n) = capture_one(
@@ -554,6 +644,7 @@ fn main() {
             "enroll",
             calibration::ENROLLMENT_PROMPT,
             dur_secs,
+            &mut session_log,
         );
         writeln!(
             manifest,
@@ -569,7 +660,14 @@ fn main() {
 
     for (index, expected) in selected {
         let stem = utterance_stem(index);
-        let (rate, n) = capture_one(&mut cap, &out, &stem, &expected, dur_secs);
+        let (rate, n) = capture_one(
+            &mut cap,
+            &out,
+            &stem,
+            &expected,
+            dur_secs,
+            &mut session_log,
+        );
         writeln!(manifest, "{stem}.wav\t{expected}\t{rate}\t{n}").ok();
     }
     println!("done; manifest at {}", manifest_path.display());

@@ -54,9 +54,9 @@ impl MicCapture {
             duration_ms,
         })
     }
-    /// Capture at an explicitly requested mono rate (e.g. 16000 Hz for the
-    /// sealed instrument) instead of the device default. Fails closed when
-    /// no mono input config covers `rate_hz`.
+    /// Capture at an explicitly requested mono rate instead of the device
+    /// default. Fails closed when no mono input config covers `rate_hz`.
+    /// (Kept for custom tooling; record-session captures native-only.)
     pub fn new_with_rate(duration_ms: u64, rate_hz: u32) -> Result<Self, CaptureError> {
         use cpal::traits::{DeviceTrait, HostTrait};
         let host = cpal::default_host();

@@ -4,31 +4,29 @@ Each item is GREEN or a named blocker, with the exact verification command.
 Recording (docs/OWNER-RECORDING-RUNBOOK.md) starts only when all four are
 GREEN and the coordinator has said "cleared to record" after the smoke test.
 
-## 1. Windows recorder built (RS1-a) — RED
+## 1. Windows recorder built (unified + sealed redo + native rate) — GREEN
 
-Blocker B-REC-1 (unify): two divergent recorders exist, neither does the
-whole job. The Windows clone
-(`C:\Users\micha\repos\hearsay-four-win`, commits `be8b49f`/`76fc45b`,
-unknown to main) has RS1-a UX — `[r]` redo, click guard, per-attempt log,
-`#` comment skipping — in a 375-line `record-session.rs` with NO sealed
-mode (`seal`: 0 matches). Main's recorder (621 lines) has sealed sessions,
-PRECOMMIT, and `--validate`, but no redo and no click guard. The GO plan
-needs both (redo smoke test + sealed phase-tests) in one binary.
+2026-11-02: `record-session.rs` is byte-identical between main and the
+Windows clone (unify complete): RS1-a UX (`[r]` redo, click guard,
+per-attempt `session.log`, `#` comment skipping) in BOTH modes, sealed
+sessions with PRECOMMIT, and `--validate`. Sealed takes offer `[r]` redo
+(replaces the take in place, logged, order unchanged — seal stays valid).
+All modes capture at device native rate (no `--rate` flag; the
+canonicalizer resamples once downstream per RS-1 §1).
 
-Blocker B-REC-2 (rebuild): the current
-`src\capture\target\debug\record-session.exe` is dated Oct 26 17:47 and
-predates the Oct 31 RS1-a source (31 Oct 12:22) — it has neither feature
-set. Rebuild on Windows after the unify lands:
+Rebuilt on Windows 2026-11-02 13:53 (incremental `cargo build
+--features mic` via interop). Observed:
 
 ```powershell
-cd C:\Users\micha\repos\hearsay-four-win\src\capture
-cargo build --features mic --bin record-session
-.\target\debug\record-session.exe --list-devices   # expect fifine, exit 0
+.\target\debug\record-session.exe --list-devices   # fifine present, exit 0
+.\target\debug\record-session.exe --help           # no --rate; native-rate notes
 ```
 
-Verify (green criteria): exe mtime newer than
+Verify (green criteria, all observed): exe mtime newer than
 `src\capture\src\bin\record-session.rs`, `--list-devices` exit 0, and
-`--validate` on a sealed session prints VALID (see item 4).
+`--validate --labels 3 --dur 3` on a synthetic 48 kHz sealed session
+prints VALID while bare `--validate` REJECTs it (frozen 30-word 16 kHz
+seal intact — see item 4).
 
 ## 2. Canonicalizer QC ready — GREEN
 
@@ -57,6 +55,12 @@ smoke session, then the six GO sessions, before scoring anything.
 | read-PHASE-TEST-01 | `sessions/prompts-read-phase-test-01.txt` | 50 | committed (RS1-d GO cut) |
 | fly-PHASE-TEST-01 | `sessions/prompts-fly-phase-test-01.txt` | 15 | committed (RS1-d GO cut) |
 | words30-PHASE-TEST-01 | `sessions/script-wave3.txt` | 30 | committed |
+| smoke-SEALED-01 | `sessions/prompts-smoke-sealed-01.txt` | 3 | 3-line sealed smoke (2026-11-02) |
+
+The owner records in the Windows clone, so all seven files are copied to
+`C:\Users\micha\repos\hearsay-four-win\sessions\` (copy step, not a git
+operation — the win clone is a build/record tree). Re-copy after any
+prompt change.
 
 New cuts carry `#` provenance headers (`source_sha256`,
 `content_lines`) in the RS1-d format; both recorders skip `#` lines.
@@ -84,6 +88,13 @@ cargo build -p capture --features mic --bin record-session  # Finished, OK
 ./target/debug/record-session --validate sessions/phase-test-20261031-100240
 # VALID: sessions/phase-test-20261031-100240, exit 0 (observed 2026-11-01)
 ```
+
+2026-11-02: new sealed sessions capture at native rate and validate via
+the general path (`--validate DIR --labels N --dur S`, plausibility +
+consistency checks — `cargo test -p fse`: 77 passed, incl. 48 kHz accept
+/ mixed-rate reject / implausible-rate reject). Bare `--validate` is the
+frozen 30-word 16 kHz seal: byte-identical code, still re-checks the
+October evidence, REJECTs native-rate sessions by design.
 
 Note: live end-to-end sealed capture still happens first at recording
 time (no mic in lanes); every sealed session in the runbook is followed

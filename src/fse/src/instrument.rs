@@ -23,6 +23,20 @@ const VOCAB_TXT: &str = include_str!("../../../sessions/script-wave3.txt");
 
 pub const EXPECTED_LABELS: usize = 30;
 pub const RATE_HZ: u32 = 16_000;
+
+/// Device sample rates a general-path sealed session may declare. The
+/// recorder captures at the device native rate (RS-1 section 1: no
+/// capture-time resampling; the canonicalizer resamples once downstream),
+/// so the general validator checks the declared rate is plausible and
+/// that every take matches it, instead of pinning one rate. The frozen
+/// 30-word seal still pins [`RATE_HZ`].
+pub const PLAUSIBLE_RATES: [u32; 7] = [8000, 11025, 16000, 22050, 44100, 48000, 96000];
+
+/// True when `rate_hz` is a plausible device sample rate for a sealed
+/// session (see [`PLAUSIBLE_RATES`]).
+pub fn is_plausible_rate(rate_hz: u32) -> bool {
+    PLAUSIBLE_RATES.contains(&rate_hz)
+}
 pub const MIN_SECS: f64 = 2.5;
 pub const MAX_SECS: f64 = 3.5;
 
@@ -391,10 +405,13 @@ pub fn validate_session_general(
     let meta_kept: usize = need("kept")?
         .parse()
         .map_err(|_| "REJECT: session.meta kept not a number".to_string())?;
-    // 2. Rate claim.
-    if meta_rate != RATE_HZ {
+    // 2. Rate claim: native-rate instruments declare the device rate, so
+    // the meta rate must be plausible; every take's header must match it
+    // (check 8, below). The frozen 30-word seal pins 16 kHz; this
+    // general path must not.
+    if !is_plausible_rate(meta_rate) {
         return Err(format!(
-            "REJECT: session.meta rate_hz={meta_rate}, need {RATE_HZ}"
+            "REJECT: session.meta rate_hz={meta_rate}, need one of {PLAUSIBLE_RATES:?}"
         ));
     }
     // 3. order.txt exists, hash matches, seed line matches, expected labels.
@@ -517,17 +534,18 @@ pub fn validate_session_general(
             None => return Err(format!("REJECT: SHA256SUMS has no entry for {n}")),
         }
     }
-    // 8+9. Headers (PCM16 mono 16k, manifest cross-check) + window.
+    // 8+9. Headers (PCM16 mono at the declared meta rate, manifest
+    // cross-check) + window.
     for (file, _, mrate, mframes) in &rows {
         let (spec, n_probed) = corpus::audio::wav_probe(&dir.join(file))
             .map_err(|e| format!("REJECT: {file} unreadable WAV: {e}"))?;
         if spec.channels != 1
-            || spec.sample_rate != RATE_HZ
+            || spec.sample_rate != meta_rate
             || spec.bits_per_sample != 16
             || spec.sample_format != hound::SampleFormat::Int
         {
             return Err(format!(
-                "REJECT: {file} must be PCM16 mono {RATE_HZ}Hz, got ch={} rate={} bits={} fmt={:?}",
+                "REJECT: {file} must be PCM16 mono {meta_rate}Hz, got ch={} rate={} bits={} fmt={:?}",
                 spec.channels, spec.sample_rate, spec.bits_per_sample, spec.sample_format
             ));
         }
@@ -746,6 +764,87 @@ mod tests {
         }
         std::fs::write(dir.join("SHA256SUMS"), &sums).unwrap();
     }
+    /// Build an N-label general session at an explicit device rate
+    /// (native-rate instrument output; content is silence, which the
+    /// validator never inspects).
+    fn build_general_session_at_rate(dir: &Path, labels: &[&str], secs: f64, rate: u32) {
+        let seed = 11u64;
+        let frames = (secs * rate as f64).round() as u32;
+        let mut manifest = String::from("file\tword\trate_hz\tframes\n");
+        for (i, w) in labels.iter().enumerate() {
+            let fname = format!("utt{i:03}.wav");
+            write_rate_wav(&dir.join(&fname), rate, secs);
+            manifest.push_str(&format!("{fname}\t{w}\t{rate}\t{frames}\n"));
+        }
+        std::fs::write(dir.join("manifest.tsv"), &manifest).unwrap();
+        let mut order_txt = format!("seed {seed}\n");
+        for w in labels {
+            order_txt.push_str(w);
+            order_txt.push('\n');
+        }
+        std::fs::write(dir.join("order.txt"), &order_txt).unwrap();
+        let meta = format!(
+            "device=fixture\nrate_hz={rate}\ndate_utc=2026-10-29T00:00:00Z\nseed={seed}\norder_sha256={}\nmanifest_sha256={}\nrecorder_commit=fixture\nkept={}\n",
+            sha256_hex(&std::fs::read(dir.join("order.txt")).unwrap()),
+            sha256_hex(&std::fs::read(dir.join("manifest.tsv")).unwrap()),
+            labels.len(),
+        );
+        std::fs::write(dir.join("session.meta"), &meta).unwrap();
+        let mut names: Vec<String> = (0..labels.len())
+            .map(|i| format!("utt{i:03}.wav"))
+            .collect();
+        names.push("manifest.tsv".to_string());
+        names.push("order.txt".to_string());
+        let mut sums = String::new();
+        for n in &names {
+            let b = std::fs::read(dir.join(n)).unwrap();
+            sums.push_str(&format!("{}  {n}\n", sha256_hex(&b)));
+        }
+        std::fs::write(dir.join("SHA256SUMS"), &sums).unwrap();
+    }
+
+    #[test]
+    fn general_accepts_native_rate_session() {
+        let dir = test_dir("general48k");
+        let labels = ["the birch canoe", "glue the sheet", "dark blue background"];
+        build_general_session_at_rate(&dir, &labels, 8.0, 48_000);
+        let s = validate_session_general(&dir, 3, 8.0).expect("48k native session accepts");
+        assert_eq!(s.labels, 3);
+    }
+
+    #[test]
+    fn general_rejects_take_rate_mismatch() {
+        let dir = test_dir("general48k_mix");
+        let labels = ["the birch canoe", "glue the sheet", "dark blue background"];
+        build_general_session_at_rate(&dir, &labels, 8.0, 48_000);
+        // One take at another rate, manifest row fixed to its header so the
+        // meta-rate check (not the frames cross-check) is what fires.
+        write_rate_wav(&dir.join("utt001.wav"), 16_000, 8.0);
+        let m = std::fs::read_to_string(dir.join("manifest.tsv")).unwrap();
+        let fixed = m.replace(
+            "utt001.wav\tglue the sheet\t48000\t384000",
+            "utt001.wav\tglue the sheet\t16000\t128000",
+        );
+        assert_ne!(m, fixed);
+        std::fs::write(dir.join("manifest.tsv"), fixed).unwrap();
+        refresh_hashes(&dir);
+        let e = validate_session_general(&dir, 3, 8.0).expect_err("mixed rates reject");
+        assert!(e.contains("utt001.wav"), "violation: {e}");
+        assert!(e.contains("48000"), "violation: {e}");
+    }
+
+    #[test]
+    fn general_rejects_implausible_rate() {
+        let dir = test_dir("general_badrate");
+        let labels = ["the birch canoe", "glue the sheet", "dark blue background"];
+        build_general_session_at_rate(&dir, &labels, 8.0, 48_000);
+        let meta_path = dir.join("session.meta");
+        let meta = std::fs::read_to_string(&meta_path).unwrap();
+        std::fs::write(meta_path, meta.replace("rate_hz=48000", "rate_hz=12345")).unwrap();
+        let e = validate_session_general(&dir, 3, 8.0).expect_err("implausible rate rejects");
+        assert!(e.contains("12345"), "violation: {e}");
+    }
+
     #[test]
     fn general_accepts_phrase_labels() {
         let dir = test_dir("general7");
