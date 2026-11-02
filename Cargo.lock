@@ -1445,6 +1445,7 @@ dependencies = [
  "invariant_ppt",
  "lattice",
  "lexicon",
+ "lm",
  "output",
  "sequence",
  "serde_json",

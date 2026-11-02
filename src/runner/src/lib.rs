@@ -14,6 +14,7 @@
 //! stages 1→2→3 per the fail-fast framing in synthesis §6.
 
 pub mod decode_stream;
+pub mod demo_transcribe;
 pub mod live;
 pub mod rtf;
 pub mod vad;

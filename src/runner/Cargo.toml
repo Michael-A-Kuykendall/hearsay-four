@@ -18,6 +18,7 @@ sequence = { path = "../sequence" }
 output = { path = "../output" }
 decoder = { path = "../decoder" }
 lattice = { path = "../lattice" }
+lm = { path = "../lm" }
 
 [dev-dependencies]
 # MIC-1 (bead hearsay-four-4zx): the hermetic live gate exercises the

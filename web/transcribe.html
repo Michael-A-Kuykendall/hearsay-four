@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hearsay-IV file-transcription demo (8-mix + why panel)</title>
+<!--
+  LANE D demo viewer (bead hearsay-four-wgit--why-panel-demo-script).
+  GENERATED DATA: run web/demo.sh from the repo root first; it writes
+    web/demo-out/demo-transcripts.json (array of transcript objects, one per
+    fixed demo file, each word carrying a `why` panel object).
+  SERVE: python3 -m http.server 8000   # then open /web/transcribe.html
+  The page fetches ./demo-out/demo-transcripts.json over http; under file://
+  it falls back to a file picker. No network beyond local fetch, no WASM,
+  no model, no AI: pure rendering of the transcribe JSON.
+-->
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 76ch; margin: 2em auto; padding: 0 1em; }
+  .notice { background: #fff8e1; border: 1px solid #d9b400; padding: 0.8em; margin: 1em 0; }
+  .utt { border: 1px solid #999; margin: 1.2em 0; padding: 0.8em; }
+  .utt h2 { margin: 0 0 0.3em 0; font-size: 1.05em; }
+  .meta { color: #444; font-size: 0.9em; margin-bottom: 0.5em; }
+  .text { font-size: 1.1em; margin: 0.4em 0; }
+  .word { border: 1px solid #ccc; margin: 0.4em 0; padding: 0.4em; cursor: pointer; }
+  .word .why { display: none; margin-top: 0.4em; font-size: 0.9em; }
+  .word.open .why { display: block; }
+  .why div { margin: 0.25em 0; }
+  .k { font-weight: bold; }
+  .tbd { color: #a60; font-weight: bold; }
+  #status { font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>Hearsay-IV file-transcription demo (8-mix + why panel)</h1>
+
+<div class="notice">
+  <strong>classical pipeline, no-model guard:</strong> transcripts come from
+  <code>hearsay-transcribe</code> (HMM-GMM acoustic model, Kneser-Ney LM,
+  Viterbi search — no neural net, transformer, embedding model, or learned
+  weights). The model path is a single config value
+  (<code>demo_transcribe::DEFAULT_AM</code>) so a later model swap touches one
+  line. This page only renders the JSON; it scores nothing.
+</div>
+
+<p id="status">loading demo transcripts…</p>
+<p id="picker" style="display:none">
+  <input type="file" id="file" accept="application/json">
+  <span>pick web/demo-out/demo-transcripts.json (fetch needs http; see the SERVE note)</span>
+</p>
+<div id="out"></div>
+
+<script>
+const status = (t) => { document.getElementById('status').textContent = t; };
+
+async function boot() {
+  try {
+    const res = await fetch('./demo-out/demo-transcripts.json');
+    if (!res.ok) throw new Error('http ' + res.status);
+    render(await res.json(), 'web/demo-out/demo-transcripts.json');
+  } catch (e) {
+    status('auto-load failed (' + e.message + '); use the file picker.');
+    document.getElementById('picker').style.display = 'block';
+  }
+}
+
+document.getElementById('file').addEventListener('change', async (e) => {
+  if (!e.target.files[0]) return;
+  render(JSON.parse(await e.target.files[0].text()), e.target.files[0].name);
+});
+
+/** Render transcripts with click-a-word why panels (all five elements). */
+function render(items, ref) {
+  const out = document.getElementById('out');
+  out.innerHTML = '';
+  if (!Array.isArray(items) || items.length === 0) {
+    status('no transcripts in ' + ref);
+    return;
+  }
+  status('done: ' + items.length + ' files from ' + ref + ' (click a word for its why panel).');
+  items.forEach((item) => {
+    const box = document.createElement('div');
+    box.className = 'utt';
+    const head = document.createElement('h2');
+    head.textContent = item.utt_id || '(no id)';
+    box.appendChild(head);
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = (item.input || '') + ' — ' +
+      Number(item.audio_secs).toFixed(2) + 's audio, ' +
+      Number(item.decode_secs).toFixed(2) + 's decode';
+    box.appendChild(meta);
+    const text = document.createElement('p');
+    text.className = 'text';
+    text.textContent = item.text || '';
+    box.appendChild(text);
+    (item.words || []).forEach((w) => {
+      const div = document.createElement('div');
+      div.className = 'word';
+      const why = w.why || {};
+      const alts = why.alternatives || [];
+      div.innerHTML =
+        '<strong>' + escapeHtml(w.text) + '</strong> ' +
+        '[' + w.start_ms + 'ms-' + w.end_ms + 'ms] ' +
+        '<em>(click for why panel)</em>' +
+        '<div class="why">' +
+          '<div><span class="k">ACOUSTIC:</span> score ' + fmtNum(why.acoustic_score) +
+            ' — ' + escapeHtml(why.acoustic_note || '') + '</div>' +
+          '<div><span class="k">LOSING ALTERNATIVES:</span> ' +
+            (alts.length ? escapeHtml(alts.join(', ')) : '(none)') +
+            ' — ' + escapeHtml(why.alternatives_note || '') + '</div>' +
+          '<div><span class="k">LM:</span> P(' + escapeHtml(w.text) +
+            ' | ' + escapeHtml((why.lm_history || []).join(', ')) + ') = ' +
+            fmtNum(why.lm_probability) + '</div>' +
+          '<div><span class="k">LEXICON:</span> ' + escapeHtml(why.lexicon_source || '(missing)') + '</div>' +
+          '<div><span class="k">FABRIC:</span> <span class="tbd">' +
+            escapeHtml(why.fabric_events || '') + '</span> — ' +
+            escapeHtml(why.fabric_note || '') + '</div>' +
+        '</div>';
+      div.addEventListener('click', () => div.classList.toggle('open'));
+      box.appendChild(div);
+    });
+    out.appendChild(box);
+  });
+}
+
+function fmtNum(v) {
+  return (typeof v === 'number' && isFinite(v)) ? String(Math.round(v * 1e6) / 1e6) : '(missing)';
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+boot();
+</script>
+</body>
+</html>
