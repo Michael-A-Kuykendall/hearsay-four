@@ -628,6 +628,7 @@ impl WordRecord {
 pub mod readable;
 pub mod streaming;
 pub mod why;
+pub mod why_text;
 
 // ---------------------------------------------------------------------------
 // Word-level WER scorer (bead hearsay-four-chd, lane A2).
