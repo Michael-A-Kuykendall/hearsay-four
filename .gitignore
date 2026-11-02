@@ -56,6 +56,11 @@ __pycache__/
 /.openstate
 track-b/
 
+# --- Release audit bulk (bead hearsay-four-rw9q): session transcripts and
+# --- state exports stay in the private audit archive, never in public git.
+docs/audit/transcripts/
+docs/audit/openstate-export-*.json
+
 # --- GO 2026-10-31: corpora + personal artifacts (never tracked) ---
 data/librispeech/
 data/lm-text/
