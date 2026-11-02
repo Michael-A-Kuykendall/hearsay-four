@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="702" viewBox="0 0 1280 702" font-family="sans-serif">
+<rect width="1280" height="702" fill="#ffffff"/>
+<text x="20" y="30" font-size="22" font-weight="bold" fill="#1a1a1a">Hearsay-IV — build lanes (bead-verified, Nov 2)</text>
+<text x="20" y="52" font-size="13" fill="#555">green=closed · orange=in progress · blue=open · data: lanes.tsv (bd + git log)</text>
+<line x1="300.0" y1="58" x2="300.0" y2="650" stroke="#d8d8d8"/>
+<text x="300.0" y="52" font-size="12" text-anchor="middle" fill="#555">Oct 26</text>
+<line x1="404.4" y1="58" x2="404.4" y2="650" stroke="#d8d8d8"/>
+<text x="404.4" y="52" font-size="12" text-anchor="middle" fill="#555">Oct 27</text>
+<line x1="508.9" y1="58" x2="508.9" y2="650" stroke="#d8d8d8"/>
+<text x="508.9" y="52" font-size="12" text-anchor="middle" fill="#555">Oct 28</text>
+<line x1="613.3" y1="58" x2="613.3" y2="650" stroke="#d8d8d8"/>
+<text x="613.3" y="52" font-size="12" text-anchor="middle" fill="#555">Oct 29</text>
+<line x1="717.8" y1="58" x2="717.8" y2="650" stroke="#d8d8d8"/>
+<text x="717.8" y="52" font-size="12" text-anchor="middle" fill="#555">Oct 30</text>
+<line x1="822.2" y1="58" x2="822.2" y2="650" stroke="#d8d8d8"/>
+<text x="822.2" y="52" font-size="12" text-anchor="middle" fill="#555">Oct 31</text>
+<line x1="926.7" y1="58" x2="926.7" y2="650" stroke="#d8d8d8"/>
+<text x="926.7" y="52" font-size="12" text-anchor="middle" fill="#555">Nov 01</text>
+<line x1="1031.1" y1="58" x2="1031.1" y2="650" stroke="#d8d8d8"/>
+<text x="1031.1" y="52" font-size="12" text-anchor="middle" fill="#555">Nov 02</text>
+<line x1="1135.6" y1="58" x2="1135.6" y2="650" stroke="#d8d8d8"/>
+<text x="1135.6" y="52" font-size="12" text-anchor="middle" fill="#555">Nov 03</text>
+<line x1="1240.0" y1="58" x2="1240.0" y2="650" stroke="#d8d8d8"/>
+<text x="1240.0" y="52" font-size="12" text-anchor="middle" fill="#555">Nov 04</text>
+<line x1="1240.0" y1="58" x2="1240.0" y2="650" stroke="#c00" stroke-dasharray="5,4" stroke-width="2"/>
+<text x="1240.0" y="670" font-size="12" text-anchor="middle" fill="#c00">deadline Nov 4 9PM ET</text>
+<line x1="1031.1" y1="58" x2="1031.1" y2="650" stroke="#888" stroke-dasharray="3,3"/>
+<text x="1031.1" y="670" font-size="12" text-anchor="middle" fill="#555">today Nov 2</text>
+<text x="20" y="90" font-size="14" font-weight="bold" fill="#1a1a1a">pre</text>
+<rect x="300.0" y="74" width="6.0" height="22" rx="4" fill="#2f7d32" opacity="0.85"/>
+<text x="306.0" y="91" font-size="12.5" fill="#fff">◀ Fabric core (pre-existing): saturation fabric, D-1 fix, 204 tests</text>
+<title>Fabric core (pre-existing): saturation fabric, D-1 fix, 204 tests — 11 crates, ~78 beads; not hackathon work</title>
+<text x="20" y="134" font-size="14" font-weight="bold" fill="#1a1a1a">oct26</text>
+<rect x="300.0" y="118" width="6.0" height="22" rx="4" fill="#2f7d32" opacity="0.85"/>
+<text x="306.0" y="135" font-size="12.5" fill="#fff">Oct 26 lap: 11 subagents, 15 beads + 5 epics, 204 -&gt; 243</text>
+<title>Oct 26 lap: 11 subagents, 15 beads + 5 epics, 204 -&gt; 243 — $0 of $150 credits; see META-HACKATHON.md</title>
+<text x="20" y="178" font-size="14" font-weight="bold" fill="#1a1a1a">oct28</text>
+<rect x="508.9" y="162" width="313.3" height="22" rx="4" fill="#2f7d32" opacity="0.85"/>
+<text x="514.9" y="179" font-size="12.5" fill="#fff">Acoustic track: hmm/lm/lattice/eval/decoder/a2 + R1/R3</text>
+<title>Acoustic track: hmm/lm/lattice/eval/decoder/a2 + R1/R3 — crate-add commits 7c67e66..449558a</title>
+<text x="20" y="222" font-size="14" font-weight="bold" fill="#1a1a1a">A1 · 8znj</text>
+<rect x="926.7" y="206" width="104.4" height="22" rx="4" fill="#d97b00" opacity="0.85"/>
+<polygon points="1031.1,206 1043.1,217 1031.1,228" fill="#d97b00"/>
+<text x="932.7" y="223" font-size="12.5" fill="#fff">Main-model pick, full tune, headline gate</text>
+<title>Main-model pick, full tune, headline gate — verdict CMVN_WINS landed; fullgate running</title>
+<text x="20" y="266" font-size="14" font-weight="bold" fill="#1a1a1a">A0 · qi9u</text>
+<rect x="926.7" y="250" width="104.4" height="22" rx="4" fill="#d97b00" opacity="0.85"/>
+<polygon points="1031.1,250 1043.1,261 1031.1,272" fill="#d97b00"/>
+<text x="932.7" y="267" font-size="12.5" fill="#fff">CMVN retrain run + verdict</text>
+<title>CMVN retrain run + verdict — 4 iters staged, verdict line landed Nov 2</title>
+<text x="20" y="310" font-size="14" font-weight="bold" fill="#1a1a1a">B1 · ivpu+zs89</text>
+<rect x="926.7" y="294" width="104.4" height="22" rx="4" fill="#2f7d32" opacity="0.85"/>
+<text x="932.7" y="311" font-size="12.5" fill="#fff">Triphone tying + 1h pipeline</text>
+<title>Triphone tying + 1h pipeline — merged c940b45; probe re-measure queued (3n2g)</title>
+<text x="20" y="354" font-size="14" font-weight="bold" fill="#1a1a1a">C1 · 0htm</text>
+<rect x="926.7" y="338" width="104.4" height="22" rx="4" fill="#2f7d32" opacity="0.85"/>
+<text x="932.7" y="355" font-size="12.5" fill="#fff">Frontend guard + streaming path</text>
+<title>Frontend guard + streaming path — merged cd37544</title>
+<text x="20" y="398" font-size="14" font-weight="bold" fill="#1a1a1a">D1 · xels+wgit</text>
+<rect x="926.7" y="382" width="104.4" height="22" rx="4" fill="#2f7d32" opacity="0.85"/>
+<text x="932.7" y="399" font-size="12.5" fill="#fff">File transcription + why panel + demo</text>
+<title>File transcription + why panel + demo — merged 2fba434; web/demo.sh green</title>
+<text x="20" y="442" font-size="14" font-weight="bold" fill="#1a1a1a">E1 · 9ud8</text>
+<rect x="926.7" y="426" width="104.4" height="22" rx="4" fill="#2f7d32" opacity="0.85"/>
+<text x="932.7" y="443" font-size="12.5" fill="#fff">Adaptation plumbing + runbook</text>
+<title>Adaptation plumbing + runbook — merged 1c8e74c</title>
+<text x="20" y="486" font-size="14" font-weight="bold" fill="#1a1a1a">F1 · 7zuh</text>
+<rect x="926.7" y="470" width="104.4" height="22" rx="4" fill="#2f7d32" opacity="0.85"/>
+<text x="932.7" y="487" font-size="12.5" fill="#fff">Number ledger + writeup draft</text>
+<title>Number ledger + writeup draft — merged 729f7d9</title>
+<text x="20" y="530" font-size="14" font-weight="bold" fill="#1a1a1a">W2 · 3n2g+r3pg</text>
+<rect x="1031.1" y="514" width="6.0" height="22" rx="4" fill="#4a6fa5" opacity="0.85"/>
+<polygon points="1037.1,514 1049.1,525 1037.1,536" fill="#4a6fa5"/>
+<text x="1037.1" y="531" font-size="12.5" fill="#fff">Triphone re-measure + 16-mix overnight</text>
+<title>Triphone re-measure + 16-mix overnight — 16-mix runs night of Nov 2 after gate</title>
+<text x="20" y="574" font-size="14" font-weight="bold" fill="#1a1a1a">K · 0u3z</text>
+<rect x="1031.1" y="558" width="6.0" height="22" rx="4" fill="#4a6fa5" opacity="0.85"/>
+<polygon points="1037.1,558 1049.1,569 1037.1,580" fill="#4a6fa5"/>
+<text x="1037.1" y="575" font-size="12.5" fill="#fff">Headline error analysis + charts</text>
+<title>Headline error analysis + charts — waits on fullgate/cell.tsv</title>
+<text x="20" y="618" font-size="14" font-weight="bold" fill="#1a1a1a">L · xehu</text>
+<rect x="1031.1" y="602" width="6.0" height="22" rx="4" fill="#4a6fa5" opacity="0.85"/>
+<polygon points="1037.1,602 1049.1,613 1037.1,624" fill="#4a6fa5"/>
+<text x="1037.1" y="619" font-size="12.5" fill="#fff">Submission package drafts</text>
+<title>Submission package drafts — this lane; docs only</title>
+</svg>
