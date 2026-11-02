@@ -44,6 +44,13 @@ pub use vocab::{
 /// `decode` takes canonical 16 kHz mono PCM and returns a word lattice.
 /// `stream` drives live/VAD use: each call feeds one chunk and returns the
 /// current partial hypotheses.
+///
+/// Chunking/latency contract (v0, see `MooreDecoder::stream`): a chunk is
+/// any-length 16 kHz mono PCM appended to an internal buffer; each call
+/// re-decodes the whole buffer (per-chunk latency ~one batch decode of
+/// the audio so far, total work quadratic). Returns exactly one partial:
+/// the current 1-best. Callers reset between utterances so no audio or
+/// CMVN state leaks across them.
 pub trait Recognizer {
     fn decode(&self, pcm16k: &[i16]) -> Lattice;
     fn stream(&mut self, chunk: &[i16]) -> Vec<Partial>;

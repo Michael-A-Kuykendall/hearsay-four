@@ -218,14 +218,20 @@ fn main() {
         cfg.cmvn = false;
     }
     let t0 = Instant::now();
+    let selected_frontend = if args.no_cmvn {
+        fse::HMM_FRONTEND_ID_RAW
+    } else {
+        fse::HMM_FRONTEND_ID
+    };
     let decoder = MooreDecoder::load_with_vocab(&args.am, Some(&args.lm), &entries, cfg)
         .unwrap_or_else(|e| panic!("load decoder: {e}"));
     drop(entries);
     eprintln!(
-        "decoder vocab {} skipped {} lm {} load {:.1}s",
+        "decoder vocab {} skipped {} lm {} frontend {} load {:.1}s",
         decoder.vocab_size(),
         decoder.skipped_words().len(),
         decoder.has_lm(),
+        selected_frontend,
         t0.elapsed().as_secs_f64()
     );
     for s in decoder.skipped_words().iter().take(10) {

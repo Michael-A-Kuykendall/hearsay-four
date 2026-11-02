@@ -148,6 +148,26 @@ pub struct MooreDecoder {
 }
 
 impl MooreDecoder {
+    /// Frontend guard: the acoustic model must have trained on the features
+    /// this config selects (CMVN id when `cfg.cmvn`, raw id otherwise).
+    /// Legacy unstamped models warn loudly and proceed; an explicit
+    /// mismatch is refused loudly.
+    fn guard_frontend(am: &HmmSet, am_path: &Path, cfg: &DecoderConfig) -> Result<(), String> {
+        let selected = if cfg.cmvn {
+            fse::HMM_FRONTEND_ID
+        } else {
+            fse::HMM_FRONTEND_ID_RAW
+        };
+        if let Err(e) =
+            hmm::check_frontend(&am.frontend_id, selected, &am_path.display().to_string())
+        {
+            let msg = format!("FRONTEND GUARD: {e:?}");
+            eprintln!("{msg}");
+            return Err(msg);
+        }
+        Ok(())
+    }
+
     /// Load a decoder from model files.
     ///
     /// - `am_path`: acoustic `model.json` (interfaces-v1 §I2 schema).
@@ -156,7 +176,9 @@ impl MooreDecoder {
     ///
     /// Words whose phones are outside the lexicon alphabet or missing from
     /// the acoustic inventory are skipped loudly (see `skipped_words`);
-    /// malformed dict lines fail the load.
+    /// malformed dict lines fail the load. An acoustic model stamped for
+    /// the other frontend (see `cfg.cmvn`) is refused loudly; legacy
+    /// unstamped models warn and proceed.
     pub fn load(
         am_path: &Path,
         lm_path: Option<&Path>,
@@ -172,6 +194,7 @@ impl MooreDecoder {
                 fse::FEATURE_DIM
             ));
         }
+        Self::guard_frontend(&am, am_path, &cfg)?;
         let mut entries: Vec<PronEntry> = Vec::new();
         let mut skipped: Vec<String> = Vec::new();
         for (lineno, line) in dict_text.lines().enumerate() {
@@ -279,7 +302,9 @@ impl MooreDecoder {
     ///
     /// Entries with non-alphabet phones or phones missing from the acoustic
     /// inventory are skipped loudly (see [`MooreDecoder::skipped_words`]);
-    /// a surviving set of zero fails the load.
+    /// a surviving set of zero fails the load. Frontend-guard refusal is
+    /// the same as [`MooreDecoder::load`]: a model stamped for the other
+    /// frontend (see `cfg.cmvn`) fails; legacy unstamped models proceed.
     pub fn load_with_vocab(
         am_path: &Path,
         lm_path: Option<&Path>,
@@ -295,6 +320,7 @@ impl MooreDecoder {
                 fse::FEATURE_DIM
             ));
         }
+        Self::guard_frontend(&am, am_path, &cfg)?;
         let mut kept: Vec<PronEntry> = Vec::with_capacity(entries.len());
         let mut skipped: Vec<String> = Vec::new();
         for entry in entries {
@@ -737,9 +763,20 @@ impl Recognizer for MooreDecoder {
         self.decode_inner(&frames).0
     }
 
+    /// Feed one chunk; returns the current 1-best partial over the buffer.
+    ///
+    /// Chunking/latency contract (v0): a chunk is any-length 16 kHz mono
+    /// PCM and appends to an internal buffer (empty chunks re-decode
+    /// unchanged). Each call re-decodes the whole buffer, so per-chunk
+    /// latency is ~one batch decode of the audio so far and total work is
+    /// quadratic in utterance length; incremental search is follow-up work.
+    /// Returns exactly one partial: the 1-best over the whole buffer.
+    /// CMVN (when `cfg.cmvn`) uses the cumulative [`fse::CmvnLive`]
+    /// estimate over the buffer, applied past ~1 s (100 frames) and raw
+    /// below that; with `cfg.cmvn == false` the final partial equals batch
+    /// `decode` exactly. Call [`MooreDecoder::reset_stream`] between
+    /// utterances so neither audio nor CMVN state leaks across them.
     fn stream(&mut self, chunk: &[i16]) -> Vec<Partial> {
-        // v0: re-decode the whole buffer per chunk. Quadratic but correct;
-        // incremental search is follow-up work.
         self.stream_buf.extend_from_slice(chunk);
         let buffered = self.stream_buf.clone();
         let frames = self.frontend_live(&buffered);

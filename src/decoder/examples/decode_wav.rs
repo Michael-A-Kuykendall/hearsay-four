@@ -32,21 +32,34 @@ fn resample_to_16k(mono: &[i16], from_rate: u32) -> Vec<i16> {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    if args.len() < 2 {
-        eprintln!("usage: decode_wav <audio> [am.json] [lm-file]");
+    let no_cmvn = args.iter().any(|a| a == "--no-cmvn");
+    let positional: Vec<&str> = args[1..]
+        .iter()
+        .filter(|a| a.as_str() != "--no-cmvn")
+        .map(String::as_str)
+        .collect();
+    if positional.is_empty() {
+        eprintln!("usage: decode_wav <audio> [am.json] [lm-file] [--no-cmvn]");
         std::process::exit(2);
     }
-    let audio_path = PathBuf::from(&args[1]);
-    let am_path = args.get(2).map(PathBuf::from).unwrap_or_else(default_am);
-    let lm_path = args.get(3).map(PathBuf::from);
+    let audio_path = PathBuf::from(positional[0]);
+    let am_path = positional
+        .get(1)
+        .map(|s| PathBuf::from(*s))
+        .unwrap_or_else(default_am);
+    let lm_path = positional.get(2).map(|s| PathBuf::from(*s));
 
     let audio = corpus::audio::decode_file(&audio_path).expect("decode audio");
     let pcm16k = resample_to_16k(&corpus::audio::to_mono(&audio), audio.sample_rate);
+    let mut cfg = DecoderConfig::default();
+    if no_cmvn {
+        cfg.cmvn = false;
+    }
     let decoder = MooreDecoder::load(
         &am_path,
         lm_path.as_deref(),
         lexicon::CLOSED_VOCABULARY_CMUDICT,
-        DecoderConfig::default(),
+        cfg,
     )
     .expect("load decoder");
     eprintln!(

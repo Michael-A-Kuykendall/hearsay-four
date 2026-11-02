@@ -299,3 +299,157 @@ fn large_vocab_load_from_tiered_lexicon() {
     let lattice = decoder.decode(clip);
     assert!(!lattice.tokens.is_empty());
 }
+
+// ---- Frontend guard (decoder side): model stamp vs selected frontend. ----
+
+/// Two-word dict over si_base phones (same as the lookahead tests).
+fn tiny_dict() -> &'static str {
+    "HOTBED HH AA T B EH D\nRIPPLE R IH P AH L\n"
+}
+
+/// Copy si_base stamped with `frontend_id` into a temp file.
+fn stamped_am_path(tag: &str, frontend_id: Option<&str>) -> PathBuf {
+    let mut model = hmm::HmmSet::load_text(&am_path()).expect("load si_base");
+    model.frontend_id = frontend_id.map(str::to_string);
+    let path =
+        std::env::temp_dir().join(format!("decoder-guard-{tag}-{}.json", std::process::id()));
+    model.save_text(&path).expect("save stamped am");
+    path
+}
+
+#[test]
+fn guard_match_cmvn_passes() {
+    let stamped = stamped_am_path("cmvn", Some(fse::HMM_FRONTEND_ID));
+    let decoder = MooreDecoder::load(&stamped, None, tiny_dict(), DecoderConfig::default())
+        .expect("cmvn-stamped AM with cmvn cfg must load");
+    std::fs::remove_file(&stamped).ok();
+    assert_eq!(decoder.vocab_size(), 2);
+}
+
+#[test]
+fn guard_match_raw_passes() {
+    let stamped = stamped_am_path("raw", Some(fse::HMM_FRONTEND_ID_RAW));
+    let cfg = DecoderConfig {
+        cmvn: false,
+        ..DecoderConfig::default()
+    };
+    let decoder = MooreDecoder::load(&stamped, None, tiny_dict(), cfg)
+        .expect("raw-stamped AM with raw cfg must load");
+    std::fs::remove_file(&stamped).ok();
+    assert_eq!(decoder.vocab_size(), 2);
+}
+
+#[test]
+fn guard_mismatch_refuses_and_names_both() {
+    // Raw-stamped AM under the default (CMVN) config.
+    let raw = stamped_am_path("mismatch-raw", Some(fse::HMM_FRONTEND_ID_RAW));
+    let err = match MooreDecoder::load(&raw, None, tiny_dict(), DecoderConfig::default()) {
+        Ok(_) => panic!("raw AM + cmvn cfg must refuse"),
+        Err(e) => e,
+    };
+    std::fs::remove_file(&raw).ok();
+    assert!(
+        err.contains(fse::HMM_FRONTEND_ID_RAW) && err.contains(fse::HMM_FRONTEND_ID),
+        "error must name both sides: {err}"
+    );
+    // CMVN-stamped AM under a raw config.
+    let cmvn = stamped_am_path("mismatch-cmvn", Some(fse::HMM_FRONTEND_ID));
+    let cfg = DecoderConfig {
+        cmvn: false,
+        ..DecoderConfig::default()
+    };
+    let err = match MooreDecoder::load(&cmvn, None, tiny_dict(), cfg) {
+        Ok(_) => panic!("cmvn AM + raw cfg must refuse"),
+        Err(e) => e,
+    };
+    std::fs::remove_file(&cmvn).ok();
+    assert!(
+        err.contains(fse::HMM_FRONTEND_ID_RAW) && err.contains(fse::HMM_FRONTEND_ID),
+        "error must name both sides: {err}"
+    );
+}
+
+#[test]
+fn guard_mismatch_refuses_in_load_with_vocab() {
+    let raw = stamped_am_path("vocab-raw", Some(fse::HMM_FRONTEND_ID_RAW));
+    let entries = vec![decoder::PronEntry {
+        word: "HOTBED".to_string(),
+        phones: ["HH", "AA", "T", "B", "EH", "D"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
+    }];
+    let err = match MooreDecoder::load_with_vocab(&raw, None, &entries, DecoderConfig::default()) {
+        Ok(_) => panic!("load_with_vocab must enforce the guard"),
+        Err(e) => e,
+    };
+    std::fs::remove_file(&raw).ok();
+    assert!(
+        err.contains(fse::HMM_FRONTEND_ID_RAW) && err.contains(fse::HMM_FRONTEND_ID),
+        "error must name both sides: {err}"
+    );
+}
+
+#[test]
+fn guard_legacy_warns_and_passes() {
+    // Premise pin: si_base ships unstamped.
+    let model = hmm::HmmSet::load_text(&am_path()).expect("load si_base");
+    assert_eq!(model.frontend_id, None);
+    // Legacy proceeds (loud stderr warning comes from hmm::check_frontend).
+    let decoder = MooreDecoder::load(&am_path(), None, tiny_dict(), DecoderConfig::default())
+        .expect("legacy AM must load");
+    assert_eq!(decoder.vocab_size(), 2);
+}
+
+/// stream() determinism: the final streamed partial equals batch decode on
+/// the same audio. Raw mode is exact by construction (same frontend path);
+/// CMVN mode matches because the cumulative live estimate covers the same
+/// frames as batch CMVN (1.5 s clip clears the 100-frame live gate).
+#[test]
+fn stream_final_matches_batch() {
+    let wav = sample_wav();
+    let audio = corpus::audio::decode_file(&wav).expect("decode demo wav");
+    let pcm16k = resample_to_16k(&corpus::audio::to_mono(&audio), audio.sample_rate);
+    let clip = pcm16k[..24_000.min(pcm16k.len())].to_vec();
+    assert!(clip.len() >= 16_000, "clip must clear the 100-frame gate");
+
+    for cmvn in [false, true] {
+        let cfg = DecoderConfig {
+            cmvn,
+            ..DecoderConfig::default()
+        };
+        let batch = MooreDecoder::load(&am_path(), None, tiny_dict(), cfg.clone())
+            .expect("load batch decoder");
+        let started = Instant::now();
+        let lattice = batch.decode(&clip);
+        let batch_sec = started.elapsed().as_secs_f64();
+        let batch_text: String = lattice
+            .tokens
+            .iter()
+            .map(|t| t.word.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(!batch_text.is_empty(), "cmvn={cmvn}: batch decode empty");
+
+        let mut live =
+            MooreDecoder::load(&am_path(), None, tiny_dict(), cfg).expect("load stream decoder");
+        let mut final_text = String::new();
+        let mut chunk_ms: Vec<f64> = Vec::new();
+        for chunk in clip.chunks(6000) {
+            let started = Instant::now();
+            let partials = live.stream(chunk);
+            chunk_ms.push(started.elapsed().as_secs_f64() * 1000.0);
+            assert_eq!(partials.len(), 1);
+            final_text = partials[0].text.clone();
+        }
+        let chunk_ms_str: Vec<String> = chunk_ms.iter().map(|v| format!("{v:.0}")).collect();
+        eprintln!(
+            "cmvn={cmvn} batch {batch_sec:.2}s chunk_latency_ms [{}] text: {batch_text}",
+            chunk_ms_str.join(" "),
+        );
+        assert_eq!(
+            final_text, batch_text,
+            "cmvn={cmvn}: streamed final must equal batch"
+        );
+    }
+}
