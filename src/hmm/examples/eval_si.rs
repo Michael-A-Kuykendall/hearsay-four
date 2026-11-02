@@ -153,14 +153,18 @@ fn cached_frames(
 }
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    // Optional --cache <dir> pair (position-independent; stripped before positional parse).
+    // Optional --cache <dir> / --per-utt <file> pairs (position-independent;
+    // stripped before positional parse).
     let mut cache_root: Option<PathBuf> = None;
+    let mut per_utt_path: Option<PathBuf> = None;
     let mut argv: Vec<String> = Vec::with_capacity(args.len());
     let mut arg_it = args.into_iter();
     argv.push(arg_it.next().expect("argv0"));
     while let Some(a) = arg_it.next() {
         if a == "--cache" {
             cache_root = Some(PathBuf::from(arg_it.next().expect("--cache needs <dir>")));
+        } else if a == "--per-utt" {
+            per_utt_path = Some(PathBuf::from(arg_it.next().expect("--per-utt needs <file>")));
         } else {
             argv.push(a);
         }
@@ -168,7 +172,7 @@ fn main() {
     let args = argv;
     assert!(
         args.len() == 4 || args.len() == 5,
-        "usage: eval_si <model.json> <manifest.tsv> <wav_root> [--raw] [--cache <dir>]"
+        "usage: eval_si <model.json> <manifest.tsv> <wav_root> [--raw] [--cache <dir>] [--per-utt <file>]"
     );
     let raw = args.len() == 5 && args[4] == "--raw";
     assert!(args.len() == 4 || raw, "5th arg must be --raw");
@@ -185,6 +189,7 @@ fn main() {
     let text = std::fs::read_to_string(&args[2]).expect("manifest");
     let wav_root = PathBuf::from(&args[3]);
     let mut pairs: Vec<(Vec<String>, Vec<Vec<f64>>)> = Vec::new();
+    let mut ids: Vec<String> = Vec::new();
     let mut oov_dropped = 0usize;
     let mut ll_min = f64::INFINITY;
     // Parse is cheap and sequential; decode+align below is parallel.
@@ -211,7 +216,7 @@ fn main() {
     }
     {
         use rayon::prelude::*;
-        let done: Vec<Option<(Vec<String>, Vec<Vec<f64>>, f64)>> = rows
+        let done: Vec<Option<(String, Vec<String>, Vec<Vec<f64>>, f64)>> = rows
             .par_iter()
             .map(|(id, rel, phones)| {
                 let wav_path = wav_root.join(rel);
@@ -228,19 +233,30 @@ fn main() {
                 let obs: Vec<Vec<f64>> = frames.iter().map(|f| f.to_vec()).collect();
                 let (_, ll) = model.forced_align(phones, &obs).expect("forced_align");
                 assert!(ll.is_finite(), "non-finite dev likelihood: {id}");
-                Some((phones.clone(), obs, ll))
+                Some((id.clone(), phones.clone(), obs, ll))
             })
             .collect();
         for item in done.into_iter().flatten() {
-            let (phones, obs, ll) = item;
+            let (id, phones, obs, ll) = item;
             ll_min = ll_min.min(ll);
+            ids.push(id);
             pairs.push((phones, obs));
         }
     }
-    let per = model
-        .phone_error_rate(&pairs)
-        .expect("phone_error_rate")
-        .per;
+    let report = model.phone_error_rate(&pairs).expect("phone_error_rate");
+    let per = report.per;
+    if let Some(path) = &per_utt_path {
+        assert_eq!(
+            ids.len(),
+            report.per_utterance.len(),
+            "id/per-utt length mismatch"
+        );
+        let mut out = String::new();
+        for (id, pu) in ids.iter().zip(report.per_utterance.iter()) {
+            out.push_str(&format!("{id}\t{pu:.6}\n"));
+        }
+        std::fs::write(path, out).expect("write per-utt");
+    }
     println!("dev_n={}", pairs.len());
     println!("dev_oov_dropped={oov_dropped}");
     println!("dev_ll_min={ll_min:.1}");

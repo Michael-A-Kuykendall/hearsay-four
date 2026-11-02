@@ -9,12 +9,14 @@
 //! train_si.rs (same crate), not diverged.
 //!
 //! usage: train_si_continue <subset.tsv> <wav_root> <out_dir> <start_ckpt>
-//!        <target_mix> <iters>
+//!        <target_mix> <iters> [--cache <dir>]
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use corpus::audio::{decode_file, to_mono};
+use fse::featcache::{cache_path, load as cache_load, store as cache_store};
+use fse::instrument::sha256_hex;
 use fse::{FEATURE_DIM, HMM_FRONTEND_ID, extract_features_cmvn, window_audio};
 use hmm::{HmmSet, TrainConfig, UttData, check_frontend};
 use lexicon::{TIER1_IDENTITY, TieredLexicon, load_tiered};
@@ -123,11 +125,49 @@ fn phones_for_train(lex: &Lexicon, text: &str) -> Option<Vec<String>> {
     Some(out)
 }
 
-fn main() {
-    let args: Vec<String> = std::env::args().collect();
+fn cached_frames(
+    cache_root: &Option<PathBuf>,
+    wav_path: &Path,
+    rate: u32,
+    mono: &[i16],
+) -> Option<Vec<fse::Frame>> {
+    if let Some(root) = cache_root {
+        let bytes = std::fs::read(wav_path).ok()?;
+        let sha = sha256_hex(&bytes);
+        let path = cache_path(root, HMM_FRONTEND_ID, &sha);
+        if let Some(frames) = cache_load(&path, rate) {
+            return Some(frames);
+        }
+        let windows = window_audio(mono, rate);
+        if windows.is_empty() {
+            return None;
+        }
+        let frames = extract_features_cmvn(&windows, rate).ok()?;
+        let _ = cache_store(&path, rate, &frames);
+        return Some(frames);
+    }
+    let windows = window_audio(mono, rate);
+    if windows.is_empty() {
+        return None;
+    }
+    extract_features_cmvn(&windows, rate).ok()
+}fn main() {
+    let argv: Vec<String> = std::env::args().collect();
+    // Optional --cache <dir> pair (position-independent; stripped before positional parse).
+    let mut cache_root: Option<PathBuf> = None;
+    let mut args: Vec<String> = Vec::with_capacity(argv.len());
+    let mut arg_it = argv.into_iter();
+    args.push(arg_it.next().expect("argv0"));
+    while let Some(a) = arg_it.next() {
+        if a == "--cache" {
+            cache_root = Some(PathBuf::from(arg_it.next().expect("--cache needs <dir>")));
+        } else {
+            args.push(a);
+        }
+    }
     assert!(
         args.len() == 7,
-        "usage: train_si_continue <subset.tsv> <wav_root> <out_dir> <start_ckpt> <target_mix> <iters>"
+        "usage: train_si_continue <subset.tsv> <wav_root> <out_dir> <start_ckpt> <target_mix> <iters> [--cache <dir>]"
     );
     let (subset_path, wav_root, out_dir, start_ckpt) = (
         PathBuf::from(&args[1]),
@@ -175,7 +215,8 @@ fn main() {
     let mut data: Vec<UttData> = Vec::new();
     let mut audio_sec = 0.0;
     for (id, rel, sec, txt) in &rows {
-        let pcm = match decode_file(&wav_root.join(rel)) {
+        let wav_path = wav_root.join(rel);
+        let pcm = match decode_file(&wav_path) {
             Ok(p) => p,
             Err(e) => {
                 eprintln!("train_si_continue SKIP {id} decode: {e}");
@@ -186,13 +227,9 @@ fn main() {
         if mono.is_empty() {
             continue;
         }
-        let windows = window_audio(&mono, pcm.sample_rate);
-        if windows.is_empty() {
-            continue;
-        }
-        let frames = match extract_features_cmvn(&windows, pcm.sample_rate) {
-            Ok(f) => f,
-            Err(_) => continue,
+        let frames = match cached_frames(&cache_root, &wav_path, pcm.sample_rate, &mono) {
+            Some(f) => f,
+            None => continue,
         };
         if frames.is_empty() || frames[0].len() != FEATURE_DIM {
             continue;
