@@ -10,6 +10,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 pub mod adapt;
+pub mod triphone;
 
 pub const SIL: &str = "SIL";
 pub const SP: &str = "SP";
