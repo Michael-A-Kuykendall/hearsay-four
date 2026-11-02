@@ -3,16 +3,73 @@
 An offline, model-free speech transcription research prototype. Hearsay-IV
 transcribes speech using directly encoded phonetic/phonological rules, bounded
 local competition, and provenance-tracked justification sets — no trained
-neural models, no black box. The system is designed for fully offline,
-inspectable transcription targeted at forensic and legal transcript review.
+neural models, no black box. Fully offline, inspectable transcription targeted
+at forensic and legal transcript review.
+
+**No-AI claim:** this pipeline contains no neural network, transformer,
+embedding model, or learned-weight artifact — enforced by
+[`scripts/no_model_guard.sh`](scripts/no_model_guard.sh), which fails red on
+any ML crate, weight file, model API, STT-text-in-scoring-path, or network
+client in the service path.
 
 ## The idea in one line
 
 Instead of a learned acoustic model, Hearsay-IV keeps competing phonetic
 hypotheses alive as **multi-support justification sets** in a saturation
-fabric, and lets locally-windowed phonological rules commit the winner —
-so every word in the output carries a *why it was heard that way* chain back
-to the raw acoustic evidence.
+fabric, and lets locally-windowed phonological rules commit the winner — so
+every word in the output carries a *why it was heard that way* chain back to
+the raw acoustic evidence.
+
+## Quickstart (one command)
+
+```sh
+cargo run --release --bin hearsay-demo -- --input data/demo/sample.wav --max-secs 8
+```
+
+Zero-config: `data/demo/sample.wav` is a committed public-domain fixture (8 s
+of U.S. Supreme Court oral argument; see `data/demo/README.md`). Expect exit 0
+with a 4-word transcript (`PANHANDLING HORRIBLY HORRIBLY UNCORROBORATED`) and
+provenance chains terminating at frame-level acoustic evidence. Verify the
+model-free claim with `bash scripts/no_model_guard.sh`.
+
+## Results
+
+Headline numbers, each with command, data, size, and plausibility check in the
+[number ledger](docs/results/NUMBER-LEDGER.md):
+
+| Headline | Value | Status |
+|---|---|---|
+| Fallback 9-cell best WER (lm6/wip0, 200 utts) | 0.7233 | landed |
+| full93 4-mix dev PER | 0.6707 | landed |
+| full93 8-mix dev PER | 0.6416 | landed |
+| CMVN 8-mix iter1 dev PER | 0.6416 | landed (iters 2–4 TBD) |
+| 30-word cross-channel top-1 | 1.0000 (29/29) | landed |
+| sub20 tune best WER (lm8/wip0, 200 utts) | 0.8332 | landed |
+| Headline WER (final AM, full dev) | TBD | pending |
+| Live-mic RTF | TBD | pending |
+
+WER rows are 200-utterance tune subsets, not the headline; no confidence
+intervals computed yet. See the ledger for the full provenance of every row.
+
+## Data attribution
+
+Acoustic-model training and tuning use **LibriSpeech** (Panayotov et al.),
+distributed by OpenSLR as SLR12 under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Audio is never
+committed; `data/SHA256SUMS.librispeech` records the archives, hashes, and
+roles. Demo fixtures are U.S. Supreme Court oral-argument clips (U.S. federal
+government works, public domain).
+
+## What predates the event vs what was built during it
+
+- **Pre-existing (Aug 2026, initial commit `6808cc4`):** the saturation-fabric
+  core — multi-support justification sets, subsumption minimality, survival
+  semantics — plus the Stage 0–3 pipeline skeleton, design docs, and research
+  synthesis.
+- **Built during the event (Oct 27 – Nov 2, 2026):** full93 acoustic-model
+  training (4-mix → 8-mix → CMVN), the R1/R1b language model, two-tier lexicon,
+  WER tuning grids, the number ledger, CLI release matrix, demo/serve/stream
+  binaries, and the audit + results documentation.
 
 ## Architecture
 
@@ -25,14 +82,14 @@ Stage 3  Local commit window  N-best competition under SPE phonological rules
                               executed as Kaplan & Kay FST cascades; winner
                               committed on window close; losers survive via
                               independent support
-Stage 4  Lexicon            (planned) CMUdict-shaped dictionary matching
-Stage 5  Sequence            (planned) classical n-gram plausibility
+Stage 4  Lexicon              two-tier CMUdict + LibriSpeech-G2P gap fill
+Stage 5  Sequence             classical n-gram plausibility
 Stage 10 Accent signature     session-persistent per-speaker displacement,
                               fed back into scoring; drift handled as live
                               retraction-and-recascade
 ```
 
-Cross-cutting: a **saturation-fabric** fact store with multi-support
+Cross-cutting: the **saturation-fabric** fact store with multi-support
 justification sets and survival semantics (the D-1 fix), always-on
 provenance, and a PPT/C-Test invariant framework.
 
@@ -47,26 +104,33 @@ src/
   accent/       Fail-fast experiment + Stage 10 accent signature
   fabric/       Saturation fact store (multi-support + survival)
   invariant_ppt/  runtime invariants + contract test framework
-  corpus/       audio decode, corpora manifests
+  corpus/       audio decode, corpora manifests (ingestion only)
+  lm/           classical n-gram LM (R1/R1b)
+  lexicon/      two-tier dictionary matching
+  sequence/     n-gram sequence scoring
+  runner/       CLI binaries (demo, serve, stream, transcribe)
 data/
-  session/      fails-fast experiment session manifest + build tooling
+  demo/         committed zero-config fixtures (public domain)
+  partitions/   committed train/dev/lockbox partition manifests
 docs/
   design/       single-source design specifications (per module)
   research/     research notes and reference verification
+  results/      NUMBER-LEDGER.md + per-gate evidence
+  audit/        audit summaries (bulk transcripts excluded from release)
 ```
 
 ## Build & test
 
-Each crate is an ordinary Cargo crate under `src/`. Build and test in the
-workspace:
-
 ```sh
-cargo build --manifest-path src/fabric/Cargo.toml
-cargo test --manifest-path src/stage3/Cargo.toml --all-features
+cargo build --release --bin hearsay-demo   # or: bash scripts/release.sh --target host
+bash scripts/no_model_guard.sh             # model-free proof (must print GREEN)
+sh scripts/personal_guard.sh               # privacy proof (must print OK)
 ```
 
-The system is in-progress. See `HEARSAY-IV-RESEARCH-SYNTHESIS.md` for the
-full thesis, and `docs/design/*` for the pinned design decisions.
+See `HEARSAY-IV-RESEARCH-SYNTHESIS.md` for the full thesis,
+`docs/design/*` for pinned design decisions, and
+[`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md) for the public-release
+audit record.
 
 ## Why "Hearsay"
 
@@ -74,10 +138,3 @@ The name borrows from the Hearsay-II / Hearsay-III speech-understanding
 systems (Erman, Hayes-Roth, Lesser, Reddy — 1980). Hearsay-IV adds the
 departure Hearsay-III pointed to: a losing hypothesis is retracted with
 provenance intact, and survives if it retains independent support.
-
-## Status
-
-Stages 0–3 and the accent-signature loop are implemented with a TDD gate per
-module (see `docs/design/`). The behavioral science question — "does
-session-persistent carry-forward actually separate error rates downward?" —
-is the fail-fast experiment living in `src/accent`.
