@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hearsay-IV TCV2 demo — click-a-word transcript</title>
+<!--
+  LANE I demo UI (bead hearsay-four-tcv2--demo-web-ui). Single self-contained
+  page: no fetch, no WASM, no server logic — the fixture transcript below is
+  embedded, so the page works over http AND file://.
+
+  ONE-COMMAND LOCAL RUN (from the repo root):
+    python3 -m http.server 8000
+    # then open http://127.0.0.1:8000/web/tcv2-demo.html
+
+  GATE (from the repo root):
+    bash web/tcv2-gate.sh
+    # serves the page on :8123, asserts HTTP 200, and validates that every
+    # fixture word carries all six why-panel elements.
+
+  MIC BUTTON: deliberately omitted. src/decoder exposes Recognizer::stream
+  (moore.rs), but it is a native-only batch re-decode API; there is no
+  web-reachable streaming path (no HTTP/WS server, no WASM stream export —
+  wasm-demo exports transcribe_pcm16k batch only; src/capture mic is native
+  cpal). A mic button would record audio the page cannot decode, so per the
+  bead ("mic button ONLY if Lane C stream path exists") it is left out.
+-->
+<style>
+  :root {
+    --accent: #0b5fff;
+    --ink: #1a1a1a;
+    --muted: #5a5a5a;
+    --line: #d8d8d8;
+    --chip: #f2f5ff;
+    --panel: #fafafa;
+    --good: #0a7a2f;
+    --warn: #9a6200;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; color: var(--ink);
+         max-width: 112ch; margin: 0 auto; padding: 1.2em 1.2em 3em; }
+  header h1 { margin: 0 0 0.15em; font-size: 1.5em; }
+  header .sub { color: var(--muted); margin: 0 0 1em; }
+  .badge { display: inline-block; font-size: 0.75em; font-weight: 700;
+           border: 1px solid var(--line); border-radius: 999px;
+           padding: 0.15em 0.7em; margin-right: 0.5em; background: #fff; }
+  .badge.fixture { border-color: var(--warn); color: var(--warn); }
+  .badge.nomodel { border-color: var(--good); color: var(--good); }
+  #drop { border: 2px dashed #888; border-radius: 8px; padding: 0.9em 1em;
+          margin: 1em 0 0.4em; display: flex; gap: 0.8em; align-items: center;
+          flex-wrap: wrap; background: #fff; }
+  #drop.over { border-color: var(--accent); background: var(--chip); }
+  #drop .hint { color: var(--muted); font-size: 0.9em; }
+  #status { font-weight: 600; min-height: 1.4em; margin: 0.2em 0 0.8em; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+          gap: 1.2em; align-items: start; }
+  @media (max-width: 60em) { .grid { grid-template-columns: 1fr; } }
+  section.card { border: 1px solid var(--line); border-radius: 8px;
+                 padding: 0.9em 1em; background: #fff; }
+  section.card h2 { margin: 0 0 0.4em; font-size: 1.05em; }
+  #utt-meta { color: var(--muted); font-size: 0.85em; margin: 0 0 0.6em; }
+  #sentence { line-height: 2.5; margin: 0; }
+  .chip { display: inline-block; border: 1px solid var(--line); background: var(--chip);
+          border-radius: 6px; padding: 0.05em 0.55em; margin: 0 0.15em;
+          cursor: pointer; font-size: 1.05em; }
+  .chip:hover { border-color: var(--accent); }
+  .chip.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .chip.corrected { border-color: var(--warn); background: #fff8e6; }
+  .chip .mark { color: var(--warn); font-size: 0.8em; }
+  #panel { background: var(--panel); border: 1px solid var(--line);
+           border-radius: 8px; padding: 0.8em 0.9em; }
+  #panel .p-head { font-size: 1.05em; margin-bottom: 0.5em; }
+  #panel .p-head .times { color: var(--muted); font-size: 0.85em; }
+  #panel .p-sec { border-top: 1px solid var(--line); padding: 0.5em 0; font-size: 0.93em; }
+  #panel .p-sec:first-of-type { border-top: none; }
+  #panel .k { font-weight: 800; font-size: 0.78em; letter-spacing: 0.04em;
+              display: block; margin-bottom: 0.25em; color: #333; }
+  #panel .alt { display: block; padding: 0.2em 0.3em; border-radius: 4px; cursor: pointer; }
+  #panel .alt:hover { background: #eef3ff; }
+  #panel .alt .sc { color: var(--muted); font-variant-numeric: tabular-nums; }
+  #panel .alt .note { color: var(--muted); font-size: 0.88em; }
+  #panel .note-line { color: var(--muted); font-size: 0.88em; margin-top: 0.25em; }
+  #panel .tag { display: inline-block; background: #e8f3e8; color: var(--good);
+                border: 1px solid var(--good); border-radius: 4px;
+                padding: 0 0.5em; font-weight: 700; font-size: 0.85em; }
+  #panel .why-sent { font-style: italic; }
+  #panel button.big { font-size: 1em; padding: 0.45em 1.1em; cursor: pointer;
+                      border-radius: 6px; border: 1px solid var(--accent);
+                      background: var(--accent); color: #fff; }
+  #panel button.big:disabled { opacity: 0.45; cursor: not-allowed; }
+  #panel button.big.undo { background: #fff; color: var(--ink); border-color: #888; }
+  #panel .corr-state { margin-top: 0.35em; color: var(--warn); font-weight: 600; }
+  footer { margin-top: 1.5em; color: var(--muted); font-size: 0.85em;
+           border-top: 1px solid var(--line); padding-top: 0.8em; }
+  footer code { background: #f0f0f0; padding: 0.1em 0.4em; border-radius: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Hearsay-IV TCV2 demo — click-a-word transcript</h1>
+  <p class="sub">
+    <span class="badge fixture">FIXTURE — illustrative scores, not a live decode</span>
+    <span class="badge nomodel">classical pipeline · no neural net</span>
+  </p>
+</header>
+
+<div id="drop">
+  <strong>Transcript file</strong>
+  <input type="file" id="file" accept="application/json,.json">
+  <button id="reset" type="button">Reload fixture</button>
+  <span class="hint">drop a transcript .json here (fixture shape or demo-transcripts array) — or click a word below</span>
+</div>
+<p id="status" role="status">loading fixture…</p>
+
+<div class="grid">
+  <section class="card" aria-label="Transcript">
+    <h2>Transcript</h2>
+    <p id="utt-meta"></p>
+    <p id="sentence"></p>
+  </section>
+  <section class="card" aria-label="Why panel">
+    <h2>Why panel</h2>
+    <div id="panel"><p>Click a word in the transcript.</p></div>
+  </section>
+</div>
+
+<footer>
+  <p>Run locally: <code>python3 -m http.server 8000</code> from the repo root, then open
+  <code>http://127.0.0.1:8000/web/tcv2-demo.html</code> (also works via <code>file://</code>).
+  Audio decode runs natively via <code>hearsay-transcribe</code>; this page renders transcript JSON.
+  Live mic is omitted — no web-reachable streaming endpoint exists yet (see the note at the top of this file).</p>
+</footer>
+
+<script type="application/json" id="tcv2-fixture">
+{
+  "utt_id": "tcv2-demo-01",
+  "audio_secs": 1.98,
+  "decode_secs": 0.41,
+  "words": [
+    {"text": "HE", "start_ms": 0, "end_ms": 180, "confidence": 0.97, "why": {
+      "acoustic_score": -8.2,
+      "acoustic_note": "vowel HH-IY matched 14 of 18 frames",
+      "alternatives": [
+        {"text": "SHE", "score": -12.6, "note": "lost: initial SH fricative unsupported"},
+        {"text": "WE", "score": -13.9, "note": "lost: no labial onset energy"}
+      ],
+      "alternatives_note": "runner-up SHE trails by 4.4",
+      "lm_probability": 0.31, "lm_history": ["<s>", "<s>"],
+      "lexicon_source": "cmudict",
+      "why_sentence": "\u201cHE\u201d won because the opening vowel matched the audio cleanly and it is the most likely sentence opener here."
+    }},
+    {"text": "HAD", "start_ms": 180, "end_ms": 420, "confidence": 0.93, "why": {
+      "acoustic_score": -11.7,
+      "acoustic_note": "closure burst for D visible at 390ms",
+      "alternatives": [
+        {"text": "DID", "score": -14.2, "note": "lost: vowel formants closer to AA than IH"},
+        {"text": "HAS", "score": -15.8, "note": "lost: final fricative S absent"}
+      ],
+      "alternatives_note": "runner-up DID trails by 2.5",
+      "lm_probability": 0.18, "lm_history": ["<s>", "HE"],
+      "lexicon_source": "cmudict",
+      "why_sentence": "\u201cHAD\u201d won on the AA vowel and the D-burst at 390ms; \u201cDID\u201d was closest but its vowel did not fit."
+    }},
+    {"text": "NOTHING", "start_ms": 420, "end_ms": 780, "confidence": 0.91, "why": {
+      "acoustic_score": -13.1,
+      "acoustic_note": "two-syllable stress pattern matched",
+      "alternatives": [
+        {"text": "SOMETHING", "score": -16.9, "note": "lost: extra initial syllable unsupported"},
+        {"text": "ANYTHING", "score": -17.4, "note": "lost: onset vowel does not match N"}
+      ],
+      "alternatives_note": "runner-up SOMETHING trails by 3.8",
+      "lm_probability": 0.07, "lm_history": ["HE", "HAD"],
+      "lexicon_source": "librispeech-g2p",
+      "why_sentence": "\u201cNOTHING\u201d won because the two-syllable stress fit and its G2P pronunciation covers this speaker\u2019s reduced vowel."
+    }},
+    {"text": "TO", "start_ms": 780, "end_ms": 930, "confidence": 0.96, "why": {
+      "acoustic_score": -6.4,
+      "acoustic_note": "short function word, 15 frames",
+      "alternatives": [
+        {"text": "TWO", "score": -6.6, "note": "homophone: acoustics tied, LM broke it"},
+        {"text": "TOO", "score": -6.9, "note": "homophone: acoustics tied, LM broke it"}
+      ],
+      "alternatives_note": "homophone tie broken by the language model",
+      "lm_probability": 0.52, "lm_history": ["HAD", "NOTHING"],
+      "lexicon_source": "cmudict",
+      "why_sentence": "\u201cTO\u201d, \u201cTWO\u201d and \u201cTOO\u201d sound identical; the language model picked \u201cTO\u201d as far more likely after \u201cNOTHING\u201d."
+    }},
+    {"text": "SAY", "start_ms": 930, "end_ms": 1180, "confidence": 0.89, "why": {
+      "acoustic_score": -12.9,
+      "acoustic_note": "diphthong EY glide tracked across 20 frames",
+      "alternatives": [
+        {"text": "STAY", "score": -15.1, "note": "lost: no ST cluster before the vowel"},
+        {"text": "SAYS", "score": -16.2, "note": "lost: final Z sibilant absent"}
+      ],
+      "alternatives_note": "runner-up STAY trails by 2.2",
+      "lm_probability": 0.11, "lm_history": ["NOTHING", "TO"],
+      "lexicon_source": "cmudict",
+      "why_sentence": "\u201cSAY\u201d won on the clean EY glide; \u201cSTAY\u201d lost because no ST cluster precedes the vowel."
+    }},
+    {"text": "ABOUT", "start_ms": 1180, "end_ms": 1480, "confidence": 0.94, "why": {
+      "acoustic_score": -12.2,
+      "acoustic_note": "unstressed schwa onset then stressed BAW",
+      "alternatives": [
+        {"text": "AROUND", "score": -16.4, "note": "lost: final ND cluster unsupported"},
+        {"text": "ABOVE", "score": -17.9, "note": "lost: final VV fricative absent"}
+      ],
+      "alternatives_note": "runner-up AROUND trails by 4.2",
+      "lm_probability": 0.22, "lm_history": ["TO", "SAY"],
+      "lexicon_source": "cmudict",
+      "why_sentence": "\u201cABOUT\u201d won on the schwa-BAW stress shape and the clean T closure at the end."
+    }},
+    {"text": "THE", "start_ms": 1480, "end_ms": 1620, "confidence": 0.98, "why": {
+      "acoustic_score": -5.1,
+      "acoustic_note": "canonical DH-ah, 14 frames",
+      "alternatives": [
+        {"text": "A", "score": -12.9, "note": "lost: initial DH consonant clearly present"},
+        {"text": "THEE", "score": -14.4, "note": "lost: full IY vowel unsupported"}
+      ],
+      "alternatives_note": "runner-up A trails by 7.8",
+      "lm_probability": 0.61, "lm_history": ["SAY", "ABOUT"],
+      "lexicon_source": "cmudict",
+      "why_sentence": "\u201cTHE\u201d won easily: the DH onset is clear and it is the most likely word after \u201cABOUT\u201d."
+    }},
+    {"text": "WAR", "start_ms": 1620, "end_ms": 1980, "confidence": 0.90, "why": {
+      "acoustic_score": -13.8,
+      "acoustic_note": "rhotic AR nucleus, final silence cut at 1980ms",
+      "alternatives": [
+        {"text": "WORE", "score": -15.7, "note": "near-homophone: vowel length decided it"},
+        {"text": "MORE", "score": -17.2, "note": "lost: initial M nasal unsupported"}
+      ],
+      "alternatives_note": "runner-up WORE trails by 1.9",
+      "lm_probability": 0.09, "lm_history": ["ABOUT", "THE"],
+      "lexicon_source": "cmudict",
+      "why_sentence": "\u201cWAR\u201d beat near-homophone \u201cWORE\u201d on vowel length, and it fits the history \u201cABOUT THE\u201d."
+    }}
+  ]
+}
+</script>
+
+<script>
+/* Pure render/parse helpers (no DOM here, so node can exercise them too). */
+'use strict';
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function fmtNum(v) {
+  return (typeof v === 'number' && isFinite(v)) ? String(Math.round(v * 1e6) / 1e6) : null;
+}
+
+/** Normalize one alternative: string form or {text, score, note} object. */
+function normAlt(a) {
+  if (typeof a === 'string') return { text: a, score: null, note: '' };
+  a = a || {};
+  return {
+    text: String(a.text || '(missing)'),
+    score: (typeof a.score === 'number' && isFinite(a.score)) ? a.score : null,
+    note: String(a.note || ''),
+  };
+}
+
+/** Normalize one transcript word; missing `why` becomes {}. */
+function normWord(w) {
+  w = w || {};
+  return {
+    text: String(w.text || '(missing)'),
+    start_ms: (typeof w.start_ms === 'number') ? w.start_ms : null,
+    end_ms: (typeof w.end_ms === 'number') ? w.end_ms : null,
+    confidence: (typeof w.confidence === 'number') ? w.confidence : null,
+    why: (w.why && typeof w.why === 'object') ? w.why : {},
+  };
+}
+
+/**
+ * Parse dropped/picked file text into a transcript.
+ * Accepts the fixture shape ({words:[...]}) or the demo-transcripts array
+ * shape ([{utt_id, words:[...]}, ...], first item shown).
+ * Returns {ok:true, transcript, note} or {ok:false, error, audio?}.
+ */
+function parseTranscriptInput(name, text) {
+  const audioExt = /\.(wav|mp3|flac|ogg|oga|m4a|opus|aiff?)$/i;
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    if (audioExt.test(name || '')) {
+      return { ok: false, audio: true,
+        error: 'audio files decode natively via hearsay-transcribe; drop a transcript .json here.' };
+    }
+    return { ok: false, error: 'not a transcript .json file (' + (name || 'dropped file') + ').' };
+  }
+  let item = data, note = '';
+  if (Array.isArray(data)) {
+    if (data.length === 0 || !data[0].words) return { ok: false, error: 'JSON array has no transcript with words.' };
+    item = data[0];
+    note = data.length > 1 ? ' (' + data.length + ' utterances in file; showing the first)' : '';
+  }
+  if (!item || !Array.isArray(item.words) || item.words.length === 0) {
+    return { ok: false, error: 'no words[] in ' + (name || 'file') + '.' };
+  }
+  return {
+    ok: true, note,
+    transcript: {
+      utt_id: String(item.utt_id || (name || 'dropped file')),
+      audio_secs: (typeof item.audio_secs === 'number') ? item.audio_secs : null,
+      decode_secs: (typeof item.decode_secs === 'number') ? item.decode_secs : null,
+      words: item.words.map(normWord),
+    },
+  };
+}
+
+/** Plain-English fallback when a word has no why_sentence. */
+function composeWhy(word) {
+  const why = word.why || {};
+  const alts = (why.alternatives || []).map(normAlt);
+  const bits = [];
+  if (why.acoustic_note) bits.push(String(why.acoustic_note));
+  if (alts.length) bits.push('beat ' + alts.map((a) => '\u201c' + a.text + '\u201d').join(', '));
+  if (typeof why.lm_probability === 'number' && (why.lm_history || []).length) {
+    bits.push('LM P=' + why.lm_probability + ' after \u201c' +
+      why.lm_history.slice(-2).join(' ') + '\u201d');
+  }
+  return bits.length ? ('\u201c' + word.text + '\u201d won: ' + bits.join('; ') + '.')
+                     : ('No explanation recorded for \u201c' + word.text + '\u201d.');
+}
+
+/**
+ * Full why-panel inner HTML for one word.
+ * `st` = {selectedAlt: string|null, correction: {orig, to}|null}.
+ * The six panel elements carry data-sec="alternatives|scores|lm|lexicon|why|correct".
+ */
+function panelHTML(word, st) {
+  st = st || {};
+  const why = word.why || {};
+  const alts = (why.alternatives || []).map(normAlt);
+  const times = (word.start_ms !== null && word.end_ms !== null)
+    ? ' <span class="times">[' + word.start_ms + 'ms\u2013' + word.end_ms + 'ms]</span>' : '';
+  const conf = (word.confidence !== null) ? ' <span class="times">conf ' + word.confidence + '</span>' : '';
+  const corrTag = st.correction
+    ? ' <span class="corr-state">\u270e corrected ' + escapeHtml(st.correction.orig) +
+      ' \u2192 ' + escapeHtml(st.correction.to) + '</span>' : '';
+
+  const altRows = alts.length ? alts.map((a) => {
+    const checked = (st.selectedAlt === a.text) ? ' checked' : '';
+    const sc = (a.score !== null) ? a.score : '\u2014';
+    const note = a.note ? ' <span class="note">\u2014 ' + escapeHtml(a.note) + '</span>' : '';
+    return '<label class="alt"><input type="radio" name="alt" value="' + escapeHtml(a.text) +
+      '"' + checked + '> <strong>' + escapeHtml(a.text) + '</strong> ' +
+      '<span class="sc">score ' + escapeHtml(String(sc)) + '</span>' + note + '</label>';
+  }).join('') : '<div class="note-line">(no alternatives recorded)</div>';
+  const altNote = why.alternatives_note
+    ? '<div class="note-line">' + escapeHtml(why.alternatives_note) + '</div>' : '';
+
+  const acScore = fmtNum(why.acoustic_score);
+  const scoresBody = (acScore !== null)
+    ? 'acoustic <strong>' + escapeHtml(acScore) + '</strong>' +
+      (why.acoustic_note ? ' \u2014 ' + escapeHtml(why.acoustic_note) : '')
+    : '<span class="note-line">acoustic score not recorded</span>';
+
+  const lmP = fmtNum(why.lm_probability);
+  const lmHist = Array.isArray(why.lm_history) ? why.lm_history : [];
+  const lmBody = (lmP !== null)
+    ? 'P(' + escapeHtml(word.text) +
+      (lmHist.length ? ' | ' + escapeHtml(lmHist.join(', ')) : '') + ') = <strong>' +
+      escapeHtml(lmP) + '</strong>'
+    : '<span class="note-line">LM probability not recorded</span>';
+
+  const lexBody = why.lexicon_source
+    ? '<span class="tag">' + escapeHtml(why.lexicon_source) + '</span>'
+    : '<span class="note-line">(lexicon source missing)</span>';
+
+  const whySent = why.why_sentence ? String(why.why_sentence) : composeWhy(word);
+
+  let correctBody;
+  if (st.correction) {
+    correctBody = '<button type="button" class="big undo" data-act="undo">Undo</button>' +
+      '<div class="corr-state">showing correction; Undo restores \u201c' +
+      escapeHtml(st.correction.orig) + '\u201d.</div>';
+  } else if (!alts.length) {
+    correctBody = '<button type="button" class="big" disabled>Correct</button>' +
+      '<div class="note-line">no alternatives to correct to.</div>';
+  } else if (!st.selectedAlt) {
+    correctBody = '<button type="button" class="big" disabled>Correct</button>' +
+      '<div class="note-line">pick an alternative above, then Correct.</div>';
+  } else {
+    correctBody = '<button type="button" class="big" data-act="correct">Correct to \u201c' +
+      escapeHtml(st.selectedAlt) + '\u201d</button>';
+  }
+
+  return '<div class="p-head"><strong>' + escapeHtml(word.text) + '</strong>' +
+    times + conf + corrTag + '</div>' +
+    '<div class="p-sec" data-sec="alternatives"><span class="k">ALTERNATIVES</span>' +
+      altRows + altNote + '</div>' +
+    '<div class="p-sec" data-sec="scores"><span class="k">SCORES</span>' + scoresBody + '</div>' +
+    '<div class="p-sec" data-sec="lm"><span class="k">LM PROBABILITY</span>' + lmBody + '</div>' +
+    '<div class="p-sec" data-sec="lexicon"><span class="k">LEXICON SOURCE</span>' + lexBody + '</div>' +
+    '<div class="p-sec" data-sec="why"><span class="k">WHY, IN PLAIN ENGLISH</span>' +
+      '<span class="why-sent">' + escapeHtml(whySent) + '</span></div>' +
+    '<div class="p-sec" data-sec="correct"><span class="k">CORRECT / UNDO</span>' +
+      correctBody + '</div>';
+}
+
+/** One transcript word chip (inner HTML; wiring is DOM-side). */
+function chipHTML(word, i, isSel, correction) {
+  const cls = 'chip' + (isSel ? ' sel' : '') + (correction ? ' corrected' : '');
+  const title = (word.start_ms !== null ? (word.start_ms + 'ms-' + word.end_ms + 'ms') : '') +
+    (correction ? ('; corrected from ' + correction.orig) : '');
+  const mark = correction ? ' <span class="mark">\u270e</span>' : '';
+  return '<span class="' + cls + '" data-i="' + i + '" title="' + escapeHtml(title) + '">' +
+    escapeHtml(word.text) + mark + '</span>';
+}
+
+/* Export pure helpers for node-based checks (harmless in browsers). */
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { escapeHtml, fmtNum, normAlt, normWord, parseTranscriptInput,
+                     composeWhy, panelHTML, chipHTML };
+}
+</script>
+
+<script>
+/* DOM wiring: transcript chips, panel selection, file drop, Correct/Undo. */
+(function () {
+  if (typeof document === 'undefined') return; // node-based pure checks skip this
+
+  const state = {
+    transcript: null,   // {utt_id, audio_secs, decode_secs, words:[normWord]}
+    sourceLabel: '',
+    selected: 0,
+    selectedAlt: {},    // wordIdx -> alt text
+    corrections: {},    // wordIdx -> {orig, to}
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const status = (t) => { $('status').textContent = t; };
+
+  function loadTranscript(t, label) {
+    state.transcript = t;
+    state.sourceLabel = label;
+    state.selected = 0;
+    state.selectedAlt = {};
+    state.corrections = {};
+    renderAll();
+  }
+
+  function loadFixture() {
+    const raw = $('tcv2-fixture').textContent;
+    const res = parseTranscriptInput('fixture', raw);
+    if (!res.ok) { status('fixture error: ' + res.error); return; }
+    loadTranscript(res.transcript, 'embedded fixture');
+    status('fixture loaded: ' + res.transcript.words.length + ' words (' +
+      res.transcript.utt_id + '). Click any word.');
+  }
+
+  function renderAll() {
+    renderMeta();
+    renderSentence();
+    renderPanel();
+  }
+
+  function renderMeta() {
+    const t = state.transcript;
+    const bits = [t.utt_id, state.sourceLabel];
+    if (t.audio_secs !== null) bits.push(t.audio_secs.toFixed(2) + 's audio');
+    if (t.decode_secs !== null) bits.push(t.decode_secs.toFixed(2) + 's decode');
+    bits.push(t.words.length + ' words');
+    $('utt-meta').textContent = bits.join(' · ');
+  }
+
+  function renderSentence() {
+    const t = state.transcript;
+    $('sentence').innerHTML = t.words.map((w, i) =>
+      chipHTML(w, i, i === state.selected, state.corrections[i] || null)).join(' ');
+    $('sentence').querySelectorAll('.chip').forEach((el) => {
+      el.addEventListener('click', () => {
+        state.selected = Number(el.getAttribute('data-i'));
+        renderSentence();
+        renderPanel();
+      });
+    });
+  }
+
+  function renderPanel() {
+    const t = state.transcript;
+    const i = state.selected;
+    const word = t.words[i];
+    $('panel').innerHTML = panelHTML(word, {
+      selectedAlt: state.selectedAlt[i] || null,
+      correction: state.corrections[i] || null,
+    });
+    $('panel').querySelectorAll('input[name="alt"]').forEach((r) => {
+      r.addEventListener('change', () => {
+        state.selectedAlt[i] = r.value;
+        renderPanel();
+      });
+    });
+    const btn = $('panel').querySelector('button[data-act]');
+    if (btn) btn.addEventListener('click', () => {
+      if (btn.getAttribute('data-act') === 'correct') doCorrect(i);
+      else doUndo(i);
+    });
+  }
+
+  function doCorrect(i) {
+    const alt = state.selectedAlt[i];
+    if (!alt) return;
+    const word = state.transcript.words[i];
+    state.corrections[i] = { orig: word.text, to: alt };
+    word.text = alt;
+    state.selectedAlt[i] = null;
+    renderSentence();
+    renderPanel();
+    status('corrected word ' + (i + 1) + ': ' + state.corrections[i].orig +
+      ' → ' + alt + ' (Undo to revert).');
+  }
+
+  function doUndo(i) {
+    const c = state.corrections[i];
+    if (!c) return;
+    state.transcript.words[i].text = c.orig;
+    delete state.corrections[i];
+    renderSentence();
+    renderPanel();
+    status('undone: word ' + (i + 1) + ' restored to ' + c.orig + '.');
+  }
+
+  function ingestFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const res = parseTranscriptInput(file.name, String(reader.result || ''));
+      if (!res.ok) { status('could not load ' + file.name + ': ' + res.error); return; }
+      loadTranscript(res.transcript, file.name);
+      status('loaded ' + file.name + ': ' + res.transcript.words.length +
+        ' words' + (res.note || '') + '.');
+    };
+    reader.readAsText(file);
+  }
+
+  $('file').addEventListener('change', (e) => {
+    if (e.target.files[0]) ingestFile(e.target.files[0]);
+    e.target.value = '';
+  });
+  const drop = $('drop');
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault(); drop.classList.remove('over');
+    if (e.dataTransfer.files[0]) ingestFile(e.dataTransfer.files[0]);
+  });
+  $('reset').addEventListener('click', loadFixture);
+
+  loadFixture();
+})();
+</script>
+</body>
+</html>
