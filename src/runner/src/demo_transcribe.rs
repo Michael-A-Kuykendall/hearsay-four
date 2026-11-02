@@ -7,27 +7,55 @@
 //!
 //! The model path is a SINGLE config value ([`DEFAULT_AM`]) so a later model
 //! swap touches one line. The LM/lexicon defaults are likewise single values.
-//! Lane worktrees hold code only; these absolute paths read model/audio data
-//! read-only from the main checkout.
+//! Lane worktrees hold code only; these repo-relative defaults read model/audio
+//! data read-only from the enclosing checkout (bead
+//! `hearsay-four-nc0q--runner-paths-whytext`).
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use decoder::{BookSource, DecoderConfig, MooreDecoder, Recognizer};
 
+/// This crate lives at `<root>/src/runner`, so `../..` from
+/// `CARGO_MANIFEST_DIR` is the checkout root (and `../../..` its parent, for
+/// the sibling better-voice checkout). Built in place, these resolve to the
+/// same files the old absolute defaults named.
+///
 /// Current best acoustic model (non-CMVN 8-mix). THE single model config
-/// value: swapping models later means changing this one line.
-pub const DEFAULT_AM: &str =
-    "/home/michael/repos/hearsay-four/data/models/r3v2-full93/ckpt-8mix-iter4.json";
-/// General (non-personal) full-size R1-v2 LM. Single value; `--lm` overrides.
-pub const DEFAULT_LM: &str =
-    "/home/michael/repos/hearsay-four/data/lm-text/r1v2-full/lm-r1v2-general.json";
-/// Tier-1 lexicon: better-voice master phonetics (CMUdict content).
-pub const DEFAULT_TIER1: &str =
-    "/home/michael/repos/better-voice/data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt";
-/// Tier-2 lexicon: Librispeech G2P gap fill.
-pub const DEFAULT_TIER2: &str =
-    "/home/michael/repos/hearsay-four/data/lexicon/librispeech-lexicon.txt";
+/// value: swapping models later means changing this one line. Repo-relative;
+/// the `HEARSAY_AM` env var or `--am` CLI flag overrides it.
+pub const DEFAULT_AM: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../data/models/r3v2-full93/ckpt-8mix-iter4.json"
+);
+/// General (non-personal) full-size R1-v2 LM. Single value; `HEARSAY_LM` or
+/// `--lm` overrides.
+pub const DEFAULT_LM: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../data/lm-text/r1v2-full/lm-r1v2-general.json"
+);
+/// Tier-1 lexicon: better-voice master phonetics (CMUdict content), from the
+/// sibling better-voice checkout. `HEARSAY_TIER1` or `--tier1` overrides.
+pub const DEFAULT_TIER1: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../better-voice/data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt"
+);
+/// Tier-2 lexicon: Librispeech G2P gap fill. `HEARSAY_TIER2` or `--tier2`
+/// overrides.
+pub const DEFAULT_TIER2: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../data/lexicon/librispeech-lexicon.txt"
+);
+
+/// Env-or-default resolver: `HEARSAY_AM` / `HEARSAY_LM` / `HEARSAY_TIER1` /
+/// `HEARSAY_TIER2` / `HEARSAY_DEMO_WAV_ROOT` win when set, else the
+/// `CARGO_MANIFEST_DIR`-relative compiled default. CLI flags apply later in
+/// `hearsay-transcribe`'s arg parser, on top of [`DemoConfig::default`].
+fn env_or_default(var: &str, default: &str) -> PathBuf {
+    std::env::var(var)
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(default))
+}
 /// LM top-N vocab size (same default as the `wer_devclean` harness).
 pub const DEFAULT_TOP_N: usize = 20_000;
 /// Default LM weight: the `tune200s-fallback` best cell (`lmw=6 wip=0`,
@@ -54,8 +82,16 @@ pub const DEMO_FILES: [(&str, &str); 3] = [
         "dev-clean/1919/142785/1919-142785-0021.wav",
     ),
 ];
-/// Wav root the [`DEMO_FILES`] paths are relative to.
-pub const DEMO_WAV_ROOT: &str = "/home/michael/repos/hearsay-four/data/librispeech/wav";
+/// Wav root the [`DEMO_FILES`] paths are relative to. Repo-relative;
+/// `HEARSAY_DEMO_WAV_ROOT` overrides via [`demo_wav_root`].
+pub const DEMO_WAV_ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../data/librispeech/wav");
+
+/// Env-aware wav root: `HEARSAY_DEMO_WAV_ROOT` when set, else
+/// [`DEMO_WAV_ROOT`]. (`hearsay-transcribe --demo` reads the const directly;
+/// this is the override hook for env-driven callers.)
+pub fn demo_wav_root() -> PathBuf {
+    env_or_default("HEARSAY_DEMO_WAV_ROOT", DEMO_WAV_ROOT)
+}
 
 /// Transcriber configuration. Every path overrides one `DEFAULT_*` single.
 #[derive(Debug, Clone)]
@@ -80,10 +116,10 @@ pub struct DemoConfig {
 impl Default for DemoConfig {
     fn default() -> Self {
         Self {
-            am: PathBuf::from(DEFAULT_AM),
-            lm: PathBuf::from(DEFAULT_LM),
-            tier1: PathBuf::from(DEFAULT_TIER1),
-            tier2: PathBuf::from(DEFAULT_TIER2),
+            am: env_or_default("HEARSAY_AM", DEFAULT_AM),
+            lm: env_or_default("HEARSAY_LM", DEFAULT_LM),
+            tier1: env_or_default("HEARSAY_TIER1", DEFAULT_TIER1),
+            tier2: env_or_default("HEARSAY_TIER2", DEFAULT_TIER2),
             book: None,
             top_n: DEFAULT_TOP_N,
             beam: None,
@@ -149,7 +185,10 @@ impl Transcriber {
         self.lexicon.sources.get(word_upper).map(|s| s.as_str())
     }
 
-    /// [`transcript_json`] plus a per-word `why` panel (bead wgit shape).
+    /// [`transcript_json`] plus a per-word `why` panel (bead wgit shape) and
+    /// its plain-English `why_text` sentence (lane H hookup, bead
+    /// `hearsay-four-nc0q--runner-paths-whytext`; pure addition, existing
+    /// keys untouched).
     pub fn transcript_json_with_why(
         &self,
         utt_id: &str,
@@ -165,6 +204,13 @@ impl Transcriber {
                 let history = &lower[..i];
                 let prob = self.lm_probability(history, &token.word);
                 word["why"] = why_json(token, history, prob, self.lexicon_source(&token.word));
+                word["why_text"] = serde_json::json!(output::why_text::render_demo_why_text(
+                    &token.word,
+                    token.acoustic_llr,
+                    history,
+                    prob,
+                    self.lexicon_source(&token.word)
+                ));
             }
         }
         value
@@ -484,5 +530,99 @@ mod tests {
         let w = why_json(&lat.tokens[1], &["hello".to_string()], 0.5, None);
         assert!(w["lexicon_source"].is_null());
         assert_eq!(w["lm_history"], serde_json::json!(["<s>", "hello"]));
+    }
+
+    #[test]
+    fn default_paths_are_repo_relative_not_hardcoded() {
+        // Bead hearsay-four-nc0q: every default anchors at this crate's
+        // manifest dir plus a repo-relative suffix (no baked-in checkout
+        // location), so an in-place build resolves to the same files as the
+        // old absolute defaults. (The value still contains the manifest dir
+        // at runtime when built under /home — relativity is about the
+        // composition, not the expansion.)
+        let manifest = env!("CARGO_MANIFEST_DIR");
+        for p in [DEFAULT_AM, DEFAULT_LM, DEFAULT_TIER1, DEFAULT_TIER2] {
+            assert!(p.starts_with(manifest), "{p}");
+        }
+        assert!(
+            DEFAULT_AM.ends_with("data/models/r3v2-full93/ckpt-8mix-iter4.json"),
+            "{DEFAULT_AM}"
+        );
+        assert!(
+            DEFAULT_LM.ends_with("data/lm-text/r1v2-full/lm-r1v2-general.json"),
+            "{DEFAULT_LM}"
+        );
+        assert!(
+            DEFAULT_TIER1.ends_with(
+                "better-voice/data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt"
+            ),
+            "{DEFAULT_TIER1}"
+        );
+        assert!(
+            DEFAULT_TIER2.ends_with("data/lexicon/librispeech-lexicon.txt"),
+            "{DEFAULT_TIER2}"
+        );
+        assert!(DEMO_WAV_ROOT.starts_with(manifest), "{DEMO_WAV_ROOT}");
+        assert!(
+            DEMO_WAV_ROOT.ends_with("data/librispeech/wav"),
+            "{DEMO_WAV_ROOT}"
+        );
+    }
+
+    #[test]
+    fn env_override_wins_over_compiled_default() {
+        // Uses a test-only var name no other test touches (process env is
+        // shared across test threads).
+        let var = "HEARSAY_RUNNER_TEST_ONLY_OVERRIDE";
+        // SAFETY: single-threaded access to a unique var name.
+        unsafe { std::env::remove_var(var) };
+        assert_eq!(env_or_default(var, DEFAULT_AM), PathBuf::from(DEFAULT_AM));
+        unsafe { std::env::set_var(var, "/tmp/override-am.json") };
+        assert_eq!(
+            env_or_default(var, DEFAULT_AM),
+            PathBuf::from("/tmp/override-am.json")
+        );
+        unsafe { std::env::remove_var(var) };
+    }
+
+    #[test]
+    fn demo_wav_root_env_override() {
+        let prior = std::env::var("HEARSAY_DEMO_WAV_ROOT").ok();
+        // SAFETY: this is the only test touching HEARSAY_DEMO_WAV_ROOT; the
+        // prior value is restored before returning.
+        unsafe { std::env::remove_var("HEARSAY_DEMO_WAV_ROOT") };
+        assert_eq!(demo_wav_root(), PathBuf::from(DEMO_WAV_ROOT));
+        unsafe { std::env::set_var("HEARSAY_DEMO_WAV_ROOT", "/tmp/wavs") };
+        assert_eq!(demo_wav_root(), PathBuf::from("/tmp/wavs"));
+        unsafe {
+            match prior {
+                Some(v) => std::env::set_var("HEARSAY_DEMO_WAV_ROOT", v),
+                None => std::env::remove_var("HEARSAY_DEMO_WAV_ROOT"),
+            }
+        }
+    }
+
+    #[test]
+    fn demo_why_text_sentence_shape() {
+        // Runner-side pin of the lane H hookup contract: the exact scalars
+        // `transcript_json_with_why` passes must render the two-sentence
+        // demo panel text (mirrors output::why_text fixtures).
+        let text =
+            output::why_text::render_demo_why_text("HELLO", -12.5, &[], 0.0012, Some("cmudict"));
+        assert_eq!(
+            text,
+            "Heard 'HELLO': the sounds scored -12.5, and the word model gives 'hello' probability 0.0012. It came from the cmudict word list."
+        );
+        let text = output::why_text::render_demo_why_text(
+            "WORLD",
+            -9.75,
+            &["hello".to_string()],
+            0.5,
+            None,
+        );
+        assert_eq!(
+            text,
+            "Heard 'WORLD': the sounds scored -9.75, and the word model gives 'hello world' probability 0.5. No word-list tag was recorded."
+        );
     }
 }
