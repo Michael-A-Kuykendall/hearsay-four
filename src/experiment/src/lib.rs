@@ -36,4 +36,5 @@ pub mod fixtures;
 pub mod oracle_sweep;
 pub mod sampling;
 pub mod scoring;
+pub mod sweep;
 pub mod table;
