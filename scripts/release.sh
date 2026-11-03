@@ -43,12 +43,13 @@ cargo --version
 rustup target list --installed 2>/dev/null || true
 
 echo "== build (--release --bin hearsay-demo, target: ${TRIPLE:-host}) =="
+TDIR="${CARGO_TARGET_DIR:-target}"
 if [ -z "$TRIPLE" ]; then
   cargo build --offline --release --bin hearsay-demo
-  BIN="target/release/hearsay-demo"
+  BIN="$TDIR/release/hearsay-demo"
 else
   cargo build --offline --release --target "$TRIPLE" --bin hearsay-demo
-  BIN="target/$TRIPLE/release/hearsay-demo"
+  BIN="$TDIR/$TRIPLE/release/hearsay-demo"
 fi
 case "$BIN" in
   *windows*) BIN="$BIN.exe" ;;

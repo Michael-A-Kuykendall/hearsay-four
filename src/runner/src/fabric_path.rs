@@ -17,7 +17,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use output::fabric_why::{FabricEvents, FabricTokenWhy, parse_events_jsonl};
+use output::fabric_why::{FabricEvent, FabricEvents, FabricTokenWhy, parse_events_jsonl};
 
 use crate::demo_transcribe::lm_history_pair;
 
@@ -123,6 +123,37 @@ pub fn why_json_fabric(
     })
 }
 
+/// Utterance-level DecisionEvent summary as JSON: per-kind counts over the
+/// bridge v1 event log (revived / defeated-with-margin / evicted / pruned /
+/// committed) plus the late-rescue token ids (revived and later committed).
+/// The web viewer renders this above the words; `web/demo.sh` asserts the
+/// counts, so a 1-best-path transcript (no event log) fails the gate.
+pub fn fabric_summary_json(events: &FabricEvents) -> serde_json::Value {
+    let mut revived = 0u64;
+    let mut defeated = 0u64;
+    let mut evicted = 0u64;
+    let mut pruned = 0u64;
+    let mut committed = 0u64;
+    for event in &events.events {
+        match event {
+            FabricEvent::Revived { .. } => revived += 1,
+            FabricEvent::Defeated { .. } => defeated += 1,
+            FabricEvent::Evicted { .. } => evicted += 1,
+            FabricEvent::Pruned { .. } => pruned += 1,
+            FabricEvent::Committed { .. } => committed += 1,
+        }
+    }
+    serde_json::json!({
+        "events_total": events.events.len(),
+        "revived": revived,
+        "defeated": defeated,
+        "evicted": evicted,
+        "pruned": pruned,
+        "committed": committed,
+        "late_rescues": events.revived_and_committed(),
+    })
+}
+
 /// Render one fabric utterance as transcript JSON: the decoder-path shape
 /// (`{utt_id, input, audio_secs, decode_secs, text, words}` with per-word
 /// `why` + `why_text`) plus `path: "fabric"` and the `chosen` label.
@@ -193,6 +224,7 @@ pub fn transcript_json_from_fabric(
         "timing_note": FABRIC_TIMING_NOTE,
         "text": transcript_words.join(" "),
         "words": words,
+        "fabric_summary": fabric_summary_json(&utt.events),
         "path": "fabric",
         "chosen": FABRIC_CHOSEN_NOTE,
     }))
@@ -277,6 +309,23 @@ mod tests {
             serde_json::json!(["THE", "CAT", "SAT"])
         );
         assert!(words[1].get("why_text").is_some());
+    }
+
+    #[test]
+    fn fabric_summary_counts_decision_events() {
+        let utt = fixture_utt();
+        let summary = fabric_summary_json(&utt.events);
+        assert_eq!(summary["events_total"], 3);
+        assert_eq!(summary["revived"], 1);
+        assert_eq!(summary["defeated"], 1);
+        assert_eq!(summary["evicted"], 0);
+        assert_eq!(summary["pruned"], 0);
+        assert_eq!(summary["committed"], 1);
+        assert_eq!(summary["late_rescues"], serde_json::json!([5]));
+        let value = transcript_json_from_fabric(&utt, "fabric: fixture", &|_, _| 0.5, &|_| None)
+            .expect("fixture builds");
+        assert_eq!(value["fabric_summary"]["revived"], 1);
+        assert_eq!(value["fabric_summary"]["late_rescues"][0], 5);
     }
 
     #[test]

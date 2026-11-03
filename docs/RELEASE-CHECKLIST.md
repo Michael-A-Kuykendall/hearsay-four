@@ -123,3 +123,62 @@ sources, and `git log --all` history checks for personal/corpora paths.
 - [ ] D7. Confirm no owner-voice audio and no book text were ever staged in
       any lane branch that will merge before release (main history is clean;
       open lanes were not audited).
+
+## Keep/strip summary (lane su00 completion)
+
+Distilled from items 1–10 above. KEEP: `src/**`, `web/` demo pages,
+`docs/` prose + results + video script, `scripts/` guards, `Cargo.toml`
+files + lockfiles, `data/` manifests (`DATA-1-book-manifest.json`,
+`lexicon/manifest.json`, `SHA256SUMS.*`), the 4 allowlisted
+`data/demo/` fixtures, `models/si_base/model.json`, `dist/` proofs,
+root docs. STRIP: live secrets (item 3, blocking) + the audit JSON
+bulk (item 5, owner's `git rm`), `data/` corpora/audio/models (all
+gitignored), `~/hearsay-personal/`, `target/`, `web/demo-out/`,
+`.beads/` local state, sibling checkouts (referenced, never vendored).
+
+## Secrets scan — rerun on the release commit (lane su00)
+
+- [ ] G1 `bash scripts/no_model_guard.sh` → exit 0.
+- [ ] G2 `bash scripts/personal_guard.sh` → `PERSONAL-GUARD-OK`.
+- [ ] G3 Key grep → no hits outside the D3 strip set (zero after D3):
+  `grep -rEn 'AKIA[0-9A-Z]{16}|BEGIN (RSA |EC |OPENSSH )?PRIVATE[ ]KEY|api[_-]?key|ghp_[0-9A-Za-z]{36}|xox[bap]-|csk-[A-Za-z0-9]{20,}' src web scripts docs`
+  (pattern is self-match-safe: brackets break the literal; the `csk-`
+  length floor skips the redacted `csk-vnc5…` prefix quoted in item 3).
+- [ ] G4 `git ls-files | grep -E '\.(wav|mp3|flac|onnx|safetensors|pt|pth|bin|arpa|lm\.bin)$'`
+  → only the 4 allowlisted `data/demo/` fixtures; then
+  `bash scripts/check_tracked_artifacts.sh` → exit 0.
+- [ ] G5 `for p in target/x web/demo-out/x data/librispeech/x
+  data/lm-text/x data/models/x sessions/canon/x; do
+  git check-ignore -q "$p" || echo "NOT IGNORED: $p"; done` → no output
+  (`data/`, `sessions/`, `dist/` are intentionally *partially* tracked —
+  fixtures, manifests, proofs — so probe the ignored subpaths, not roots).
+
+## Gate reruns — release commit, clean checkout, owner machine (lane su00)
+
+- [ ] R1 `bash web/demo.sh` → `DEMO GREEN`, exit 0 (needs `data/`
+  externals or `HEARSAY_LM`/`HEARSAY_TIER1`/`HEARSAY_TIER2`).
+- [ ] R2 `bash web/tcv2-gate.sh` → exit 0.
+- [ ] R3 `CARGO_TARGET_DIR=$HOME/.cargo/target-shared cargo test -p runner -p output`
+  → all suites pass, 0 failed.
+- [ ] R4 `CARGO_TARGET_DIR=$HOME/.cargo/target-shared cargo clippy -p runner --all-targets -- -D warnings`
+  → no warnings.
+- [ ] R5 `cargo fmt -p runner --check` → no diff.
+- [ ] R6 `bash scripts/release.sh --target host` → `dist/smoke.json`,
+  `dist/no_model_guard.txt`, `dist/SHA256SUMS` all written.
+
+## Video / numbers consistency (lane su00)
+
+- [ ] V1 Every `docs/video/SCRIPT.md` VO number matches its cited doc row
+  (A6 arm-A table, ledger row 5, oracle K=10 row).
+- [ ] V2 Shot F shows the arms-B/C BLOCKED verdict on screen (disclosed,
+  not hidden).
+- [ ] V3 `grep -c TBD docs/video/SCRIPT.md` → `0` (no unfilled inserts).
+
+## Owner sign-off (lane su00)
+
+- Lane J items decided: D1 D2 D3 D4 D5 D6 D7 (initial each above).
+- Lane su00 reruns green: G1–G5 R1–R6 V1–V3 (initial each above).
+- Release commit: ________________________________________
+- Date (UTC): ________________________________________
+- [ ] I ran every box above on the release commit and all are green.
+  Owner signature: ________________________________________

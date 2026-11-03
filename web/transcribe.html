@@ -8,7 +8,8 @@
   LANE D demo viewer (bead hearsay-four-wgit--why-panel-demo-script).
   GENERATED DATA: run web/demo.sh from the repo root first; it writes
     web/demo-out/demo-transcripts.json (array of transcript objects, one per
-    chosen fabric utterance, each word carrying a `why` panel object).
+    chosen fabric utterance, each carrying a `fabric_summary` of DecisionEvent
+    counts and each word carrying a `why` panel object).
   SERVE: python3 -m http.server 8000   # then open /web/transcribe.html
   The page fetches ./demo-out/demo-transcripts.json over http; under file://
   it falls back to a file picker. No network beyond local fetch, no WASM,
@@ -93,6 +94,19 @@ function render(items, ref) {
       (item.chosen ? ' — ' + item.chosen : '') +
       (item.timing_note ? ' (' + item.timing_note + ')' : '');
     box.appendChild(meta);
+    const fs = item.fabric_summary;
+    if (fs && typeof fs === 'object') {
+      const sum = document.createElement('div');
+      sum.className = 'meta';
+      sum.textContent = 'fabric events: ' + fs.events_total +
+        ' (revived ' + fs.revived + ', defeated ' + fs.defeated +
+        ', evicted ' + fs.evicted + ', pruned ' + fs.pruned +
+        ', committed ' + fs.committed + ')' +
+        ((fs.late_rescues && fs.late_rescues.length)
+          ? ' — late rescues: token ' + fs.late_rescues.join(', ')
+          : ' — no late rescues');
+      box.appendChild(sum);
+    }
     const text = document.createElement('p');
     text.className = 'text';
     text.textContent = item.text || '';

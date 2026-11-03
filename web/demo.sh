@@ -1,10 +1,12 @@
 #!/bin/bash
-# Fabric-path demo (bead hearsay-four-4lsp--fabric-path-demo): bridge handoff
-# + fabric why panels on the experiment fixture population (u1-u4, including
-# the u1 late rescue of `cat`). No manual steps: generates bridge outputs,
-# renders transcripts with fabric why panels, validates structure + revival,
-# exercises the correction entry point on the fabric path, and checks the
-# click-a-word viewer wiring.
+# Fabric-path demo (bead hearsay-four-4lsp--fabric-path-demo, extended by
+# hearsay-four-su00--demo-video-release): bridge handoff + fabric why panels
+# on the experiment fixture population (u1-u4, including the u1 late rescue
+# of `cat`). No manual steps: generates bridge outputs, renders transcripts
+# with fabric why panels + utterance-level DecisionEvent summaries (revived /
+# defeated+margin / evicted / pruned / committed), validates structure +
+# revival + summary counts, exercises the correction entry point on the
+# fabric path, and checks the click-a-word viewer wiring.
 #
 # Binaries run via `cargo run --release` (no hardcoded target dir): correct
 # under both the shared-target config and the standard layout.
@@ -86,6 +88,14 @@ for t in items:
         assert isinstance(fe.get("alternatives_beaten"), list), f"{w}: beaten missing"
         com = fe.get("committed")
         assert isinstance(com, dict) and com.get("tiling"), f"{w}: defeating tiling missing"
+        assert com.get("margin") is None or isinstance(com.get("margin"), (int, float)), f"{w}: bad commit margin"
+        # 7. defeat outcome + eviction record: null-or-shaped, never TBD
+        db = fe.get("defeated_by")
+        assert db is None or (isinstance(db, dict) and isinstance(db.get("winner"), list)), f"{w}: bad defeated_by"
+        if isinstance(db, dict):
+            assert db.get("margin") is None or isinstance(db.get("margin"), (int, float)), f"{w}: bad defeat margin"
+        ev = fe.get("evicted")
+        assert ev is None or (isinstance(ev, dict) and isinstance(ev.get("liveness"), (int, float)) and ev.get("budget")), f"{w}: bad evicted record"
         assert why.get("fabric_note"), f"{w}: fabric_note missing"
 
 # The late rescue: u1 commits `cat`, revived via `sat`, beating `bat`.
@@ -97,10 +107,32 @@ rev = cat[0]["why"]["fabric_events"]["revivals"]
 assert len(rev) == 1 and rev[0]["via"] == "sat", f"u1 cat revival {rev!r}"
 assert "bat" in cat[0]["why"]["alternatives"], "u1 cat must show bat beaten"
 
+# Utterance-level DecisionEvent summaries (su00). Falsification: a demo
+# reading the 1-best path emits no fabric_summary, so every assert below
+# fails on decoder transcripts.
+for t in items:
+    fs = t.get("fabric_summary")
+    assert isinstance(fs, dict), f"{t.get('utt_id')}: fabric_summary missing (1-best path?)"
+    for key in ("revived", "defeated", "evicted", "pruned", "committed"):
+        assert isinstance(fs.get(key), int) and fs[key] >= 0, f"{t['utt_id']}: bad summary {key}"
+    assert fs["events_total"] == fs["revived"] + fs["defeated"] + fs["evicted"] + fs["pruned"] + fs["committed"], \
+        f"{t['utt_id']}: summary counts do not add up"
+    assert isinstance(fs.get("late_rescues"), list), f"{t['utt_id']}: late_rescues missing"
+    assert fs["committed"] >= 1, f"{t['utt_id']}: nothing committed"
+u1s = items[0]["fabric_summary"]
+assert u1s["revived"] >= 1 and u1s["defeated"] >= 1, f"u1 summary {u1s!r}"
+assert u1s["late_rescues"], "u1 must name its late rescue in the summary"
+u3s = items[2]["fabric_summary"]
+assert u3s["evicted"] >= 1, f"u3 bulk must bind evictions, got {u3s!r}"
+
 print(f"PASS: 4 fixture transcripts, {nwords} words, fabric record on every word")
 for t in items:
-    print(f"  {t['utt_id']}: {t['text']}")
+    fs = t["fabric_summary"]
+    print(f"  {t['utt_id']}: {t['text']} "
+          f"[events={fs['events_total']} revived={fs['revived']} defeated={fs['defeated']} "
+          f"evicted={fs['evicted']} committed={fs['committed']} rescues={fs['late_rescues']}]")
 print("PASS: u1 late rescue verified (cat revived via sat, beats bat)")
+print("PASS: fabric summaries verified (u1 revival+defeat, u3 evictions, counts add up)")
 EOF
 
 echo "==> [5/6] correction entry point reads the fabric path"
