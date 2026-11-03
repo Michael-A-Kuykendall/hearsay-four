@@ -122,19 +122,21 @@ macro_rules! run_workload {
 }
 
 fn finite_budgets_n() -> new::DecisionParams {
-    let mut p = new::DecisionParams::default();
-    p.live_budget = 50;
-    p.dormant_budget = 50;
-    p.combined_budget = Some(120);
-    p
+    new::DecisionParams {
+        live_budget: 50,
+        dormant_budget: 50,
+        combined_budget: Some(120),
+        ..Default::default()
+    }
 }
 
 fn finite_budgets_o() -> old::DecisionParams {
-    let mut p = old::DecisionParams::default();
-    p.live_budget = 50;
-    p.dormant_budget = 50;
-    p.combined_budget = Some(120);
-    p
+    old::DecisionParams {
+        live_budget: 50,
+        dormant_budget: 50,
+        combined_budget: Some(120),
+        ..Default::default()
+    }
 }
 
 #[test]
