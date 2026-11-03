@@ -357,37 +357,61 @@ enum EvidenceRef {
     Seq { idx: usize },
 }
 
-/// Budget-heap entry: min-first by (`liveness`, §10 tie rank), with a
-/// version tag for lazy deletion. Total order via `total_cmp` (NaN sorts
-/// last, deterministically) plus the unique tie rank.
-#[derive(Debug, Clone, Copy)]
-struct HeapEntry {
+/// Persistent budget-heap entry (bead ts1o): min-first by (`liveness`,
+/// §10 tie order), with a version tag for lazy deletion. The tie key is
+/// the immutable (`start_frame`, `label`, `token`) triple — the exact
+/// §10 tie order — so entries stay comparable across calls with no
+/// per-call rank freeze. Total order via `total_cmp` (NaN sorts last,
+/// deterministically) plus the unique tie key.
+#[derive(Debug, Clone)]
+struct BudgetEntry {
     liveness: f64,
-    rank: usize,
+    start_frame: u32,
+    label: String,
     version: u64,
     token: FactId,
 }
 
-impl PartialEq for HeapEntry {
+impl PartialEq for BudgetEntry {
     fn eq(&self, other: &Self) -> bool {
         self.cmp(other) == std::cmp::Ordering::Equal
     }
 }
 
-impl Eq for HeapEntry {}
+impl Eq for BudgetEntry {}
 
-impl PartialOrd for HeapEntry {
+impl PartialOrd for BudgetEntry {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for HeapEntry {
+impl Ord for BudgetEntry {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.liveness
             .total_cmp(&other.liveness)
-            .then_with(|| self.rank.cmp(&other.rank))
+            .then_with(|| self.start_frame.cmp(&other.start_frame))
+            .then_with(|| self.label.cmp(&other.label))
+            .then_with(|| self.token.cmp(&other.token))
     }
+}
+
+/// Persistent budget state (bead ts1o): one min-heap per pool over the
+/// open set, keyed by (`L(h)`, §10 tie order), maintained incrementally.
+/// Every liveness change flows through the propagation drain, which
+/// re-syncs exactly the affected tokens; evictions pop victims in the
+/// same order the per-call sort produced. `dirty` covers the one path
+/// that bypasses propagation (`fabric_mut`): the next `enforce_budgets`
+/// rebuilds from scratch (exact, O(active)).
+#[derive(Debug, Default)]
+struct BudgetState {
+    live_heap: BinaryHeap<Reverse<BudgetEntry>>,
+    dormant_heap: BinaryHeap<Reverse<BudgetEntry>>,
+    /// Current (liveness, version) per budget member.
+    state: HashMap<FactId, (f64, u64)>,
+    live_count: usize,
+    dormant_count: usize,
+    dirty: bool,
 }
 
 /// The decision contract layer over a [`Fabric`] (spec version 1.0).
@@ -513,6 +537,9 @@ pub struct DecisionFabric {
     /// External-mutation flag: set by `fabric_mut` (the only path that
     /// bypasses propagation); queries clear the caches when it is set.
     external_dirty: Cell<bool>,
+    /// Persistent budget heaps (bead ts1o): maintained incrementally by
+    /// the propagation drain, rebuilt on external dirt.
+    budget: BudgetState,
 }
 
 impl DecisionFabric {
@@ -542,6 +569,7 @@ impl DecisionFabric {
             pending_set: HashSet::new(),
             cache: RefCell::new(LivenessCache::default()),
             external_dirty: Cell::new(false),
+            budget: BudgetState::default(),
         }
     }
 
@@ -554,8 +582,12 @@ impl DecisionFabric {
     pub fn fabric_mut(&mut self) -> &mut Fabric {
         // External-mutation flag: the caller may retract/assert behind
         // propagation's back, so the next query re-syncs (clears caches;
-        // membership re-syncs in `sync_open` on the `&mut` paths).
+        // membership re-syncs in `sync_open` on the `&mut` paths). The
+        // budget flag is separate and sticky: only the budget rebuild
+        // clears it, so a query between the mutation and the next enforce
+        // cannot consume the rebuild signal (bead ts1o).
         self.external_dirty.set(true);
+        self.budget.dirty = true;
         &mut self.fabric
     }
     pub fn token(&self, fact: FactId) -> Option<&Token> {
@@ -609,6 +641,9 @@ impl DecisionFabric {
         // Sync the derived pools to the new membership (idempotent; also
         // refreshes a re-registered token's liveness).
         self.refresh_liveness(fact);
+        // Sync the persistent budget entry (covers inserts, re-registers
+        // with changed tie keys, and inactive re-registers).
+        self.sync_budget_one(fact);
         Ok(fact)
     }
 
@@ -889,6 +924,7 @@ impl DecisionFabric {
             self.retract_internal(victim);
             self.open.remove(&victim);
             self.active_all.remove(&victim);
+            self.budget_drop(victim);
             FabricStats::bump(&self.stats.pruned);
             self.log.push(DecisionEvent::Pruned {
                 token: victim,
@@ -923,109 +959,73 @@ impl DecisionFabric {
         if live_ok && dormant_ok && combined_ok {
             return;
         }
-        self.sync_open();
-        // Freeze the §10 tie order as ranks (token_tie_cmp is total: the
-        // token id breaks all ties).
-        let mut order: Vec<FactId> = self.active_all.iter().copied().collect();
-        order.sort_by(|a, b| self.token_tie_cmp(*a, *b));
-        let rank: HashMap<FactId, usize> = order.iter().enumerate().map(|(i, t)| (*t, i)).collect();
-        // Current (liveness, version) per open token; evicted tokens leave.
-        // One heap per pool: entries never move pools (a transition pushes
-        // a fresh entry to the new pool's heap and stales the old one), so
-        // a fresh entry is always in its token's current pool.
-        let mut state: HashMap<FactId, (f64, u64)> = HashMap::new();
-        let mut live_heap: BinaryHeap<Reverse<HeapEntry>> = BinaryHeap::new();
-        let mut dormant_heap: BinaryHeap<Reverse<HeapEntry>> = BinaryHeap::new();
-        let mut live_count = 0usize;
-        let mut dormant_count = 0usize;
-        let arm_c = self.params.arm == Arm::C;
-        for t in &order {
-            let liv = self.liveness(*t);
-            state.insert(*t, (liv, 0));
-            let entry = Reverse(HeapEntry {
-                liveness: liv,
-                rank: rank[t],
-                version: 0,
-                token: *t,
-            });
-            if liv >= self.params.theta_live {
-                live_heap.push(entry);
-                FabricStats::bump(&self.stats.heap_pushes);
-                live_count += 1;
-            } else if arm_c {
-                dormant_heap.push(entry);
-                FabricStats::bump(&self.stats.heap_pushes);
-                dormant_count += 1;
-            }
+        if self.budget.dirty {
+            // External mutation bypassed propagation: exact O(active)
+            // resync (membership retain + budget rebuild). Internal paths
+            // maintain membership eagerly, so the clean path skips both —
+            // per-call cost is O(affected + evicted · log open).
+            self.sync_open();
+            self.ensure_synced();
+            self.rebuild_budget();
         }
         // R2 (spec docs/design/a4-budget-semantics.md): live cap first,
         // then dormant + combined. Victim order everywhere: lowest L(h),
-        // ties by §10 tie order.
-        while live_count > self.params.live_budget {
-            let Some(victim) = self.pop_fresh(&mut live_heap, &state) else {
+        // ties by §10 tie order. The persistent heaps hold exactly the
+        // budget members with current liveness (drain-synced), so popping
+        // reproduces the per-call sort's victim sequence with no sort.
+        // Evictions re-sync dependents through the propagation drain
+        // (`retract_internal`), which subsumes the old neighbor refresh.
+        while self.budget.live_count > self.params.live_budget {
+            let Some(victim) =
+                Self::pop_fresh(&mut self.budget.live_heap, &self.budget.state, &self.stats)
+            else {
                 break;
             };
             let liveness = self.liveness(victim);
             self.retract_internal(victim);
             self.open.remove(&victim);
             self.active_all.remove(&victim);
-            state.remove(&victim);
-            live_count -= 1;
+            self.budget_drop(victim);
             FabricStats::bump(&self.stats.evicted);
             self.log.push(DecisionEvent::Evicted {
                 token: victim,
                 liveness,
                 budget: BudgetKind::Live,
             });
-            self.refresh_neighbors(
-                &mut live_heap,
-                &mut dormant_heap,
-                &mut state,
-                &rank,
-                &mut live_count,
-                &mut dormant_count,
-                victim,
-            );
         }
         // Arm B (§11 table): the combined total counts live tokens only
         // (there is no dormant set), so over-total victims come from live.
         if self.params.arm == Arm::B {
             if let Some(total) = self.params.combined_budget {
-                while live_count > total {
-                    let Some(victim) = self.pop_fresh(&mut live_heap, &state) else {
+                while self.budget.live_count > total {
+                    let Some(victim) = Self::pop_fresh(
+                        &mut self.budget.live_heap,
+                        &self.budget.state,
+                        &self.stats,
+                    ) else {
                         break;
                     };
                     let liveness = self.liveness(victim);
                     self.retract_internal(victim);
                     self.open.remove(&victim);
                     self.active_all.remove(&victim);
-                    state.remove(&victim);
-                    live_count -= 1;
+                    self.budget_drop(victim);
                     FabricStats::bump(&self.stats.evicted);
                     self.log.push(DecisionEvent::Evicted {
                         token: victim,
                         liveness,
                         budget: BudgetKind::Combined,
                     });
-                    self.refresh_neighbors(
-                        &mut live_heap,
-                        &mut dormant_heap,
-                        &mut state,
-                        &rank,
-                        &mut live_count,
-                        &mut dormant_count,
-                        victim,
-                    );
                 }
             }
             return;
         }
         loop {
-            let over_dormant = dormant_count > self.params.dormant_budget;
+            let over_dormant = self.budget.dormant_count > self.params.dormant_budget;
             let over_combined = self
                 .params
                 .combined_budget
-                .is_some_and(|total| live_count + dormant_count > total);
+                .is_some_and(|total| self.budget.live_count + self.budget.dormant_count > total);
             if !over_dormant && !over_combined {
                 return;
             }
@@ -1034,41 +1034,25 @@ impl DecisionFabric {
             } else {
                 BudgetKind::Combined
             };
-            let Some(victim) = self.pop_fresh(&mut dormant_heap, &state) else {
+            let Some(victim) = Self::pop_fresh(
+                &mut self.budget.dormant_heap,
+                &self.budget.state,
+                &self.stats,
+            ) else {
                 return;
             };
             let liveness = self.liveness(victim);
             self.retract_internal(victim);
             self.open.remove(&victim);
             self.active_all.remove(&victim);
-            state.remove(&victim);
-            dormant_count -= 1;
+            self.budget_drop(victim);
             FabricStats::bump(&self.stats.evicted);
             self.log.push(DecisionEvent::Evicted {
                 token: victim,
                 liveness,
                 budget,
             });
-            self.refresh_neighbors(
-                &mut live_heap,
-                &mut dormant_heap,
-                &mut state,
-                &rank,
-                &mut live_count,
-                &mut dormant_count,
-                victim,
-            );
         }
-    }
-
-    /// §10 tie order between two tokens: earlier start, lexicographic
-    /// label, lower token id (score is compared by the caller).
-    fn token_tie_cmp(&self, a: FactId, b: FactId) -> std::cmp::Ordering {
-        let (ta, tb) = (&self.tokens[&a], &self.tokens[&b]);
-        ta.start_frame
-            .cmp(&tb.start_frame)
-            .then_with(|| ta.label.cmp(&tb.label))
-            .then_with(|| a.0.cmp(&b.0))
     }
 
     /// Lattice-mode successors (§9.1): tokens starting within ±J frames of
@@ -1362,6 +1346,7 @@ impl DecisionFabric {
             self.drop_from_pools(*loser);
             self.open.remove(loser);
             self.active_all.remove(loser);
+            self.budget_drop(*loser);
             FabricStats::bump(&self.stats.defeated);
             self.log.push(DecisionEvent::Defeated {
                 token: *loser,
@@ -1556,7 +1541,9 @@ impl DecisionFabric {
     /// Alpha dispatch: re-score the components one evidence row feeds and
     /// recompute the affected tokens' liveness. Bucket folds are the exact
     /// pre-saturation folds, so refreshed values equal fresh queries.
-    fn dispatch_row(&self, row: PendingRow) {
+    /// Returns the refreshed tokens so the drain can re-sync exactly the
+    /// affected budget entries (bead ts1o).
+    fn dispatch_row(&self, row: PendingRow) -> Vec<FactId> {
         match row {
             PendingRow::Unary { idx } => {
                 let (token, class) = {
@@ -1565,6 +1552,7 @@ impl DecisionFabric {
                 };
                 self.refresh_unary_component(token, class);
                 self.refresh_liveness(token);
+                vec![token]
             }
             PendingRow::Seq { idx } => {
                 let (from, to) = {
@@ -1577,18 +1565,29 @@ impl DecisionFabric {
                 if let Some(f) = from {
                     self.refresh_seq_side_component(f, false);
                     self.refresh_liveness(f);
+                    vec![to, f]
+                } else {
+                    vec![to]
                 }
             }
         }
     }
 
     /// Drain the propagation frontier. Called eagerly at the end of every
-    /// mutation, so caches are current whenever a query runs.
+    /// mutation, so caches are current whenever a query runs. The touched
+    /// tokens re-sync their persistent budget entries (bead ts1o), so
+    /// `enforce_budgets` never rescans the open set.
     fn drain_pending(&mut self) {
         self.ensure_synced();
+        let mut touched: Vec<FactId> = Vec::new();
         while let Some(row) = self.pending.pop_front() {
             self.pending_set.remove(&row);
-            self.dispatch_row(row);
+            touched.extend(self.dispatch_row(row));
+        }
+        if !self.budget.dirty {
+            for t in touched {
+                self.sync_budget_one(t);
+            }
         }
     }
 
@@ -1868,42 +1867,16 @@ impl DecisionFabric {
         ((c - j).max(0) as u32, (c + j).min(u32::MAX as i64) as u32)
     }
 
-    /// Tokens whose `liveness` can change when `fact` deactivates: the unary
-    /// tokens and both sequence endpoints of evidence gated on `fact`.
-    /// Complete: `liveness(T)` moves only when evidence relevant to `T`
-    /// (unary for `T`, pairs into/out of `T`) loses an active premise.
-    fn budget_neighbors(&self, fact: FactId) -> Vec<FactId> {
-        let mut out = BTreeSet::new();
-        if let Some(refs) = self.premise_refs.get(&fact) {
-            for r in refs {
-                match *r {
-                    EvidenceRef::Unary { idx } => {
-                        out.insert(self.unary[idx].token);
-                    }
-                    EvidenceRef::Seq { idx } => {
-                        let e = &self.sequence[idx];
-                        if let Some(f) = e.from {
-                            out.insert(f);
-                        }
-                        out.insert(e.to);
-                    }
-                }
-            }
-        }
-        out.remove(&fact);
-        out.into_iter().collect()
-    }
-
     /// Pop the lowest-(`liveness`, §10-rank) fresh heap entry from one pool
     /// (live or dormant), skipping evicted/stale/foreign-pool entries.
     fn pop_fresh(
-        &self,
-        heap: &mut BinaryHeap<Reverse<HeapEntry>>,
+        heap: &mut BinaryHeap<Reverse<BudgetEntry>>,
         state: &HashMap<FactId, (f64, u64)>,
+        stats: &FabricStats,
     ) -> Option<FactId> {
         loop {
             let Reverse(entry) = heap.pop()?;
-            FabricStats::bump(&self.stats.heap_pops);
+            FabricStats::bump(&stats.heap_pops);
             let Some((_, ver)) = state.get(&entry.token) else {
                 continue;
             };
@@ -1913,67 +1886,111 @@ impl DecisionFabric {
             return Some(entry.token);
         }
     }
-
-    /// Recompute the evicted token's neighbors after its retraction and push
-    /// fresh heap entries (lazy deletion: old entries go stale by version).
-    /// Counts follow every transition symmetrically, so they stay exact
-    /// under any liveness evolution.
-    // Eight params are inherent here: the lazy-deletion heap pair, the
-    // versioned state, the rank snapshot, the exact count pair, and the
-    // evicted token. Bundling would obscure the symmetric count updates.
-    #[allow(clippy::too_many_arguments)]
-    fn refresh_neighbors(
-        &self,
-        live_heap: &mut BinaryHeap<Reverse<HeapEntry>>,
-        dormant_heap: &mut BinaryHeap<Reverse<HeapEntry>>,
-        state: &mut HashMap<FactId, (f64, u64)>,
-        rank: &HashMap<FactId, usize>,
-        live_count: &mut usize,
-        dormant_count: &mut usize,
-        evicted: FactId,
-    ) {
-        let arm_c = self.params.arm == Arm::C;
-        for n in self.budget_neighbors(evicted) {
-            let Some(slot) = state.get_mut(&n) else {
-                continue;
-            };
-            let was_live = slot.0 >= self.params.theta_live;
-            let new_liv = self.liveness(n);
-            slot.0 = new_liv;
-            slot.1 += 1;
-            let version = slot.1;
-            let is_live = new_liv >= self.params.theta_live;
-            match (was_live, is_live) {
-                (true, false) => {
-                    *live_count -= 1;
-                    if arm_c {
-                        *dormant_count += 1;
-                    }
+    /// Re-sync one token's persistent budget entry to truth (bead ts1o):
+    /// members (active_all ∩ active) carry current liveness with a fresh
+    /// version; departed tokens leave the state (lazy deletion drops their
+    /// heap entries at pop time). Mirrors the derived-pool sync: idempotent.
+    fn sync_budget_one(&mut self, token: FactId) {
+        if self.budget.dirty {
+            return;
+        }
+        let member = self.active_all.contains(&token) && self.fabric.is_active(token);
+        let old = self.budget.state.get(&token).copied();
+        match (member, old) {
+            (false, None) => {}
+            (false, Some((liv, _))) => {
+                self.budget.state.remove(&token);
+                if liv >= self.params.theta_live {
+                    self.budget.live_count -= 1;
+                } else if self.params.arm == Arm::C {
+                    self.budget.dormant_count -= 1;
                 }
-                (false, true) => {
-                    if arm_c {
-                        *dormant_count -= 1;
-                    }
-                    *live_count += 1;
-                }
-                _ => {}
             }
-            let entry = Reverse(HeapEntry {
-                liveness: new_liv,
-                rank: rank[&n],
-                version,
-                token: n,
-            });
-            if is_live {
-                live_heap.push(entry);
-                FabricStats::bump(&self.stats.heap_pushes);
-            } else if arm_c {
-                dormant_heap.push(entry);
-                FabricStats::bump(&self.stats.heap_pushes);
+            (true, old) => {
+                let liv = self.liveness(token);
+                let theta = self.params.theta_live;
+                let arm_c = self.params.arm == Arm::C;
+                let is_live = liv >= theta;
+                match old {
+                    None => {
+                        if is_live {
+                            self.budget.live_count += 1;
+                        } else if arm_c {
+                            self.budget.dormant_count += 1;
+                        }
+                    }
+                    Some((prev, _)) => {
+                        let was_live = prev >= theta;
+                        match (was_live, is_live) {
+                            (true, false) => {
+                                self.budget.live_count -= 1;
+                                if arm_c {
+                                    self.budget.dormant_count += 1;
+                                }
+                            }
+                            (false, true) => {
+                                if arm_c {
+                                    self.budget.dormant_count -= 1;
+                                }
+                                self.budget.live_count += 1;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                let version = old.map_or(0, |(_, v)| v + 1);
+                self.budget.state.insert(token, (liv, version));
+                // Arm-B below-threshold members carry state but no heap
+                // entry (the live loop only pops the live heap), exactly
+                // like the per-call build.
+                let (start_frame, label) = {
+                    let t = &self.tokens[&token];
+                    (t.start_frame, t.label.clone())
+                };
+                let entry = Reverse(BudgetEntry {
+                    liveness: liv,
+                    start_frame,
+                    label,
+                    version,
+                    token,
+                });
+                if is_live {
+                    self.budget.live_heap.push(entry);
+                    FabricStats::bump(&self.stats.heap_pushes);
+                } else if arm_c {
+                    self.budget.dormant_heap.push(entry);
+                    FabricStats::bump(&self.stats.heap_pushes);
+                }
             }
         }
     }
-
+    /// Drop one token from the persistent budget state (bead ts1o):
+    /// removal-time companion to the `active_all.remove` calls. Stale heap
+    /// entries for the token are skipped lazily at pop time.
+    fn budget_drop(&mut self, token: FactId) {
+        if let Some((liv, _)) = self.budget.state.remove(&token) {
+            if liv >= self.params.theta_live {
+                self.budget.live_count -= 1;
+            } else if self.params.arm == Arm::C {
+                self.budget.dormant_count -= 1;
+            }
+        }
+    }
+    /// Rebuild the persistent budget state from scratch (bead ts1o): exact
+    /// O(active) resync after external mutation bypassed propagation.
+    /// Clears `dirty`; the post-rebuild state equals a fresh per-call build.
+    fn rebuild_budget(&mut self) {
+        self.budget.live_heap.clear();
+        self.budget.dormant_heap.clear();
+        self.budget.state.clear();
+        self.budget.live_count = 0;
+        self.budget.dormant_count = 0;
+        self.budget.dirty = false;
+        let members: Vec<FactId> = self.active_all.iter().copied().collect();
+        for t in members {
+            self.sync_budget_one(t);
+        }
+    }
     /// Live + dormant counts in one open-set pass (one `liveness` call per
     /// token). Exact: same predicate pair as `live_tokens`/`dormant_tokens`.
     pub fn live_dormant_counts(&self) -> (usize, usize) {
