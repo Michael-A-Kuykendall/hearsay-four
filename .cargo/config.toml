@@ -1,0 +1,7 @@
+# Shared build output for ALL checkouts (main + lane worktrees) of this repo.
+# One target dir, always overwritten in place — never per-lane copies.
+# Fresh slate: `cargo clean` (run from anywhere in this repo cleans this dir).
+# MACHINE-LOCAL PATH: the release checklist neutralizes this file before
+# the repo goes public (absolute /home/michael path breaks other machines).
+[build]
+target-dir = "/home/michael/.cargo/targets/hearsay-four"
