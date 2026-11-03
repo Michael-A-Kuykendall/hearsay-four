@@ -16,11 +16,10 @@
 //! - [`scoring`]: 1-best baseline path, WER aggregation via [`output::wer`],
 //!   and paired-bootstrap delta CIs via [`eval::corpus_delta_ci`].
 //! - [`arms`]: arm runners. Arm A is the 1-best baseline (no fabric).
-//!   Arms B/C drive [`fabric::decision::DecisionFabric`] with the prune-arm
-//!   bead's semantics expressed through the current public API: arm B sets
-//!   `dormant_budget = 0` (below-threshold tokens are retracted at once and
-//!   never revived); arm C sets `combined_budget = Some(total)` (live plus
-//!   dormant share the same total, dormant tokens stay revivable).
+//!   Arms B/C drive [`fabric::decision::DecisionFabric`] with the native
+//!   [`fabric::decision::Arm`] flag: arm B beam-prunes below-threshold
+//!   tokens at once (never revived); arm C keeps them dormant and revivable
+//!   with live plus dormant sharing one combined total.
 //! - [`fixtures`]: four synthetic utterances (revival, clean, bulk,
 //!   absent-word) plus a fixture bigram used as the sequence-LLR source.
 //! - [`table`]: the A/B/C by {50, 100, 250, 500} budget table.

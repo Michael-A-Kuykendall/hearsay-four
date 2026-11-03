@@ -60,7 +60,7 @@ fn sampling_test200_spec_holds() {
 fn sampling_test200_rejects_short_manifest() {
     let rows = synth_manifest(10, 6);
     let err = sample_test200_rows(&rows).expect_err("must reject <200 rows");
-    assert!(err.contains("60"), "error names the sampled count: {err}");
+    assert!(err.contains("50"), "error names the sampled count: {err}");
 }
 
 #[test]
@@ -145,8 +145,13 @@ fn arm_b_prunes_arm_c_revives_on_identical_inputs() {
     assert_eq!(b.hypothesis, w(&["the", "bat", "sat", "down"]));
     assert_eq!(c.hypothesis, w(&["the", "cat", "sat", "down"]));
     assert!(
-        b.evicted.iter().any(|e| e == "cat"),
+        b.pruned.iter().any(|e| e == "cat"),
         "arm B prunes cat: {:?}",
+        b.pruned
+    );
+    assert!(
+        b.evicted.is_empty(),
+        "arm B u1 has no budget evictions: {:?}",
         b.evicted
     );
     assert!(
@@ -239,10 +244,13 @@ fn budget_table_fixtures() {
             r.budget
         );
         let bl = r.b.peak_live.expect("B peak live");
+        let bt = r.b.peak_total.expect("B peak total");
         let cl = r.c.peak_live.expect("C peak live");
-        let cd = r.c.peak_dormant.expect("C peak dormant");
+        let ct = r.c.peak_total.expect("C peak total");
         assert!(bl <= r.budget, "B live peak within budget");
-        assert!(cl + cd <= r.budget, "C live+dormant within total");
+        assert!(bt <= r.budget, "B total peak within budget");
+        assert!(cl <= r.budget, "C live peak within budget");
+        assert!(ct <= r.budget, "C live+dormant within total");
     }
     // Bulk fixture binds the small budgets: peaks track the caps.
     let small = &table.rows[0];

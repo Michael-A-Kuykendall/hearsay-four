@@ -7,22 +7,26 @@
 //! predecessors under arm C); budgets enforce after every arrival; the
 //! whole utterance commits once at the end per contract section 10.
 //!
-//! Arm semantics follow the prune-arm bead through the current public API
-//! (no `Arm` flag exists in `decision.rs` yet):
+//! Arm semantics use the native [`fabric::decision::Arm`] flag
+//! (`hearsay-four-bpg2--fabric-prune-arm`, landed):
 //!
-//! - Arm B: `dormant_budget = 0`. A token below `theta_live` is retracted
-//!   at once and never receives later evidence, because retracted tokens
-//!   are neither live nor dormant.
-//! - Arm C: `combined_budget = Some(total)`. Live plus dormant share the
-//!   same total; below-threshold tokens linger dormant and revive when
-//!   later sequence context pushes them over `theta_live`.
+//! - Arm B: a token below `theta_live` is beam-pruned at once
+//!   ([`DecisionEvent::Pruned`]), never revivable, never receiving later
+//!   evidence. Budgets count live tokens only.
+//! - Arm C: below-threshold tokens linger dormant and revive when later
+//!   sequence context pushes them over `theta_live`. Live plus dormant
+//!   share the same combined total.
+//!
+//! Driver cadence per the prune-arm handoff: `enforce_budgets()` after
+//! every intake step and once more before `commit_region()`.
 //!
 //! Scoring, evidence, and the commit rule are identical in both arms; only
 //! the below-threshold fate differs.
 
 use fabric::FactId;
 use fabric::decision::{
-    CommitOutcome, DecisionEvent, DecisionFabric, DecisionParams, SourceClass, TokenKind,
+    Arm as FabricArm, CommitOutcome, DecisionEvent, DecisionFabric, DecisionParams,
+    SourceClass, TokenKind,
 };
 use lattice::Lattice;
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -68,10 +72,12 @@ impl ArmParams {
     }
 
     fn decision_params(&self, arm: Arm) -> DecisionParams {
-        let (live, dormant, combined) = match arm {
-            Arm::A => (usize::MAX, usize::MAX, None),
-            Arm::B => (self.budget, 0, None),
-            Arm::C => (self.budget, self.budget, Some(self.budget)),
+        // Arm B: dormant_budget is ignored natively (no dormant set exists);
+        // combined counts live only. Arm C: live + dormant share the total.
+        let (live, dormant, combined, fabric_arm) = match arm {
+            Arm::A => (usize::MAX, usize::MAX, None, FabricArm::C),
+            Arm::B => (self.budget, 0, Some(self.budget), FabricArm::B),
+            Arm::C => (self.budget, self.budget, Some(self.budget), FabricArm::C),
         };
         DecisionParams {
             w_acoustic: self.w_acoustic,
@@ -83,6 +89,7 @@ impl ArmParams {
             h: self.h,
             h_max: self.h_max,
             delta: self.delta,
+            arm: fabric_arm,
             ..DecisionParams::default()
         }
     }
@@ -97,8 +104,12 @@ pub struct ArmOutcome {
     /// Post-enforcement peak pool sizes over the feed.
     pub peak_live: usize,
     pub peak_dormant: usize,
+    /// Post-enforcement peak live+dormant total over the feed.
+    pub peak_total: usize,
     /// Labels that crossed dormant -> live after a later arrival.
     pub revivals: Vec<String>,
+    /// Labels beam-pruned below `theta_live` (arm B only), in event order.
+    pub pruned: Vec<String>,
     /// Labels evicted under budget exhaustion, in event order.
     pub evicted: Vec<String>,
     pub elapsed_sec: f64,
@@ -153,6 +164,7 @@ pub fn run_fabric_arm(
     let empty = BTreeSet::new();
     let mut peak_live = 0usize;
     let mut peak_dormant = 0usize;
+    let mut peak_total = 0usize;
     let mut revived: HashSet<FactId> = HashSet::new();
     for &i in &order {
         let tok = &lat.tokens[i];
@@ -191,9 +203,12 @@ pub fn run_fabric_arm(
                 revived.insert(t);
             }
         }
-        peak_live = peak_live.max(d.live_tokens().len());
-        peak_dormant = peak_dormant.max(d.dormant_tokens().len());
+        let (nl, nd) = (d.live_tokens().len(), d.dormant_tokens().len());
+        peak_live = peak_live.max(nl);
+        peak_dormant = peak_dormant.max(nd);
+        peak_total = peak_total.max(nl + nd);
     }
+    d.enforce_budgets();
     let label = |f: FactId| -> String {
         d.token(f)
             .map(|t| t.label.clone())
@@ -201,24 +216,39 @@ pub fn run_fabric_arm(
     };
     let mut revivals: Vec<String> = revived.iter().map(|&f| label(f)).collect();
     revivals.sort();
+    let mut pruned: Vec<String> = Vec::new();
     let mut evicted: Vec<String> = Vec::new();
     for e in d.events() {
-        if let DecisionEvent::Evicted { token, .. } = e {
-            evicted.push(label(*token));
+        match e {
+            DecisionEvent::Pruned { token, .. } => pruned.push(label(*token)),
+            DecisionEvent::Evicted { token, .. } => evicted.push(label(*token)),
+            _ => {}
         }
     }
-    let (hypothesis, committed) = if lat.tokens.is_empty() {
-        (Vec::new(), false)
+    let winner_facts: Option<Vec<FactId>> = if lat.tokens.is_empty() {
+        None
     } else {
         let s = lat.tokens.iter().map(|t| t.start).min().unwrap_or(0);
         let e = lat.tokens.iter().map(|t| t.end).max().unwrap_or(0);
         match d.commit_region((s, e), e.saturating_add(params.h)) {
-            CommitOutcome::Committed { winner, .. } => (
-                winner.tokens.iter().map(|&f| label(f)).collect(),
-                true,
-            ),
-            _ => (Vec::new(), false),
+            CommitOutcome::Committed { winner, .. } => Some(winner.tokens),
+            _ => None,
         }
+    };
+    // NB: `label` is not used past the event loop, so its borrow has ended
+    // before the commit above; the lookup below re-borrows immutably.
+    let (hypothesis, committed) = match winner_facts {
+        Some(fs) => (
+            fs.iter()
+                .map(|&f| {
+                    d.token(f)
+                        .map(|t| t.label.clone())
+                        .unwrap_or_else(|| "<unknown>".to_string())
+                })
+                .collect(),
+            true,
+        ),
+        None => (Vec::new(), false),
     };
     let elapsed_sec = t0.elapsed().as_secs_f64();
     let span_frames = lat
@@ -234,7 +264,9 @@ pub fn run_fabric_arm(
         committed,
         peak_live,
         peak_dormant,
+        peak_total,
         revivals,
+        pruned,
         evicted,
         elapsed_sec,
         span_sec,

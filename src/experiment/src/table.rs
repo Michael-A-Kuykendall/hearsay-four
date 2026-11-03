@@ -25,6 +25,7 @@ pub struct ArmCell {
     /// Pool peaks (`None` for arm A, which is not a fabric run).
     pub peak_live: Option<usize>,
     pub peak_dormant: Option<usize>,
+    pub peak_total: Option<usize>,
     pub hyps: Vec<Vec<String>>,
 }
 
@@ -83,6 +84,7 @@ pub fn run_budget_table(fxs: &[Fixture]) -> BudgetTable {
         },
         peak_live: None,
         peak_dormant: None,
+        peak_total: None,
         hyps: a_hyps,
     };
     let mut rows = Vec::new();
@@ -90,7 +92,8 @@ pub fn run_budget_table(fxs: &[Fixture]) -> BudgetTable {
         let params = ArmParams::fixture_defaults(budget);
         let mut b_hyps = Vec::new();
         let mut c_hyps = Vec::new();
-        let (mut bl, mut bd, mut cl, mut cd) = (0usize, 0usize, 0usize, 0usize);
+        let (mut bl, mut bd, mut bt, mut cl, mut cd, mut ct) =
+            (0usize, 0usize, 0usize, 0usize, 0usize, 0usize);
         let (mut be, mut bs, mut ce, mut cs) = (0.0, 0.0, 0.0, 0.0);
         let mut rescues = 0usize;
         for f in fxs {
@@ -100,14 +103,16 @@ pub fn run_budget_table(fxs: &[Fixture]) -> BudgetTable {
                 .expect("arm C run");
             bl = bl.max(bo.peak_live);
             bd = bd.max(bo.peak_dormant);
+            bt = bt.max(bo.peak_total);
             cl = cl.max(co.peak_live);
             cd = cd.max(co.peak_dormant);
+            ct = ct.max(co.peak_total);
             be += bo.elapsed_sec;
             bs += bo.span_sec;
             ce += co.elapsed_sec;
             cs += co.span_sec;
             for w in &co.hypothesis {
-                if bo.evicted.iter().any(|e| e == w) {
+                if bo.pruned.iter().any(|e| e == w) || bo.evicted.iter().any(|e| e == w) {
                     rescues += 1;
                 }
             }
@@ -130,6 +135,7 @@ pub fn run_budget_table(fxs: &[Fixture]) -> BudgetTable {
                 rtf: if bs > 0.0 { be / bs } else { 0.0 },
                 peak_live: Some(bl),
                 peak_dormant: Some(bd),
+                peak_total: Some(bt),
                 hyps: b_hyps,
             },
             c: ArmCell {
@@ -141,6 +147,7 @@ pub fn run_budget_table(fxs: &[Fixture]) -> BudgetTable {
                 rtf: if cs > 0.0 { ce / cs } else { 0.0 },
                 peak_live: Some(cl),
                 peak_dormant: Some(cd),
+                peak_total: Some(ct),
                 hyps: c_hyps,
             },
             rescues,

@@ -145,6 +145,12 @@ pub fn fixture_bigram(a: &str, b: &str) -> f64 {
     match (a, b) {
         ("<s>", "the") => 1.0,
         ("the", "cat") => -1.5,
+        // Adversarial left context: the distractors go dormant, so the
+        // commit DP (top-2 partials per frame) shortlists {bat, cat} and
+        // the revived `cat` survives to meet its right context.
+        ("the", "hat") => -5.0,
+        ("the", "mat") => -5.0,
+        ("the", "rat") => -5.0,
         ("cat", "sat") => 4.0,
         ("sat", "down") => 2.0,
         ("<s>", "up") => 1.0,
