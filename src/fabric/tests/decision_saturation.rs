@@ -106,9 +106,11 @@ fn internal_prune_rescores_premise_dependents() {
     // Arm B: `prune_below_threshold` retracts below-theta tokens through
     // the internal path; surviving evidence premised on a victim must
     // deactivate via propagation (no external flag involved).
-    let mut p = DecisionParams::default();
-    p.arm = Arm::B;
-    p.theta_live = 3.0;
+    let p = DecisionParams {
+        arm: Arm::B,
+        theta_live: 3.0,
+        ..Default::default()
+    };
     let mut d = DecisionFabric::new(p);
     let weak = d.mint_token("weak", TokenKind::Word, 0, 5).unwrap();
     d.add_unary(weak, SourceClass::Acoustic, 1.0, no_premises())

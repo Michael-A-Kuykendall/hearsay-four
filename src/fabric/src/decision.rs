@@ -919,7 +919,7 @@ impl DecisionFabric {
         let combined_ok = self
             .params
             .combined_budget
-            .map_or(true, |total| self.active_all.len() <= total);
+            .is_none_or(|total| self.active_all.len() <= total);
         if live_ok && dormant_ok && combined_ok {
             return;
         }
@@ -1902,9 +1902,7 @@ impl DecisionFabric {
         state: &HashMap<FactId, (f64, u64)>,
     ) -> Option<FactId> {
         loop {
-            let Some(Reverse(entry)) = heap.pop() else {
-                return None;
-            };
+            let Reverse(entry) = heap.pop()?;
             FabricStats::bump(&self.stats.heap_pops);
             let Some((_, ver)) = state.get(&entry.token) else {
                 continue;
@@ -1920,6 +1918,10 @@ impl DecisionFabric {
     /// fresh heap entries (lazy deletion: old entries go stale by version).
     /// Counts follow every transition symmetrically, so they stay exact
     /// under any liveness evolution.
+    // Eight params are inherent here: the lazy-deletion heap pair, the
+    // versioned state, the rank snapshot, the exact count pair, and the
+    // evicted token. Bundling would obscure the symmetric count updates.
+    #[allow(clippy::too_many_arguments)]
     fn refresh_neighbors(
         &self,
         live_heap: &mut BinaryHeap<Reverse<HeapEntry>>,

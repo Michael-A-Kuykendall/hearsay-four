@@ -24,10 +24,14 @@ fn params_c() -> (new::DecisionParams, old::DecisionParams) {
 }
 
 fn params_b() -> (new::DecisionParams, old::DecisionParams) {
-    let mut n = new::DecisionParams::default();
-    n.arm = new::Arm::B;
-    let mut o = old::DecisionParams::default();
-    o.arm = old::Arm::B;
+    let n = new::DecisionParams {
+        arm: new::Arm::B,
+        ..Default::default()
+    };
+    let o = old::DecisionParams {
+        arm: old::Arm::B,
+        ..Default::default()
+    };
     (n, o)
 }
 
@@ -152,10 +156,14 @@ fn frame_window_edges_match() {
     // J-window clamping: J=0, huge J, tokens at frame 0. Successor order
     // must equal the old full-scan order (ascending token id).
     for j in [0u32, 1, 3, 100, u32::MAX] {
-        let mut pn = new::DecisionParams::default();
-        pn.j = j;
-        let mut po = old::DecisionParams::default();
-        po.j = j;
+        let pn = new::DecisionParams {
+            j,
+            ..Default::default()
+        };
+        let po = old::DecisionParams {
+            j,
+            ..Default::default()
+        };
         let mut n = new::DecisionFabric::new(pn);
         let mut o = old::DecisionFabric::new(po);
         let spans = [(0, 1), (0, 5), (1, 2), (4, 9), (30, 31), (100, 200)];
@@ -237,16 +245,20 @@ fn deep_eviction_order_matches() {
     // 150 tokens under tiny budgets: the full eviction sequence (victim
     // order, logged liveness bits, budget labels) must match exactly.
     // Heavy endpoint premises stress the neighbor-recompute path.
-    let mut pn = new::DecisionParams::default();
-    pn.live_budget = 3;
-    pn.dormant_budget = 3;
-    pn.combined_budget = Some(5);
-    pn.theta_live = 0.5;
-    let mut po = old::DecisionParams::default();
-    po.live_budget = 3;
-    po.dormant_budget = 3;
-    po.combined_budget = Some(5);
-    po.theta_live = 0.5;
+    let pn = new::DecisionParams {
+        live_budget: 3,
+        dormant_budget: 3,
+        combined_budget: Some(5),
+        theta_live: 0.5,
+        ..Default::default()
+    };
+    let po = old::DecisionParams {
+        live_budget: 3,
+        dormant_budget: 3,
+        combined_budget: Some(5),
+        theta_live: 0.5,
+        ..Default::default()
+    };
     let mut n = new::DecisionFabric::new(pn);
     let mut o = old::DecisionFabric::new(po);
     let mut toks = Vec::new();
@@ -304,9 +316,11 @@ fn deep_eviction_order_matches() {
 fn counts_open_set_and_stats_are_sane() {
     // New-arm-only API sanity: single-pass counts match the filters, the
     // open set tracks active tokens, and stats counters move.
-    let mut p = new::DecisionParams::default();
-    p.live_budget = 4;
-    p.dormant_budget = 4;
+    let p = new::DecisionParams {
+        live_budget: 4,
+        dormant_budget: 4,
+        ..Default::default()
+    };
     let mut d = new::DecisionFabric::new(p);
     let mut toks = Vec::new();
     for i in 0..20u64 {
