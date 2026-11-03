@@ -106,6 +106,20 @@ pub enum DecisionError {
 
 type DecisionResult<T> = Result<T, DecisionError>;
 
+/// Experiment arm (§11): what happens to a token below `theta_live`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Arm {
+    /// Conventional beam prune: a token below `theta_live` is retracted
+    /// at once and never receives later evidence. Budgets count live
+    /// tokens only.
+    B,
+    /// Hearsay-IV: a token below `theta_live` goes dormant and stays
+    /// revivable by later evidence (§8, §9). Budgets count live +
+    /// dormant against the same total.
+    #[default]
+    C,
+}
+
 /// Frozen parameters (§12). Values are DEV-tuned defaults shipped by A4b;
 /// changing one after freeze is a spec amendment, never a silent edit (§14).
 #[derive(Debug, Clone, PartialEq)]
@@ -132,6 +146,8 @@ pub struct DecisionParams {
     pub delta: f64,
     /// Dormant successor window `J` (frames), pre-registered default 3 (§9).
     pub j: u32,
+    /// Experiment arm (§11): below-threshold fate (retract vs dormant).
+    pub arm: Arm,
 }
 
 impl Default for DecisionParams {
@@ -152,6 +168,7 @@ impl Default for DecisionParams {
             h_max: 20,
             delta: 0.0,
             j: 3,
+            arm: Arm::C,
         }
     }
 }
@@ -224,6 +241,10 @@ pub enum DecisionEvent {
         liveness: f64,
         budget: BudgetKind,
     },
+    /// An arm-B token below `theta_live` was beam-pruned (§11):
+    /// deliberately retracted at once, never revivable, never receiving
+    /// later evidence. Not a budget eviction.
+    Pruned { token: FactId, liveness: f64 },
     /// A region committed (§10).
     Committed {
         region: (u32, u32),
@@ -529,8 +550,13 @@ impl DecisionFabric {
     }
 
     /// Dormant iff retained and active but below `theta_live` (§8).
+    /// Arm B has no dormant set (§11): below-threshold tokens are pruned,
+    /// so this is always false there — which also keeps pruned tokens
+    /// out of later context attachment.
     pub fn is_dormant(&self, token: FactId) -> bool {
-        self.fabric.is_active(token) && self.liveness(token) < self.params.theta_live
+        self.params.arm == Arm::C
+            && self.fabric.is_active(token)
+            && self.liveness(token) < self.params.theta_live
     }
 
     pub fn live_tokens(&self) -> Vec<FactId> {
@@ -549,6 +575,34 @@ impl DecisionFabric {
             .collect()
     }
 
+    /// Arm-B beam prune (§11): retract every still-active token below
+    /// `theta_live` at once. Deliberate retraction: pruned tokens never
+    /// revive, never join tilings, and `attach_context_for_new_token`
+    /// never attaches later evidence to them (they are not dormant).
+    /// Scoring, evidence, and commit are untouched — identical to arm C.
+    /// No-op in arm C (dormancy is computed state there).
+    /// Drivers call this via `enforce_budgets`, which beam-prunes first
+    /// in arm B, before any commit.
+    pub fn prune_below_threshold(&mut self) {
+        if self.params.arm != Arm::B {
+            return;
+        }
+        let victims: Vec<FactId> = self
+            .tokens
+            .keys()
+            .copied()
+            .filter(|t| self.fabric.is_active(*t) && self.liveness(*t) < self.params.theta_live)
+            .collect();
+        for victim in victims {
+            let liveness = self.liveness(victim);
+            self.fabric.retract(victim);
+            self.log.push(DecisionEvent::Pruned {
+                token: victim,
+                liveness,
+            });
+        }
+    }
+
     fn in_committed_region(&self, token: FactId) -> bool {
         let t = &self.tokens[&token];
         self.committed_regions
@@ -556,10 +610,14 @@ impl DecisionFabric {
             .any(|(s, e)| t.start_frame >= *s && t.end_frame <= *e)
     }
 
-    /// Enforce dormant (and arm-C combined) budgets (§8): evict lowest
+    /// Enforce budgets (§8, §11): in arm B, beam-prune below-threshold
+    /// tokens first (live tokens only are counted); then evict lowest
     /// `L(h)` first, ties by §10 order. Eviction is a deliberate retraction
     /// recorded in provenance.
     pub fn enforce_budgets(&mut self) {
+        // Arm B (§11): below-threshold tokens are retracted at once, so
+        // budget accounting sees live tokens only. No-op in arm C.
+        self.prune_below_threshold();
         // R2 (spec docs/design/a4-budget-semantics.md): live cap first,
         // then dormant + combined. Victim order everywhere: lowest L(h),
         // ties by §10 tie order.
@@ -578,6 +636,29 @@ impl DecisionFabric {
                 liveness,
                 budget: BudgetKind::Live,
             });
+        }
+        // Arm B (§11 table): the combined total counts live tokens only
+        // (there is no dormant set), so over-total victims come from live.
+        if self.params.arm == Arm::B {
+            if let Some(total) = self.params.combined_budget {
+                while self.live_tokens().len() > total {
+                    let Some(victim) = self.live_tokens().iter().copied().min_by(|a, b| {
+                        self.liveness(*a)
+                            .total_cmp(&self.liveness(*b))
+                            .then_with(|| self.token_tie_cmp(*a, *b))
+                    }) else {
+                        break;
+                    };
+                    let liveness = self.liveness(victim);
+                    self.fabric.retract(victim);
+                    self.log.push(DecisionEvent::Evicted {
+                        token: victim,
+                        liveness,
+                        budget: BudgetKind::Combined,
+                    });
+                }
+            }
+            return;
         }
         loop {
             let dormant = self.dormant_tokens();

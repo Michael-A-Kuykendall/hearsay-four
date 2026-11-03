@@ -6,7 +6,7 @@
 
 use fabric::FactId;
 use fabric::decision::{
-    BudgetKind, CommitOutcome, DecisionError, DecisionEvent, DecisionFabric, DecisionParams,
+    Arm, BudgetKind, CommitOutcome, DecisionError, DecisionEvent, DecisionFabric, DecisionParams,
     SPEC_VERSION, SourceClass, Token, TokenKind, spans_conflict,
 };
 use std::collections::BTreeSet;
@@ -408,5 +408,310 @@ fn live_budget_constrains_candidate_pool() {
             } if *t == weak
         )),
         "live eviction is attributed to the live budget"
+    );
+}
+
+#[test]
+fn decision_arm_b_prunes_with_no_revive() {
+    // §11 arm B: below-threshold tokens are retracted at once and never
+    // revived, even when the late evidence that revives arm C arrives.
+    // Identical inputs to decision_arm_c_revives_on_identical_late_evidence.
+    let params = DecisionParams {
+        arm: Arm::B,
+        theta_live: 3.0,
+        delta: 0.5,
+        ..DecisionParams::default()
+    };
+    let mut d = DecisionFabric::new(params);
+    let wreath = d
+        .mint_token("wreath", TokenKind::Word, 0, 10)
+        .expect("token");
+    let reef = d.mint_token("reef", TokenKind::Word, 0, 10).expect("token");
+    d.add_unary(wreath, SourceClass::Acoustic, 3.0, no_premises())
+        .expect("acoustic");
+    d.add_unary(reef, SourceClass::Acoustic, 2.8, no_premises())
+        .expect("acoustic");
+    assert!(d.is_live(wreath));
+    assert!(!d.is_dormant(reef), "arm B has no dormant set");
+    d.enforce_budgets();
+    assert!(
+        !d.fabric().is_active(reef),
+        "below-threshold token retracted at once"
+    );
+    assert!(
+        d.events()
+            .iter()
+            .any(|e| matches!(e, DecisionEvent::Pruned { token: t, .. } if *t == reef)),
+        "prune is recorded in provenance"
+    );
+
+    // The same late evidence that revives arm C arrives: arm B ignores it.
+    let now = d.mint_token("now", TokenKind::Word, 10, 20).expect("token");
+    d.add_unary(now, SourceClass::Acoustic, 2.0, no_premises())
+        .expect("acoustic");
+    d.add_sequence(wreath, now, 0.1, no_premises())
+        .expect("seq");
+    d.attach_context_for_new_token(now, &|a: &Token, b: &Token| {
+        if a.label == "reef" && b.label == "now" {
+            5.0
+        } else {
+            0.0
+        }
+    });
+    assert!(
+        !d.fabric().is_active(reef),
+        "pruned token never revives on late evidence"
+    );
+    assert!(
+        d.active_sequence_max(Some(reef), now).is_none(),
+        "pruned token never receives later evidence"
+    );
+    assert!(
+        !d.events().iter().any(|e| matches!(
+            e,
+            DecisionEvent::Revived { token: t, .. } if *t == reef
+        )),
+        "no revival is recorded for a pruned token"
+    );
+
+    // The next sweep prunes the below-threshold successor too: arm B
+    // keeps live tokens only.
+    d.enforce_budgets();
+    assert!(
+        !d.fabric().is_active(now),
+        "below-threshold successor pruned at the next sweep"
+    );
+    assert!(
+        d.events()
+            .iter()
+            .any(|e| matches!(e, DecisionEvent::Pruned { token: t, .. } if *t == now)),
+        "successor prune is recorded in provenance"
+    );
+
+    // Commit the surviving span: wreath won alone (arm C commits
+    // [reef, now] on these same inputs — the rescue is the treatment
+    // effect). Pruned tokens are neither winners nor defeated: they
+    // left via prune, not defeat.
+    let outcome = d.commit_region((0, 10), 10 + 10);
+    let CommitOutcome::Committed {
+        winner, defeated, ..
+    } = outcome
+    else {
+        panic!("region must commit, got {outcome:?}");
+    };
+    assert_eq!(winner.tokens, vec![wreath]);
+    assert!(defeated.is_empty(), "pruned tokens are not re-defeated");
+    assert!(
+        !d.events()
+            .iter()
+            .any(|e| matches!(e, DecisionEvent::Revived { .. })),
+        "no revival is ever recorded in arm B"
+    );
+}
+
+#[test]
+fn decision_arm_c_revives_on_identical_late_evidence() {
+    // §11 arm C on the IDENTICAL inputs as arm B above: the
+    // below-threshold token goes dormant, then revives on late evidence.
+    let params = DecisionParams {
+        arm: Arm::C,
+        theta_live: 3.0,
+        delta: 0.5,
+        ..DecisionParams::default()
+    };
+    let mut d = DecisionFabric::new(params);
+    let wreath = d
+        .mint_token("wreath", TokenKind::Word, 0, 10)
+        .expect("token");
+    let reef = d.mint_token("reef", TokenKind::Word, 0, 10).expect("token");
+    d.add_unary(wreath, SourceClass::Acoustic, 3.0, no_premises())
+        .expect("acoustic");
+    d.add_unary(reef, SourceClass::Acoustic, 2.8, no_premises())
+        .expect("acoustic");
+    assert!(d.is_live(wreath));
+    assert!(d.is_dormant(reef), "correct word starts dormant");
+    d.enforce_budgets();
+    assert!(d.fabric().is_active(reef), "arm C retains dormant tokens");
+    assert!(
+        !d.events()
+            .iter()
+            .any(|e| matches!(e, DecisionEvent::Pruned { .. })),
+        "arm C never prunes"
+    );
+
+    let now = d.mint_token("now", TokenKind::Word, 10, 20).expect("token");
+    d.add_unary(now, SourceClass::Acoustic, 2.0, no_premises())
+        .expect("acoustic");
+    d.add_sequence(wreath, now, 0.1, no_premises())
+        .expect("seq");
+    d.attach_context_for_new_token(now, &|a: &Token, b: &Token| {
+        if a.label == "reef" && b.label == "now" {
+            5.0
+        } else {
+            0.0
+        }
+    });
+    assert!(d.is_live(reef), "late evidence revives the dormant token");
+    assert!(
+        d.events().iter().any(|e| matches!(
+            e,
+            DecisionEvent::Revived { token: t, via, .. } if *t == reef && *via == now
+        )),
+        "revival is recorded with its successor"
+    );
+
+    let outcome = d.commit_region((0, 20), 20 + 10);
+    let CommitOutcome::Committed {
+        winner, defeated, ..
+    } = outcome
+    else {
+        panic!("region must commit, got {outcome:?}");
+    };
+    assert_eq!(winner.tokens, vec![reef, now]);
+    assert_eq!(defeated, vec![wreath]);
+}
+
+#[test]
+fn decision_arms_b_and_c_score_identically() {
+    // §11: scoring, evidence, and commit rule are IDENTICAL across arms;
+    // only the below-threshold fate differs.
+    assert_eq!(
+        DecisionParams::default().arm,
+        Arm::C,
+        "frozen default arm is C (existing behavior)"
+    );
+    let build = |arm: Arm| {
+        let params = DecisionParams {
+            arm,
+            theta_live: 0.0,
+            delta: 0.5,
+            ..DecisionParams::default()
+        };
+        let mut d = DecisionFabric::new(params);
+        let wreath = d.mint_token("wreath", TokenKind::Word, 0, 10).expect("t");
+        let reef = d.mint_token("reef", TokenKind::Word, 0, 10).expect("t");
+        let now = d.mint_token("now", TokenKind::Word, 10, 20).expect("t");
+        d.add_unary(wreath, SourceClass::Acoustic, 3.0, no_premises())
+            .expect("a");
+        d.add_unary(reef, SourceClass::Acoustic, 2.8, no_premises())
+            .expect("a");
+        d.add_unary(now, SourceClass::Acoustic, 2.0, no_premises())
+            .expect("a");
+        d.add_sequence(wreath, now, 0.1, no_premises()).expect("s");
+        d.add_sequence(reef, now, 5.0, no_premises()).expect("s");
+        d.enforce_budgets();
+        (d, wreath, reef, now)
+    };
+    let (mut b, bw, br, bn) = build(Arm::B);
+    let (mut c, cw, cr, cn) = build(Arm::C);
+    // Same evidence state (nothing below threshold): same scores.
+    assert_eq!(b.unary_sum(bw), c.unary_sum(cw));
+    assert_eq!(b.unary_sum(br), c.unary_sum(cr));
+    assert_eq!(b.liveness(bn), c.liveness(cn));
+    assert_eq!(b.tiling_score(&[bw, bn]), c.tiling_score(&[cw, cn]));
+    assert_eq!(b.tiling_score(&[br, bn]), c.tiling_score(&[cr, cn]));
+    let (_, b_totals, _) = b.tiling_breakdown(&[br, bn]);
+    let (_, c_totals, _) = c.tiling_breakdown(&[cr, cn]);
+    assert_eq!(b_totals, c_totals);
+    // Same commit rule: same winner, same margin.
+    let bo = b.commit_region((0, 20), 30);
+    let co = c.commit_region((0, 20), 30);
+    let CommitOutcome::Committed {
+        winner: wb,
+        margin: mb,
+        ..
+    } = bo
+    else {
+        panic!("arm B must commit, got {bo:?}");
+    };
+    let CommitOutcome::Committed {
+        winner: wc,
+        margin: mc,
+        ..
+    } = co
+    else {
+        panic!("arm C must commit, got {co:?}");
+    };
+    assert_eq!(wb.score, wc.score);
+    assert_eq!(mb, mc);
+    // Same labels in the same order (FactIds differ across fabrics).
+    let bl: Vec<_> = wb
+        .tokens
+        .iter()
+        .map(|t| b.token(*t).unwrap().label.clone())
+        .collect();
+    let cl: Vec<_> = wc
+        .tokens
+        .iter()
+        .map(|t| c.token(*t).unwrap().label.clone())
+        .collect();
+    assert_eq!(bl, cl);
+}
+
+#[test]
+fn decision_arm_b_combined_budget_counts_live_only() {
+    // §11 table: arm B counts live tokens only against the combined total.
+    let params = DecisionParams {
+        arm: Arm::B,
+        theta_live: 0.0,
+        combined_budget: Some(1),
+        ..DecisionParams::default()
+    };
+    let mut d = DecisionFabric::new(params);
+    let strong = d.mint_token("strong", TokenKind::Word, 0, 10).expect("t");
+    let weak = d.mint_token("weak", TokenKind::Word, 0, 10).expect("t");
+    d.add_unary(strong, SourceClass::Acoustic, 3.5, no_premises())
+        .expect("a");
+    d.add_unary(weak, SourceClass::Acoustic, 3.0, no_premises())
+        .expect("a");
+    d.enforce_budgets();
+    assert!(d.dormant_tokens().is_empty(), "arm B has no dormant set");
+    assert_eq!(d.live_tokens(), vec![strong]);
+    assert!(!d.fabric().is_active(weak));
+    assert!(
+        d.events().iter().any(|e| matches!(
+            e,
+            DecisionEvent::Evicted {
+                token: t,
+                budget: BudgetKind::Combined,
+                ..
+            } if *t == weak
+        )),
+        "live eviction is attributed to the combined budget"
+    );
+}
+
+#[test]
+fn decision_arm_c_combined_budget_counts_live_plus_dormant() {
+    // §11 table: arm C counts live + dormant against the SAME total.
+    let params = DecisionParams {
+        arm: Arm::C,
+        theta_live: 3.2,
+        combined_budget: Some(1),
+        ..DecisionParams::default()
+    };
+    let mut d = DecisionFabric::new(params);
+    let strong = d.mint_token("strong", TokenKind::Word, 0, 10).expect("t");
+    let weak = d.mint_token("weak", TokenKind::Word, 0, 10).expect("t");
+    d.add_unary(strong, SourceClass::Acoustic, 3.5, no_premises())
+        .expect("a");
+    d.add_unary(weak, SourceClass::Acoustic, 3.0, no_premises())
+        .expect("a");
+    assert!(d.is_live(strong));
+    assert!(d.is_dormant(weak));
+    d.enforce_budgets();
+    // live + dormant = 2 > 1: the dormant token is evicted, live survives.
+    assert_eq!(d.live_tokens(), vec![strong]);
+    assert!(!d.fabric().is_active(weak));
+    assert!(
+        d.events().iter().any(|e| matches!(
+            e,
+            DecisionEvent::Evicted {
+                token: t,
+                budget: BudgetKind::Combined,
+                ..
+            } if *t == weak
+        )),
+        "dormant eviction is attributed to the combined budget"
     );
 }
