@@ -316,7 +316,9 @@ pub fn decode_lattice(
         // step — arm B beam-prunes below-threshold tokens here; arm C only
         // evicts past budget.
         fabric.enforce_budgets();
-        let (nl, nd) = (fabric.live_tokens().len(), fabric.dormant_tokens().len());
+        // Single-pass counts: identical values to the two vector lens,
+        // without building vectors per intake (nlvs perf; O(open) total).
+        let (nl, nd) = fabric.live_dormant_counts();
         peak_live = peak_live.max(nl);
         peak_dormant = peak_dormant.max(nd);
         peak_total = peak_total.max(nl + nd);
