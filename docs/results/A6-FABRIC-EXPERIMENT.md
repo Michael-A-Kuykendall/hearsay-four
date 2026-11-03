@@ -1,8 +1,170 @@
-# A6 Fabric Experiment — Fixture Demo Verdict
+# A6 Fabric Experiment — Wave-2 Real-Data Verdict (PARTIAL)
 
-Bead: `hearsay-four-ic1w--fabric-experiment-arms` (lane
-`bead/ic1w-fabric-experiment-arms`). Status: fixture demo GREEN; TEST-200
-scoring pending on main (decoder K-best lattices + audio externals).
+Bead: `hearsay-four-ic1w--fabric-experiment-arms` (wave 1 lane
+`bead/ic1w-fabric-experiment-arms`; wave 2 lane
+`bead/ic1w-fabric-experiment-real`). Status: PARTIAL — arm A, the DEV
+oracle sweep, and lattice generation are REAL (measured 2026-11-03,
+this doc); arms B/C and DEV tuning are BLOCKED on bridge cost
+(measured below) pending a decision-engine cost-model fix.
+
+## Canonical config (all real runs)
+
+Every real number below uses one frozen search, the tunefull winner
+(`data/wer71g/tunefull/lm6_wip0`, DEV WER 0.6624):
+
+| item | value |
+|---|---|
+| AM | `data/models/r3v2-full93-cmvn/ckpt-8mix-iter2.json`, sha256 `6620a3dd9b8520bdbb756007e606ab9c734b593b7d1c95589d50d4d7ff416bab` |
+| LM | `data/lm-text/r1v2-full/lm-r1v2-interpolated.json`, sha256 `1b31acf661ea0b35b73796a78e803b5011add3c5b3f78614663757856471b6f6` |
+| lexicon | tier1 better-voice `Master_English_Phonetics_FINAL_COMPLETE.txt` + tier2 `data/lexicon/librispeech-lexicon.txt` |
+| vocab | top_n 20000 + book types: kept 22125 words / 22135 prons (tier1 20753, tier2 1372, oov_lm 0, oov_book_only 180) |
+| search | lm-weight 6, word-penalty 0, beam 150, max-tokens 2000, CMVN on |
+
+## Data sets (real)
+
+- DEV-200: `data/wer71g/tune200s/strat200.manifest.tsv` (existing,
+  stratified-200 dev-clean, 200 rows, 4579 ref words).
+- TEST-200: `data/wer71g/test200s/strat200.manifest.tsv` (NEW, sampled
+  2026-11-03): `sample-manifest
+  data/librispeech/wav/test-clean.manifest.tsv
+  data/wer71g/test200s/strat200.manifest.tsv 5 20261103` →
+  `in_rows=2620 speakers=40 per_speaker=5 seed=20261103 out_rows=200`
+  (no SHORT speakers), 4530 ref words. Rows are `id, relpath, dur,
+  UPPERCASE transcript`, same shape as DEV.
+
+## Lattice generation (once per set)
+
+New example `src/decoder/examples/lattices_manifest.rs`: it mirrors the
+`wer_devclean` setup exactly (same vocab build, lexicon, LM handling,
+config flags) so arm A and arms B/C share one search, then runs
+`decode_kbest` per manifest row, sets `utterance` to the utt id, and
+writes `<utt>.lat.jsonl`. K per end frame is the decoder const 10
+(`KBEST_PER_END_FRAME`, `src/decoder/src/moore.rs`); each word token
+gets a SIL twin (llr 0.0).
+
+| set | files | tokens | arcs | bytes | shard RTF |
+|---|---|---|---|---|---|
+| DEV-200 `data/lattices/dev200/` | 200 | 3,285,300 | 3,002,548 | 421M | 1.14–1.25 |
+| TEST-200 `data/lattices/test200/` | 200 | 3,461,782 | 3,185,950 | 445M | 1.12–1.20 |
+
+Six shards each (`--skip 0/34/68/102/136/170 --limit 34`, niced, ≤6
+procs), exit 0, no panics, no tiny files. Both sets are generated
+exactly once and frozen; neither is committed to git (lane worktree
+only, for coordinator extraction).
+
+## Arm A (1-best baseline, real)
+
+`wer_devclean` with the canonical config over each manifest; S/D/I via
+the project scorer `data/wer71g/tune200/score_sdi.py`; CI is the
+binary's own paired bootstrap (10k resamples, pinned seed).
+
+| set | WER | 95% CI | S | D | I | ref | hyp | RTF | ref_oov |
+|---|---|---|---|---|---|---|---|---|---|
+| DEV-200 | 0.6624 | [0.6383, 0.6868] | 2413 | 338 | 282 | 4579 | 4523 | 0.963 | 0.0306 |
+| TEST-200 | 0.6430 | [0.6182, 0.6687] | 2306 | 291 | 316 | 4530 | 4555 | 1.085 | 0.0302 |
+
+DEV reproduces the recorded tunefull cell bit-for-bit (3033 errs,
+`mismatches=0`), validating the whole sampling → decode → score
+pipeline. TEST-200 arm A is a first-ever score for this population.
+
+## Oracle sweep (DEV-200, real lattices)
+
+Exact tested oracle (`experiment::oracle_sweep` → `a2::oracle::sweep_k`,
+new example `src/experiment/examples/sweep_real.rs`), 72 s for 200
+lattices. 1-best column is `one_best_path` over the same lattices
+(acoustic-max path: 3116 errs, 0.6805 — +83 over the decoder 1-best
+3033, as expected: the lattice stores acoustic LLRs only, so the
+acoustic path cannot reproduce the LM-weighted search best).
+
+| K | oracle errs | oracle WER | tokens | arcs |
+|---|-------------|------------|--------|------|
+| 3 | 3934 | 0.8591 | 492,993 | 254,255 |
+| 5 | 3725 | 0.8135 | 821,599 | 545,837 |
+| 10 | 2660 | 0.5809 | 1,642,920 | 1,501,164 |
+
+Gap attribution (per-utterance table in the lane at
+`data/wer71g/dev200sweep/per_utt.tsv`):
+
+- Generation miss: 700/4579 ref words (15.3%) never appear in the
+  lattice at any rank. Only 140 are OOV — ~560 in-vocab words are never
+  hypothesized, i.e. the weak AM never surfaces them. The tunefull
+  beam-300 cell is byte-identical to beam-150, so search is saturated:
+  the miss is AM/trie-pruning under weak acoustics, not beam width.
+- K depth: K=3 → K=10 recovers 1274 errs (correct words ranked 4–10
+  acoustically). Real headroom, but only the K=10 (full-lattice) row
+  is a fair oracle.
+- Backbone/SIL caveat: `filter_k` keeps top-K per end frame by
+  acoustic LLR with no 1-best carve-out for decoder lattices (the
+  carve-out only matches source `a2-1best`), and SIL twins at llr 0.0
+  displace negative-LLR words. Hence the oracle EXCEEDS 1-best errors
+  on 129/200 utterances at K=3 (5/200 at K=10). The K=3/5 rows measure
+  the filter, not the lattice; the K=10 row (0.5809 vs 1-best 0.6624)
+  is the real 0.08 gap.
+- Verdict: the gap is real but AM-bound. No decoder/search fix is
+  available in-lane (beam saturated, AM is the project baseline), so
+  no regen loop was run; TEST is reported as-is with this diagnosis,
+  per the bead's defect-loop rule.
+
+## Arms B/C and DEV tuning — BLOCKED (measured)
+
+No B/C or tuning numbers exist: `hearsay::decode_lattice` does not
+complete on real lattices. Scaling probe (new example
+`src/hearsay/examples/bridge_scale.rs`, release, 1 core, lattice
+`data/lattices/dev5/1272-128104-0001.lat.jsonl` with 9510 tokens /
+7396 arcs, real 72 MB LM loaded in 6.5 s) over token-prefix
+truncations with ZERO arcs kept:
+
+| K tokens | wall |
+|---|---|
+| 10 / 25 / 50 | ≤0.02 s |
+| 100 | 0.27 s |
+| 150 | 1.24 s |
+| 200 | 4.00 s |
+| 300 | 18.24 s |
+| 500 | 137.08 s |
+| 9510 (full) | TIMEOUT >900 s |
+
+That is ~O(n⁴) (2× tokens → ~15× wall), so a full 9.5k-token
+utterance extrapolates to ~1e7 s — against a need of 400 utterances ×
+2 arms × 4 budgets. Corroboration: an independent `hearsay-bridge`
+run on the same lattice passed 18 min CPU with no output, and
+`cargo test -p hearsay` (release, this lane, tiny fallback LM) fails
+to finish the two dev5 gate tests in 900 s — the hang is
+LM-independent engine asymptotics, not data size alone.
+
+Root-cause pointers (`src/fabric/src/decision.rs`): nested linear
+scans — `best_tilings` filters frames × candidates and runs
+`active_sequence_max` / `active_unary_max` (each a scan over ALL
+evidence) per DP extension, once per region-end tried;
+`liveness` is O(tokens × evidence) inside `min_by` comparators; and
+`enforce_budgets` runs after every intake step (W3 contract). A fix
+is a cost-model redesign (evidence indexing, incremental liveness,
+batched eviction), owned by the fabric/bridge beads — not this
+runner lane, so per orders the fabric work stops here.
+
+Why wave 1 stayed green: `git merge-base --is-ancestor` proves the
+dev5 commit (72857ad) is NOT in wave-1 history (6b15ded) — wave 1
+tested against the `synthetic_five` fallback (tiny lattices), and no
+lane or main run has ever completed the bridge over real lattices.
+Wave 2 is the first attempt.
+
+Post-fix assets (ready in this lane): the frozen TEST-200/DEV-200
+lattice sets above; the `real_table` example
+(`src/experiment/examples/real_table.rs`, builds green — takes
+manifest + lat-dir + LM + wer_devclean cell.tsv + tuned params,
+reuses the fixture-table scoring/CI/rescue definitions, and reports
+cell-vs-lattice 1-best agreement); the `sweep_real` example; and the
+tuning plan — coordinate descent on DEV arm B at budget 250 over
+w_acoustic × w_sequence × theta_live × delta × H (arm C identical),
+verified across all four budgets. Suggested gate for the fix bead:
+the dev5 lattice decodes in <60 s release and the hearsay suite goes
+green on main with the shipped LM.
+
+## Wave-1 fixture demo (kept, synthetic)
+
+Everything below this line is the wave-1 fixture demo, kept verbatim
+for the record. It claims the 4-utterance synthetic population only —
+it is NOT a Librispeech result.
 
 ## Population
 
@@ -105,16 +267,69 @@ to run; the gate does not pin it). CI values are pinned-seed exact.
   (one rescued word in 11), so C's fixture gain is not significant —
   reported as measured.
 
-## Main-workspace steps (not in this lane)
+## Reproduce (real data)
 
-1. Sample TEST-200 on main (lane has no Librispeech manifest):
-   `cargo run --release -p corpus --bin sample-manifest -- \
-   data/librispeech/wav/test-clean.manifest.tsv \
-   data/wer71g/test200s/strat200.manifest.tsv 5 20261103`
-   then verify 200 rows via `experiment::sampling::sample_test200_rows`.
-2. Tune w_acoustic, w_sequence, theta_live, delta, H on DEV for arm B
-   (arm C identical); needs decoder K-best lattices (bead noqu, open).
-3. Generate TEST lattices once into `data/lattices/test200/`, score
-   A/B/C once at {50, 100, 250, 500} with the real LM
-   (`hearsay::InterpolatedScorer`).
-4. Architect review of this doc before the bead closes (coordinator).
+From the wave-2 lane root (`bead/ic1w-fabric-experiment-real`), release
+profile, shared target dir (never `--target-dir`), niced, ≤8 threads;
+`$MAIN` is the main workspace (audio, models, LM are main externals,
+read-only from lanes):
+
+```bash
+# 1. TEST-200 sampling
+cargo build --release -p corpus --bin sample-manifest
+sample-manifest $MAIN/data/librispeech/wav/test-clean.manifest.tsv \
+  data/wer71g/test200s/strat200.manifest.tsv 5 20261103
+# → in_rows=2620 speakers=40 per_speaker=5 seed=20261103 out_rows=200
+
+# 2. Lattice generation (one shard shown; all six: skip 0/34/68/102/136/170)
+cargo build --release -p decoder --example lattices_manifest
+lattices_manifest --am $MAIN/data/models/r3v2-full93-cmvn/ckpt-8mix-iter2.json \
+  --lm $MAIN/data/lm-text/r1v2-full/lm-r1v2-interpolated.json \
+  --tier1 /home/michael/repos/better-voice/data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt \
+  --tier2 $MAIN/data/lexicon/librispeech-lexicon.txt \
+  --wav-root $MAIN/data/librispeech/wav \
+  --manifest $MAIN/data/wer71g/tune200s/strat200.manifest.tsv \
+  --out-dir data/lattices/dev200 --skip 0 --limit 34 \
+  --lm-weight 6 --word-penalty 0   # TEST: manifest data/wer71g/test200s/…, out data/lattices/test200
+
+# 3. Arm A (DEV shown; TEST swaps manifest/out)
+wer_devclean --am …/ckpt-8mix-iter2.json --lm …/lm-r1v2-interpolated.json \
+  --tier1 … --tier2 … --wav-root $MAIN/data/librispeech/wav \
+  --manifest $MAIN/data/wer71g/tune200s/strat200.manifest.tsv \
+  --out data/wer71g/armA/dev200-cell.tsv --lm-weight 6 --word-penalty 0
+python3 $MAIN/data/wer71g/tune200/score_sdi.py data/wer71g/armA/dev200-cell.tsv \
+  $MAIN/data/wer71g/tune200s/strat200.manifest.tsv   # S/D/I + cross-check
+
+# 4. DEV oracle sweep
+cargo build --release -p experiment --example sweep_real
+sweep_real --manifest $MAIN/data/wer71g/tune200s/strat200.manifest.tsv \
+  --lat-dir data/lattices/dev200 --out data/wer71g/dev200sweep/sweep.md \
+  --per-utt data/wer71g/dev200sweep/per_utt.tsv
+
+# 5. Quality gates (observed green)
+cargo test --release -p experiment   # 9 passed, 0 failed
+cargo clippy --release -p experiment -p decoder --all-targets -- -D warnings
+cargo fmt -p decoder -p experiment -p hearsay --check
+```
+
+Post-fix, arms B/C run via `real_table --manifest … --lat-dir … --lm …
+--cell … --out … --per-utt … --params w_ac,w_seq,theta,delta,h,hmax`
+(builds green; hangs pre-fix like every bridge run).
+
+## Plausibility gate (real data)
+
+- WER below 1.0: holds (DEV-A 0.6624, TEST-A 0.6430, oracle K=10 0.5809).
+- Training size stated: AM `r3v2-full93-cmvn` trained on LibriSpeech
+  train-clean-100 (100 h by corpus definition), 93-phone set; LM
+  `r1v2-full` interpolated (general + book). Model shas in the config
+  table above.
+- Test population matches the claim: TEST claims cover the stratified
+  TEST-200 test-clean set (5/speaker × 40, seed 20261103); DEV claims
+  cover the stratified DEV-200 dev-clean set. No other population is
+  claimed.
+- Paired bootstrap CI present: holds for arm A (10k resamples, pinned
+  seed, tabulated). The delta-WER(C−B) + CI cannot exist until the
+  bridge runs — the B/C half of the gate is BLOCKED, not waived.
+
+Architect review of this doc is still required before the bead closes
+(coordinator).
