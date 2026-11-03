@@ -28,12 +28,7 @@ macro_rules! run_workload {
             for r in 0..reps {
                 let label = format!("w{}", i % 11);
                 let t = d
-                    .mint_token(
-                        label,
-                        $m::TokenKind::Word,
-                        s,
-                        s + 10,
-                    )
+                    .mint_token(label, $m::TokenKind::Word, s, s + 10)
                     .expect("mint");
                 let acoustic = 2.0 - r as f64 * 3.0 - (i % 5) as f64 * 0.2;
                 d.add_unary(t, $m::SourceClass::Acoustic, acoustic, BTreeSet::new())
@@ -92,10 +87,7 @@ macro_rules! run_workload {
                     d.enforce_budgets();
                     match d.commit_region((s, e), utter_end) {
                         $m::CommitOutcome::Committed { winner, .. } => {
-                            tilings.push((
-                                winner.tokens.clone(),
-                                winner.score.to_bits(),
-                            ));
+                            tilings.push((winner.tokens.clone(), winner.score.to_bits()));
                             for f in &winner.tokens {
                                 transcript.push(d.token(*f).unwrap().label.clone());
                             }
@@ -191,8 +183,16 @@ fn before_profile_reference_400() {
 /// attach+sequence+budgets+peaks per token with item-8 interleaved commits
 /// (maximal eligible end per step), then a final greedy drain. Returns
 /// (wall, phase walls, peak open, transcript words, commits, stats).
-fn run_10k_workload(n: usize) -> (f64, (f64, f64, f64), usize, usize, usize, new::FabricStatsSnapshot)
-{
+fn run_10k_workload(
+    n: usize,
+) -> (
+    f64,
+    (f64, f64, f64),
+    usize,
+    usize,
+    usize,
+    new::FabricStatsSnapshot,
+) {
     let mut d = new::DecisionFabric::new(new::DecisionParams::default());
     let h = d.params().h;
     // Realistic dense lattice: `words` word slots with `comp` competitors
@@ -324,7 +324,14 @@ fn run_10k_workload(n: usize) -> (f64, (f64, f64, f64), usize, usize, usize, new
     let t_commit = t_commit.elapsed().as_secs_f64();
     let stats = d.stats_snapshot();
     let wall = t_mint + t_intake + t_commit;
-    (wall, (t_mint, t_intake, t_commit), peak_open, transcript.len(), commits, stats)
+    (
+        wall,
+        (t_mint, t_intake, t_commit),
+        peak_open,
+        transcript.len(),
+        commits,
+        stats,
+    )
 }
 
 #[test]
@@ -332,8 +339,7 @@ fn indexed_10k_synthetic_completes_under_bound() {
     // The bead's perf gate at synthetic scale: 10k-token lattice through
     // the indexed arm with the bridge cadence (interleaved commits),
     // default (gate) params, under a wall bound.
-    let (wall, (t_mint, t_intake, t_commit), peak, words, commits, st) =
-        run_10k_workload(10_000);
+    let (wall, (t_mint, t_intake, t_commit), peak, words, commits, st) = run_10k_workload(10_000);
     assert!(words > 0, "10k lattice yields a transcript");
     assert!(commits > 0, "10k lattice commits");
     eprintln!(
@@ -350,6 +356,8 @@ fn indexed_10k_synthetic_completes_under_bound() {
         st.defeated,
         st.committed,
     );
-    assert!(wall < 120.0, "10k synthetic completed in {wall:.3}s (bound 120s)");
+    assert!(
+        wall < 120.0,
+        "10k synthetic completed in {wall:.3}s (bound 120s)"
+    );
 }
-

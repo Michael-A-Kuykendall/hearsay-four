@@ -516,7 +516,7 @@ pub struct DecisionFabric {
 }
 
 impl DecisionFabric {
-            pub fn new(params: DecisionParams) -> Self {
+    pub fn new(params: DecisionParams) -> Self {
         DecisionFabric {
             fabric: Fabric::new(),
             params,
@@ -566,7 +566,7 @@ impl DecisionFabric {
     }
 
     /// Register a token fact (§2). Zero-length spans are rejected (§7).
-            pub fn register_token(
+    pub fn register_token(
         &mut self,
         fact: FactId,
         label: impl Into<String>,
@@ -637,7 +637,7 @@ impl DecisionFabric {
 
     /// Attach unary decision evidence (§3). Absent class = absent term
     /// (rule 2); within a class only the max active `llr` counts (rule 3).
-        pub fn add_unary(
+    pub fn add_unary(
         &mut self,
         token: FactId,
         class: SourceClass,
@@ -686,7 +686,7 @@ impl DecisionFabric {
 
     /// Attach a USER correction: the fixed `+U0`, positive only (§3 rules
     /// 4-5), gated on the owner's correction fact via `premises`.
-        pub fn add_user(&mut self, token: FactId, correction_premise: FactId) -> DecisionResult<()> {
+    pub fn add_user(&mut self, token: FactId, correction_premise: FactId) -> DecisionResult<()> {
         self.known(token)?;
         let mut premises = BTreeSet::new();
         premises.insert(correction_premise);
@@ -721,7 +721,7 @@ impl DecisionFabric {
     }
 
     /// Attach pairwise SEQUENCE evidence `from -> to` (§3, §4).
-        pub fn add_sequence(
+    pub fn add_sequence(
         &mut self,
         from: FactId,
         to: FactId,
@@ -767,7 +767,7 @@ impl DecisionFabric {
     }
 
     /// Attach the sentence-start boundary pair `<s> -> to` (§4).
-        pub fn add_boundary_sequence(&mut self, to: FactId, llr: f64) -> DecisionResult<()> {
+    pub fn add_boundary_sequence(&mut self, to: FactId, llr: f64) -> DecisionResult<()> {
         self.known(to)?;
         let idx = self.sequence.len();
         self.sequence.push(SequenceEvidence {
@@ -796,7 +796,7 @@ impl DecisionFabric {
 
     /// Strongest active justification in one unary class for a token (§3
     /// rule 3); `None` means the class contributes no term (rule 2).
-        pub fn active_unary_max(&self, token: FactId, class: SourceClass) -> Option<f64> {
+    pub fn active_unary_max(&self, token: FactId, class: SourceClass) -> Option<f64> {
         FabricStats::bump(&self.stats.unary_lookups);
         self.ensure_synced();
         self.component_unary_max(token, class)
@@ -804,7 +804,7 @@ impl DecisionFabric {
 
     /// Strongest active SEQUENCE `llr` for an ordered pair; `from == None`
     /// selects the `<s>` boundary pair (§4). Each pair enters `S(T)` once.
-        pub fn active_sequence_max(&self, from: Option<FactId>, to: FactId) -> Option<f64> {
+    pub fn active_sequence_max(&self, from: Option<FactId>, to: FactId) -> Option<f64> {
         FabricStats::bump(&self.stats.seq_pair_lookups);
         self.ensure_synced();
         self.component_seq_pair(from, to)
@@ -824,7 +824,7 @@ impl DecisionFabric {
     /// Liveness `L(h)` (§5): unary sum plus max left/right SEQUENCE terms.
     /// Used only for the live/dormant threshold and budget accounting;
     /// never summed into `S(T)` and never published.
-        pub fn liveness(&self, token: FactId) -> f64 {
+    pub fn liveness(&self, token: FactId) -> f64 {
         FabricStats::bump(&self.stats.liveness_calls);
         self.ensure_synced();
         {
@@ -851,13 +851,13 @@ impl DecisionFabric {
             && self.liveness(token) < self.params.theta_live
     }
 
-        pub fn live_tokens(&self) -> Vec<FactId> {
+    pub fn live_tokens(&self) -> Vec<FactId> {
         self.ensure_synced();
         self.sync_pools();
         self.cache.borrow().live_set.iter().copied().collect()
     }
 
-        pub fn dormant_tokens(&self) -> Vec<FactId> {
+    pub fn dormant_tokens(&self) -> Vec<FactId> {
         self.ensure_synced();
         self.sync_pools();
         self.cache.borrow().dormant_set.iter().copied().collect()
@@ -871,7 +871,7 @@ impl DecisionFabric {
     /// No-op in arm C (dormancy is computed state there).
     /// Drivers call this via `enforce_budgets`, which beam-prunes first
     /// in arm B, before any commit.
-            pub fn prune_below_threshold(&mut self) {
+    pub fn prune_below_threshold(&mut self) {
         if self.params.arm != Arm::B {
             return;
         }
@@ -897,7 +897,7 @@ impl DecisionFabric {
         }
     }
 
-        fn in_committed_region(&self, token: FactId) -> bool {
+    fn in_committed_region(&self, token: FactId) -> bool {
         self.committed_tokens.contains(&token)
     }
 
@@ -905,7 +905,7 @@ impl DecisionFabric {
     /// tokens first (live tokens only are counted); then evict lowest
     /// `L(h)` first, ties by §10 order. Eviction is a deliberate retraction
     /// recorded in provenance.
-            pub fn enforce_budgets(&mut self) {
+    pub fn enforce_budgets(&mut self) {
         // Arm B (§11): below-threshold tokens are retracted at once, so
         // budget accounting sees live tokens only. No-op in arm C.
         self.prune_below_threshold();
@@ -928,8 +928,7 @@ impl DecisionFabric {
         // token id breaks all ties).
         let mut order: Vec<FactId> = self.active_all.iter().copied().collect();
         order.sort_by(|a, b| self.token_tie_cmp(*a, *b));
-        let rank: HashMap<FactId, usize> =
-            order.iter().enumerate().map(|(i, t)| (*t, i)).collect();
+        let rank: HashMap<FactId, usize> = order.iter().enumerate().map(|(i, t)| (*t, i)).collect();
         // Current (liveness, version) per open token; evicted tokens leave.
         // One heap per pool: entries never move pools (a transition pushes
         // a fresh entry to the new pool's heap and stales the old one), so
@@ -1074,7 +1073,7 @@ impl DecisionFabric {
 
     /// Lattice-mode successors (§9.1): tokens starting within ±J frames of
     /// `end(h)`. They exist whether or not `h` is live.
-            pub fn lattice_successors(&self, token: FactId) -> Vec<FactId> {
+    pub fn lattice_successors(&self, token: FactId) -> Vec<FactId> {
         let end = self.tokens[&token].end_frame;
         let (lo, hi) = Self::frame_window(end, self.params.j);
         let mut out = Vec::new();
@@ -1093,7 +1092,7 @@ impl DecisionFabric {
     /// dormant successors, symmetrically. `lm` computes `llr_SEQ(a -> b)`
     /// (§3). Records a revival event when a dormant token crosses
     /// `theta_live` before its region commits (§9.4).
-        pub fn attach_context_for_new_token(
+    pub fn attach_context_for_new_token(
         &mut self,
         new_token: FactId,
         lm: &dyn Fn(&Token, &Token) -> f64,
@@ -1152,7 +1151,7 @@ impl DecisionFabric {
 
     /// Reverse index (§9.4): tokens whose scores can change when `fact`
     /// retracts — evidence premises and SEQUENCE endpoints depending on it.
-        pub fn dependents_of(&self, fact: FactId) -> BTreeSet<FactId> {
+    pub fn dependents_of(&self, fact: FactId) -> BTreeSet<FactId> {
         let mut out = BTreeSet::new();
         if let Some(refs) = self.premise_refs.get(&fact) {
             for r in refs {
@@ -1205,7 +1204,7 @@ impl DecisionFabric {
 
     /// Best and runner-up tilings of `[s, e)` by DP (§10): exact cover by
     /// non-overlapping WORD/SIL tokens (§7), maximising `S(T)` (§4).
-        pub fn best_tilings(&self, region: (u32, u32)) -> (Option<ScoredTiling>, Option<ScoredTiling>) {
+    pub fn best_tilings(&self, region: (u32, u32)) -> (Option<ScoredTiling>, Option<ScoredTiling>) {
         let (s, e) = region;
         // Candidates start in [s, e): start >= s, and start < end <= e.
         // (Empty when s >= e, exactly as the old full scan.)
@@ -1294,7 +1293,7 @@ impl DecisionFabric {
     /// unconditionally at `e + H_max`. Winners go through the fabric's
     /// `commit()`; non-winners are defeated by deliberate retraction with
     /// provenance naming the winning tiling and the margin.
-        pub fn commit_region(&mut self, region: (u32, u32), frontier_frame: u32) -> CommitOutcome {
+    pub fn commit_region(&mut self, region: (u32, u32), frontier_frame: u32) -> CommitOutcome {
         let (s, e) = region;
         if frontier_frame < e + self.params.h {
             return CommitOutcome::NotEligible;
@@ -1441,7 +1440,7 @@ impl DecisionFabric {
     }
 
     /// Active unary evidence attached to a token (P2 rendering source).
-        pub fn active_unary_evidence(&self, token: FactId) -> Vec<UnaryEvidence> {
+    pub fn active_unary_evidence(&self, token: FactId) -> Vec<UnaryEvidence> {
         // Per-class buckets concatenated, then restored to global push
         // order: the old full scan returned push order.
         let mut indexed: Vec<(usize, UnaryEvidence)> = Vec::new();
@@ -1485,7 +1484,7 @@ impl DecisionFabric {
 
     /// USER correction facts gating a token's USER term (§3 rules 4-5):
     /// the premise facts of its active USER evidence.
-        pub fn user_correction_facts(&self, token: FactId) -> Vec<FactId> {
+    pub fn user_correction_facts(&self, token: FactId) -> Vec<FactId> {
         let mut out = Vec::new();
         if let Some(bucket) = self.unary_idx.get(&(token, SourceClass::User)) {
             for i in bucket {
@@ -1649,20 +1648,14 @@ impl DecisionFabric {
             }
         }
         let v = self.fold_unary_bucket(token, class);
-        self.cache
-            .borrow_mut()
-            .unary_max
-            .insert((token, class), v);
+        self.cache.borrow_mut().unary_max.insert((token, class), v);
         v
     }
 
     /// Force-refresh one unary component (propagation path, no stats bump).
     fn refresh_unary_component(&self, token: FactId, class: SourceClass) {
         let v = self.fold_unary_bucket(token, class);
-        self.cache
-            .borrow_mut()
-            .unary_max
-            .insert((token, class), v);
+        self.cache.borrow_mut().unary_max.insert((token, class), v);
     }
 
     /// Fresh fold of one sequence pair bucket: the exact pre-saturation fold.
@@ -1872,10 +1865,7 @@ impl DecisionFabric {
     /// Clamp a ±J frame window around `center` to the u32 range.
     fn frame_window(center: u32, j: u32) -> (u32, u32) {
         let (c, j) = (center as i64, j as i64);
-        (
-            (c - j).max(0) as u32,
-            (c + j).min(u32::MAX as i64) as u32,
-        )
+        ((c - j).max(0) as u32, (c + j).min(u32::MAX as i64) as u32)
     }
 
     /// Tokens whose `liveness` can change when `fact` deactivates: the unary
@@ -1906,7 +1896,7 @@ impl DecisionFabric {
 
     /// Pop the lowest-(`liveness`, §10-rank) fresh heap entry from one pool
     /// (live or dormant), skipping evicted/stale/foreign-pool entries.
-        fn pop_fresh(
+    fn pop_fresh(
         &self,
         heap: &mut BinaryHeap<Reverse<HeapEntry>>,
         state: &HashMap<FactId, (f64, u64)>,
@@ -1930,7 +1920,7 @@ impl DecisionFabric {
     /// fresh heap entries (lazy deletion: old entries go stale by version).
     /// Counts follow every transition symmetrically, so they stay exact
     /// under any liveness evolution.
-        fn refresh_neighbors(
+    fn refresh_neighbors(
         &self,
         live_heap: &mut BinaryHeap<Reverse<HeapEntry>>,
         dormant_heap: &mut BinaryHeap<Reverse<HeapEntry>>,

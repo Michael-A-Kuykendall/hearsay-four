@@ -4,8 +4,8 @@
 //! propagation. Byte-identity against the pre-saturation engine is proven
 //! by `decision_differential`; these pin the new machinery's semantics.
 
-use fabric::decision::{Arm, DecisionFabric, DecisionParams, SourceClass, TokenKind};
 use fabric::FactId;
+use fabric::decision::{Arm, DecisionFabric, DecisionParams, SourceClass, TokenKind};
 use std::collections::BTreeSet;
 
 fn no_premises() -> BTreeSet<FactId> {
@@ -122,10 +122,7 @@ fn internal_prune_rescores_premise_dependents() {
         "support alive before prune"
     );
     d.prune_below_threshold();
-    assert!(
-        !d.fabric().is_active(weak),
-        "below-theta victim pruned"
-    );
+    assert!(!d.fabric().is_active(weak), "below-theta victim pruned");
     assert_eq!(
         d.active_unary_max(h, SourceClass::Lexical),
         None,

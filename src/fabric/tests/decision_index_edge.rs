@@ -52,7 +52,8 @@ fn committed_winner_below_theta_pruned_identically() {
     ps.insert(gate_n);
     n.add_unary(a_n, new::SourceClass::Acoustic, 5.0, ps.clone())
         .unwrap();
-    o.add_unary(a_o, old::SourceClass::Acoustic, 5.0, ps).unwrap();
+    o.add_unary(a_o, old::SourceClass::Acoustic, 5.0, ps)
+        .unwrap();
     n.add_boundary_sequence(a_n, 1.0).unwrap();
     o.add_boundary_sequence(a_o, 1.0).unwrap();
     let rn = n.commit_region((0, 10), 100);
@@ -94,10 +95,20 @@ fn external_token_retract_then_queries_match() {
             .unwrap();
         assert_eq!(a, b);
         toks.push(a);
-        n.add_unary(a, new::SourceClass::Acoustic, 1.0 + i as f64 * 0.1, no_premises())
-            .unwrap();
-        o.add_unary(b, old::SourceClass::Acoustic, 1.0 + i as f64 * 0.1, no_premises())
-            .unwrap();
+        n.add_unary(
+            a,
+            new::SourceClass::Acoustic,
+            1.0 + i as f64 * 0.1,
+            no_premises(),
+        )
+        .unwrap();
+        o.add_unary(
+            b,
+            old::SourceClass::Acoustic,
+            1.0 + i as f64 * 0.1,
+            no_premises(),
+        )
+        .unwrap();
         if i > 0 {
             let mut ps = BTreeSet::new();
             ps.insert(toks[(i - 1) as usize]);
@@ -131,10 +142,7 @@ fn external_token_retract_then_queries_match() {
     );
     n.enforce_budgets();
     o.enforce_budgets();
-    assert_eq!(
-        format!("{:?}", n.events()),
-        format!("{:?}", o.events())
-    );
+    assert_eq!(format!("{:?}", n.events()), format!("{:?}", o.events()));
     assert_eq!(n.live_tokens(), o.live_tokens());
     assert_eq!(n.dormant_tokens(), o.dormant_tokens());
 }
@@ -248,9 +256,7 @@ fn deep_eviction_order_matches() {
         let a = n
             .mint_token(label.clone(), new::TokenKind::Word, s, s + 5)
             .unwrap();
-        let b = o
-            .mint_token(label, old::TokenKind::Word, s, s + 5)
-            .unwrap();
+        let b = o.mint_token(label, old::TokenKind::Word, s, s + 5).unwrap();
         assert_eq!(a, b);
         toks.push(a);
         let llr = ((i * 37) % 200) as f64 / 100.0 - 1.0;
@@ -335,4 +341,3 @@ fn counts_open_set_and_stats_are_sane() {
     assert!(st.evicted > 0);
     assert_eq!(st.pruned, 0, "arm C never prunes");
 }
-

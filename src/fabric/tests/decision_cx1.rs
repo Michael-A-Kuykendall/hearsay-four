@@ -14,8 +14,8 @@
 //! Gate: `cargo test -p fabric cx1` (debug, k ≤ 1.5) and the release
 //! profile (k ≤ 1.4).
 
-use fabric::decision::{DecisionFabric, DecisionParams, SourceClass, TokenKind};
 use fabric::FactId;
+use fabric::decision::{DecisionFabric, DecisionParams, SourceClass, TokenKind};
 use std::collections::BTreeSet;
 use std::time::Instant;
 
@@ -26,10 +26,7 @@ fn growth_exponent(times: &[(u64, f64)]) -> f64 {
     let sum_ln: f64 = times.iter().map(|(r, _)| (*r as f64).ln()).sum();
     let sum_lnt: f64 = times.iter().map(|(_, t)| t.ln()).sum();
     let sum_ln2: f64 = times.iter().map(|(r, _)| (*r as f64).ln().powi(2)).sum();
-    let sum_ln_lnt: f64 = times
-        .iter()
-        .map(|(r, t)| (*r as f64).ln() * t.ln())
-        .sum();
+    let sum_ln_lnt: f64 = times.iter().map(|(r, t)| (*r as f64).ln() * t.ln()).sum();
     (n * sum_ln_lnt - sum_ln * sum_lnt) / (n * sum_ln2 - sum_ln * sum_ln)
 }
 

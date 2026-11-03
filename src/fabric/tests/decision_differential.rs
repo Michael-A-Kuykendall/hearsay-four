@@ -47,11 +47,19 @@ impl Rng {
 const LABELS: [&str; 6] = ["a", "b", "c", "ab", "bc", "abc"];
 
 fn new_kind(i: usize) -> new::TokenKind {
-    [new::TokenKind::Word, new::TokenKind::Sil, new::TokenKind::Phone][i % 3]
+    [
+        new::TokenKind::Word,
+        new::TokenKind::Sil,
+        new::TokenKind::Phone,
+    ][i % 3]
 }
 
 fn old_kind(i: usize) -> old::TokenKind {
-    [old::TokenKind::Word, old::TokenKind::Sil, old::TokenKind::Phone][i % 3]
+    [
+        old::TokenKind::Word,
+        old::TokenKind::Sil,
+        old::TokenKind::Phone,
+    ][i % 3]
 }
 
 fn new_class(i: usize) -> new::SourceClass {
@@ -161,9 +169,7 @@ impl Pair {
         let Some((_, s, e)) = self.spans.iter().find(|(f, _, _)| *f == t) else {
             return false;
         };
-        self.committed
-            .iter()
-            .any(|(rs, re)| *s >= *rs && *e <= *re)
+        self.committed.iter().any(|(rs, re)| *s >= *rs && *e <= *re)
     }
 
     fn mint_external_premise(&mut self) -> FactId {
@@ -291,10 +297,7 @@ impl Pair {
             let _ = (self.n.is_live(t), self.o.is_live(t));
             let _ = (self.n.is_dormant(t), self.o.is_dormant(t));
             let _ = (self.n.dependents_of(t), self.o.dependents_of(t));
-            let _ = (
-                self.n.lattice_successors(t),
-                self.o.lattice_successors(t),
-            );
+            let _ = (self.n.lattice_successors(t), self.o.lattice_successors(t));
         }
         self.checkpoint(&tag);
     }
@@ -334,7 +337,14 @@ impl Pair {
     }
 
     fn check_tilings(&self, tag: &str) {
-        for (s, e) in [(0, 30), (0, 60), (10, 50), (0, self.max_end), (5, 5), (40, 20)] {
+        for (s, e) in [
+            (0, 30),
+            (0, 60),
+            (10, 50),
+            (0, self.max_end),
+            (5, 5),
+            (40, 20),
+        ] {
             let a = self.n.best_tilings((s, e));
             let b = self.o.best_tilings((s, e));
             assert_eq!(
@@ -378,9 +388,8 @@ impl Pair {
 #[test]
 fn differential_500_random_sequences_match_exactly() {
     for seq in 0..500 {
-        let mut rng = Rng(
-            0x9E3779B97F4A7C15u64.wrapping_add((seq as u64).wrapping_mul(0xBF58476D1CE4E5B9)),
-        );
+        let mut rng =
+            Rng(0x9E3779B97F4A7C15u64.wrapping_add((seq as u64).wrapping_mul(0xBF58476D1CE4E5B9)));
         let params = new_params(&mut rng);
         let mut pair = Pair::new(&params);
         let ops = 30 + rng.below(50);
@@ -390,4 +399,3 @@ fn differential_500_random_sequences_match_exactly() {
         pair.check_tilings(&format!("seq {seq} final"));
     }
 }
-
