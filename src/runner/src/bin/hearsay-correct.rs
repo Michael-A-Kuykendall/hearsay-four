@@ -143,7 +143,10 @@ fn resolve_paths(args: &[String]) -> Paths {
         });
     let workdir = flag(args, "--workdir")
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("target/correction-demo"));
+        .unwrap_or_else(|| {
+            let base = std::env::var("CARGO_TARGET_DIR").unwrap_or_else(|_| "target".to_string());
+            PathBuf::from(base).join("correction-demo")
+        });
     let repeat = flag(args, "--repeat")
         .map(|v| v.parse::<u64>().unwrap_or_else(|_| usage()))
         .unwrap_or(1)
