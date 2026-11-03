@@ -24,6 +24,7 @@ members = [
     "src/fabric",
     "src/fse",
     "src/groebner",
+    "src/hearsay",
     "src/invariant_ppt",
     "src/lexicon",
     "src/lm",
