@@ -1347,8 +1347,20 @@ impl DecisionFabric {
         // Order is part of the contract: ascending token id, as the old
         // full-map scan produced.
         losers.sort_unstable();
+        // Batched loser retraction: all fabric retracts first, one drain
+        // after (dedup collapses shared dependents). Identical outcomes:
+        // nothing reads scores between loser iterations (Defeated carries
+        // no liveness), so intermediate cache states are invisible.
         for loser in &losers {
-            self.retract_internal(*loser);
+            self.fabric.retract(*loser);
+        }
+        for loser in &losers {
+            self.enqueue_dependents(*loser);
+        }
+        self.drain_pending();
+        for loser in &losers {
+            self.evict_token_caches(*loser);
+            self.drop_from_pools(*loser);
             self.open.remove(loser);
             self.active_all.remove(loser);
             FabricStats::bump(&self.stats.defeated);
@@ -1585,8 +1597,10 @@ impl DecisionFabric {
     /// evidence row premised on the victim and drain. All internal
     /// retracts (prune, budgets, commit losers) route through here so
     /// caches never observe a retraction they did not process.
-    fn retract_internal(&mut self, victim: FactId) {
-        self.fabric.retract(victim);
+    /// Enqueue every evidence row premised on `victim` (the propagation
+    /// half of retraction; the drain runs separately so dense multi-victim
+    /// retractions batch into one drain).
+    fn enqueue_dependents(&mut self, victim: FactId) {
         let rows: Vec<PendingRow> = self
             .premise_refs
             .get(&victim)
@@ -1602,6 +1616,11 @@ impl DecisionFabric {
         for row in rows {
             self.enqueue_row(row);
         }
+    }
+
+    fn retract_internal(&mut self, victim: FactId) {
+        self.fabric.retract(victim);
+        self.enqueue_dependents(victim);
         self.drain_pending();
         // The victim leaves all pools: evict its memoized entries so the
         // caches stay bounded by the live set (recomputable on miss).
@@ -1835,13 +1854,15 @@ impl DecisionFabric {
     }
 
     fn sync_open(&mut self) {
+        // Membership only: drop inactive facts from the working sets.
+        // Caches and derived pools are NOT cleared here: internal paths
+        // maintain them incrementally, and external staleness is covered
+        // by the `fabric_mut` flag (the next cache read re-syncs). An
+        // unconditional clear would force an O(open) pool rebuild on every
+        // `enforce_budgets` call, which the bridge issues per intake.
         let fabric = &self.fabric;
         self.open.retain(|t| fabric.is_active(*t));
         self.active_all.retain(|t| fabric.is_active(*t));
-        // External truth may have changed behind propagation's back:
-        // drop memoized components (compute-on-miss rebuilds them).
-        self.cache.get_mut().clear();
-        self.external_dirty.set(false);
     }
 
     fn track_open(&mut self) {
