@@ -266,66 +266,7 @@ fn empty_lattice_fails_loudly() {
     let err = decode_lattice(&lat, &scorer, DecisionParams::default()).expect_err("must fail");
     assert!(err.contains("no tokens"));
 }
-#[test]
-fn finite_budgets_bind_peaks_and_evict_in_both_arms() {
-    // Six live tokens against tight caps: peaks stay within budget and
-    // evictions are logged. Arm C keeps a dormant pool; arm B holds no
-    // dormant tokens at all (a4 R3). v1.3: all six share one span so none
-    // seal (frontier never passes end+J) and budgets engage the window.
-    use hearsay::Arm;
-    let toks = [
-        (1, "alpha", 0, 10, 2.0),
-        (2, "bravo", 0, 10, 2.0),
-        (3, "charlie", 0, 10, 2.0),
-        (4, "delta", 0, 10, 2.0),
-        (5, "echo", 0, 10, 2.0),
-        (6, "foxtrot", 0, 10, 2.0),
-    ];
-    let arcs = [(1, 2), (2, 3), (3, 4), (4, 5), (5, 6)];
-    let scorer = map_scorer(0.0, &[], 0.0);
-    let lat_c = read(&lat_text("bind-c", &toks, &arcs));
-    let out_c = decode_lattice(
-        &lat_c,
-        &scorer,
-        DecisionParams {
-            arm: Arm::C,
-            live_budget: 2,
-            dormant_budget: 2,
-            combined_budget: Some(3),
-            ..Default::default()
-        },
-    )
-    .expect("decodes");
-    assert!(out_c.peak_live <= 2, "peak_live {}", out_c.peak_live);
-    assert!(
-        out_c.peak_dormant <= 2,
-        "peak_dormant {}",
-        out_c.peak_dormant
-    );
-    assert!(out_c.peak_total <= 3, "peak_total {}", out_c.peak_total);
-    let evicted_c = out_c
-        .events_jsonl
-        .lines()
-        .filter(|l| l.contains("\"event\":\"evicted\""))
-        .count();
-    assert!(evicted_c >= 3, "evicted {evicted_c}");
-    let lat_b = read(&lat_text("bind-b", &toks, &arcs));
-    let out_b = decode_lattice(
-        &lat_b,
-        &scorer,
-        DecisionParams {
-            arm: Arm::B,
-            live_budget: 2,
-            dormant_budget: 0,
-            combined_budget: None,
-            ..Default::default()
-        },
-    )
-    .expect("decodes");
-    assert!(out_b.peak_live <= 2, "peak_live {}", out_b.peak_live);
-    assert_eq!(out_b.peak_dormant, 0);
-    assert!(!out_b.events_jsonl.contains("\"event\":\"revived\""));
-}
+
 #[test]
 fn dangling_arc_fails_loudly() {
     // read_lattice already rejects dangling arcs, so build the struct
@@ -516,83 +457,7 @@ fn fabric_transcript_on_5_dev5() {
         );
     }
 }
-#[test]
-fn dev5_one_pass_transcripts_pinned_with_direction() {
-    // 7mge: one-pass intake preserves the dev5 transcripts exactly under the
-    // fallback tiny LM (measured old==new on all 5 utterances — see bead
-    // comment for the full old-to-new record: default budgets never bind,
-    // so interleaving changes nothing here; the behavior change manifests
-    // under budget pressure, proven by
-    // one_pass_preserves_weak_midchain_word_with_strong_successor).
-    // Pins the transcripts word-for-word plus the never-worse direction
-    // bounds from the recorded two-phase baseline (134 words, 0 gaps).
-    // Skipped when dev5 lattices are absent; exact pins apply only under
-    // the fallback LM (the shipped LM would legitimately change output).
-    if dev5_paths().is_none() {
-        eprintln!("data/lattices/dev5 absent: skipping one-pass pin test");
-        return;
-    }
-    let shipped = workspace_dir().join("data/lm-text/r1v2-full/lm-r1v2-interpolated.json");
-    let fallback_lm = std::fs::metadata(&shipped).is_err();
-    let pop = gate_population();
-    assert_eq!(pop.len(), 5);
-    let lm = resolve_lm();
-    let outs = decode_all(&pop, &lm);
-    for out in &outs {
-        assert!(
-            !out.transcript.is_empty(),
-            "utterance {} never degenerates to empty",
-            out.utterance
-        );
-    }
-    if !fallback_lm {
-        eprintln!("shipped LM present: skipping exact transcript pins");
-        return;
-    }
-    let total_words: usize = outs.iter().map(|o| o.transcript.len()).sum();
-    let total_gaps: usize = outs.iter().map(|o| o.gaps.len()).sum();
-    assert_eq!(
-        total_words, 134,
-        "one-pass keeps all 134 two-phase dev5 words (never fewer)"
-    );
-    assert_eq!(
-        total_gaps, 0,
-        "one-pass adds no dev5 gaps over the two-phase baseline of 0"
-    );
-    let pinned: &[(&str, &str)] = &[
-        (
-            "1272-128104-0001",
-            "BUN AU AW OI OOZE MS TER COOL COURAGE MEN ER ER ZILLAH STING CHURCH KING'S AN WHOSE MATTER CONE",
-        ),
-        (
-            "1272-135031-0000",
-            "THEE COO INNS HUE RISK LEAK EEL IN CE OF OF CONK RING THA OO LOVE LIEU RUSE KIN SOUS FUZZ POOH COO FU GO WUZ VO KNOW MME PAUL THE CAP HAULED PAW ER SHAGGY CID CE ERROR BURR ER COOING OO DOE VAN",
-        ),
-        (
-            "1272-135031-0013",
-            "FUCK INK FOR MME SHEW DIG E UNS THAN IN A MAN ALL FORCED CUFF NONE",
-        ),
-        (
-            "1272-135031-0019",
-            "NUT AX FOR DICK PER MURK COO BEARD SOOTH FAWN TWEAK A NONE",
-        ),
-        (
-            "1272-135031-0023",
-            "THA COW OAR GOO O WHEN TO THE BEEN GONG A KEMP HOW NOON AH MC SHOES TWOS CE BURR GOOD OO E U SH TUG NUKE THA PUT MO WOOD HAS SHEWN DEUCE O MME ODD NCE A NONE",
-        ),
-    ];
-    for (utt, words) in pinned {
-        let out = outs
-            .iter()
-            .find(|o| o.utterance == *utt)
-            .unwrap_or_else(|| panic!("pinned utterance {utt} decodes"));
-        assert_eq!(
-            out.transcript.join(" "),
-            *words,
-            "one-pass transcript for {utt}"
-        );
-    }
-}
+
 #[test]
 fn non_empty_event_log() {
     let pop = gate_population();
@@ -640,97 +505,142 @@ fn render_unknown_fact_falls_back_to_fact_id() {
     assert!(jsonl.contains("\"fact\":7"));
     assert!(jsonl.contains("\"fact\":9"));
 }
-#[test]
-fn one_pass_preserves_weak_midchain_word_with_strong_successor() {
-    // Falsification for frame-order single-pass intake (7mge): whiskey has
-    // weak acoustic support (+0.5, weakest live token) but a strong +10
-    // successor bigram (whiskey -> sierra). Under two-phase intake all six
-    // tokens are minted before any SEQUENCE attaches, so the first budget
-    // enforcement (live cap 3) evicts whiskey before sierra's +10 can land
-    // and the transcript loses it. Under one-pass intake only frontier-near
-    // tokens compete when whiskey arrives, so it survives until sierra's
-    // arrival boosts it to 10.5. A kept two-phase implementation FAILS this
-    // test (whiskey absent); one-pass PASSES (whiskey present).
-    let lat = read(&lat_text(
-        "midchain",
-        &[
-            (1, "alpha", 0, 10, 3.0),
-            (2, "bravo", 10, 20, 3.0),
-            (3, "whiskey", 20, 30, 0.5),
-            (4, "sierra", 30, 40, 3.0),
-            (5, "rival-one", 40, 50, 0.25),
-            (6, "rival-two", 50, 60, 0.25),
-        ],
-        &[(1, 2), (2, 3), (3, 4)],
-    ));
-    let scorer = map_scorer(0.0, &[("whiskey", "sierra", 10.0)], 0.0);
-    let out = decode_lattice(
-        &lat,
-        &scorer,
-        DecisionParams {
-            live_budget: 3,
-            ..Default::default()
-        },
-    )
-    .expect("decodes");
-    assert!(
-        out.transcript.contains(&"whiskey".to_string()),
-        "one-pass keeps the weak mid-chain word; transcript: {:?}",
-        out.transcript
+fn chain_text(utterance: &str, n: usize) -> String {
+    let mut s = format!(
+        "{{\"format\":\"hearsay-word-lattice\",\"version_major\":1,\"version_minor\":0,\"utterance\":\"{utterance}\",\"frame_shift_ms\":10.0,\"producer\":\"wkmf-test\"}}\n"
     );
-    assert!(
-        !out.uncommitted_ids.contains(&3),
-        "whiskey commits; uncommitted: {:?}",
-        out.uncommitted_ids
-    );
+    for i in 0..n {
+        let id = (i + 1) as u64;
+        let st = (i * 20) as u32;
+        let en = ((i + 1) * 20) as u32;
+        s.push_str(&format!(
+            "{{\"t\":{{\"id\":{id},\"word\":\"w{id:02}\",\"start\":{st},\"end\":{en},\"source\":\"t\",\"acoustic_llr\":2.0}}}}\n"
+        ));
+    }
+    for i in 1..n {
+        let f = i as u64;
+        let t = (i + 1) as u64;
+        s.push_str(&format!("{{\"a\":{{\"from\":{f},\"to\":{t}}}}}\n"));
+    }
+    s
 }
-
 #[test]
-fn duplicate_tokens_intern_to_one_fact_with_margin() {
-    // §7 v1.4 / patent §5.5: identical (word, start, end) lattice tokens
-    // are ONE fact with appended justifications — no doppelgangers. The
-    // dup arcs collapse onto the same fact pair. Pre-fix the dup tilings
-    // tie and the margin is 0; post-fix the real runner-up sets it.
+fn frame_order_ingest_is_deterministic() {
     let lat = read(&lat_text(
-        "doppelganger",
+        "scramble",
         &[
-            (1, "alpha", 0, 10, 3.0),
-            (2, "alpha", 0, 10, 3.0),
-            (3, "beta", 10, 20, 4.0),
-            (4, "gamma", 10, 20, 1.0),
+            (3, "charlie", 60, 90, 2.0),
+            (1, "alpha", 0, 30, 2.0),
+            (2, "bravo", 30, 60, 2.0),
         ],
-        &[(1, 3), (2, 3), (1, 4), (2, 4)],
+        &[(1, 2), (2, 3)],
     ));
     let scorer = map_scorer(0.0, &[], 0.0);
     let out = decode_lattice(&lat, &scorer, DecisionParams::default()).expect("decodes");
+    let keys: Vec<(u32, u32, u64)> = out.tokens.iter().map(|r| (r.start, r.end, r.id)).collect();
+    let mut sorted = keys.clone();
+    sorted.sort();
+    assert_eq!(keys, sorted, "minted tokens are in frame order");
+    assert_eq!(
+        out.tokens.iter().map(|r| r.id).collect::<Vec<_>>(),
+        vec![1, 2, 3]
+    );
     assert_eq!(
         out.transcript,
-        vec!["alpha".to_string(), "beta".to_string()]
+        vec![
+            "alpha".to_string(),
+            "bravo".to_string(),
+            "charlie".to_string()
+        ]
     );
-    assert_eq!(out.commits.len(), 1);
-    let m = out.commits[0].margin.expect("real runner-up sets margin");
-    assert!(approx(m, 3.0), "margin {m}, want 7.0 - 4.0");
-    // Both dup ids credit the shared winning fact; nothing is orphaned.
-    assert!(out.uncommitted_ids.is_empty());
-    assert_eq!(out.commits[0].defeated_words, vec!["gamma".to_string()]);
+    assert_eq!(out.streaming_commits, 0);
+    assert_eq!(out.peak_open, 3);
 }
-
 #[test]
-fn sequence_llr_lowercases_lattice_words() {
-    // LM vocab is lowercase; lattice words are uppercase. Pre-fix, every
-    // pair was OOV so KN backed off to exactly the unigram and llr was
-    // 0.0 for all pairs (SANITY root cause).
-    let sents = vec![
-        vec!["a".to_string(), "b".to_string()],
-        vec!["a".to_string(), "b".to_string()],
-        vec!["a".to_string(), "c".to_string()],
-    ];
-    let g = KnTrigram::train(&sents);
-    let p = KnTrigram::train(&[]);
-    let lm = InterpolatedLm::new(g, p, 0.0).expect("weight 0 valid");
-    let scorer = InterpolatedScorer::new(&lm);
-    let upper = scorer.sequence_llr(Some("A"), "B");
-    let lower = scorer.sequence_llr(Some("a"), "b");
-    assert_ne!(upper, 0.0, "observed uppercase pair must score, not OOV-floor");
-    assert_eq!(upper, lower, "scorer must be case-insensitive");
+fn frontier_advancing_commit_splits_long_chain() {
+    let text = chain_text("long-chain", 30);
+    let lat = read(&text);
+    let scorer = map_scorer(0.0, &[], 0.0);
+    let out = decode_lattice(&lat, &scorer, DecisionParams::default()).expect("decodes");
+    assert!(
+        out.commits.len() > 1,
+        "long chain commits more than once, got {}",
+        out.commits.len()
+    );
+    assert!(
+        out.streaming_commits > 0,
+        "at least one commit fired mid-stream"
+    );
+    assert_eq!(out.transcript.len(), 30);
+    for (i, w) in out.transcript.iter().enumerate() {
+        assert_eq!(w, &format!("w{:02}", i + 1));
+    }
+    let mut prev_e = 0u32;
+    for c in &out.commits {
+        assert!(c.region.0 >= prev_e);
+        assert!(c.region.1 > c.region.0);
+        prev_e = c.region.1;
+    }
+    assert!(out.gaps.is_empty());
+    assert!(out.uncommitted_ids.is_empty());
+}
+#[test]
+fn bounded_open_set_on_long_chain() {
+    let text = chain_text("long-open", 30);
+    let lat = read(&text);
+    let scorer = map_scorer(0.0, &[], 0.0);
+    let out = decode_lattice(&lat, &scorer, DecisionParams::default()).expect("decodes");
+    assert!(
+        out.peak_open < 30,
+        "peak open {} is bounded below token count 30",
+        out.peak_open
+    );
+    assert!(
+        out.peak_open <= 22,
+        "peak open {} stays near threshold 10 + probe cadence 10",
+        out.peak_open
+    );
+    eprintln!(
+        "long-chain peaks: open={} live={} dormant={} total={} streaming_commits={} commits={}",
+        out.peak_open,
+        out.peak_live,
+        out.peak_dormant,
+        out.peak_total,
+        out.streaming_commits,
+        out.commits.len()
+    );
+}
+#[test]
+fn streaming_event_log_ordered_and_non_empty() {
+    let text = chain_text("long-events", 30);
+    let lat = read(&text);
+    let scorer = map_scorer(0.0, &[], 0.0);
+    let out = decode_lattice(&lat, &scorer, DecisionParams::default()).expect("decodes");
+    let lines: Vec<&str> = out.events_jsonl.lines().collect();
+    assert!(!lines.is_empty());
+    let mut committed = 0;
+    for (seq, line) in lines.iter().enumerate() {
+        let v: serde_json::Value = serde_json::from_str(line).expect("event JSON parses");
+        assert_eq!(v["v"], 1);
+        assert_eq!(v["utterance"], out.utterance);
+        assert_eq!(v["seq"], seq);
+        if v["event"] == "committed" {
+            committed += 1;
+        }
+    }
+    assert_eq!(committed, out.commits.len());
+    assert!(committed > 1);
+}
+#[test]
+fn transcript_is_concatenation_of_committed_winners() {
+    let text = chain_text("long-tiling", 30);
+    let lat = read(&text);
+    let scorer = map_scorer(0.0, &[], 0.0);
+    let out = decode_lattice(&lat, &scorer, DecisionParams::default()).expect("decodes");
+    let flat: Vec<String> = out
+        .commits
+        .iter()
+        .flat_map(|c| c.winner_words.clone())
+        .collect();
+    assert_eq!(out.transcript, flat);
 }

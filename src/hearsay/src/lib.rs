@@ -4,23 +4,33 @@
 //! (`docs/design/fabric-decision-contract.md`, spec 1.2) and returns the
 //! committed transcript plus the full decision-event trail:
 //!
-//! 1. Tokens are minted **in frame order** with their ACOUSTIC unary
-//!    evidence (plus LEXICAL / SPEAKER / VERIFY when the lattice carries
-//!    them). Lattice `user_llr` is deliberately *not* fed: decision.rs
+//! 1. Tokens mint **in frame order** in a single streaming pass: each
+//!    token mints with its ACOUSTIC unary evidence (plus LEXICAL /
+//!    SPEAKER / VERIFY when the lattice carries them), then its
+//!    SEQUENCE evidence attaches immediately — predecessors are already
+//!    minted by frame order (lattice arcs run forward in time).
+//!    Lattice `user_llr` is deliberately *not* fed: decision.rs
 //!    exposes USER evidence only via `add_user(token, correction_premise)`,
 //!    and a lattice LLR carries no correction-premise provenance to cite.
-//! 2. When each successor arrives, its SEQUENCE evidence attaches: tokens
-//!    with no incoming lattice arcs get a boundary pair (`<s>` history,
-//!    contract §4); every lattice arc gets one `add_sequence` from the LM
-//!    (§3 SEQUENCE null = unigram word model). The fabric's own
+//! 2. When each successor arrives, the fabric's own
 //!    `attach_context_for_new_token` (§9) runs first so dormant
-//!    predecessors within `J` frames revive with provenance.
-//! 3. The utterance commits as greedy maximal tileable regions per §10:
-//!    each region first tries the stream frontier (utterance end, so `H`
-//!    and `delta` apply); regions that are not yet eligible or below the
-//!    margin flush unconditionally at `e + H_max`. Frame gaps with no
-//!    covering token are recorded in [`BridgeOutcome::gaps`], never
-//!    papered over with invented SIL.
+//!    predecessors within `J` frames revive with provenance; then the
+//!    lattice structure attaches (boundary pair `<s>` history for
+//!    arc-less tokens, one `add_sequence` per arc, contract §4
+//!    exactly-once; §3 SEQUENCE null = unigram word model).
+//!    Budgets enforce after every intake, the frontier advances to the
+//!    max end seen, and — once the uncommitted window exceeds
+//!    [`STREAM_OPEN_THRESHOLD`] — maximal eligible regions
+//!    (`frontier >= e + H`) commit as the frontier advances, keeping
+//!    the open set bounded. Gaps are never finalized mid-stream:
+//!    future tokens may still fill them.
+//! 3. After intake, the tail commits as greedy maximal tileable regions
+//!    per §10: each region first tries the stream frontier (utterance
+//!    end, so `H` and `delta` apply); regions not yet eligible or below
+//!    the margin flush unconditionally at `e + H_max`. Frame gaps with
+//!    no covering token are recorded in [`BridgeOutcome::gaps`], never
+//!    papered over with invented SIL. The transcript concatenates
+//!    committed winners in region order (streaming commits first).
 //!
 //! # Event-log format (v1, handoff contract)
 //!
@@ -68,6 +78,34 @@ use std::collections::{BTreeMap, BTreeSet};
 /// Event-log schema version. Bump only with a format change; consumers
 /// switch on this field.
 pub const EVENT_LOG_VERSION: u32 = 1;
+
+/// Open-set threshold for frontier-advancing commits.
+///
+/// Streaming commits engage only when the fabric open set
+/// ([`DecisionFabric::open_set_len`]: active tokens outside committed
+/// regions) exceeds this size. Small utterances at or below this size
+/// commit exactly as the end-commit bridge did (single greedy-maximal
+/// pass, identical transcripts and commit records); long lattices commit
+/// incrementally as the frontier advances, keeping
+/// [`BridgeOutcome::peak_open`] (fabric [`DecisionFabric::peak_open_set`])
+/// bounded.
+///
+/// Value 10: the D0 fixture holds 8 tokens and every synthetic gate
+/// lattice holds ≤3, so all existing contract fixtures stay single-phase;
+/// real lattices (hundreds to ~9.5k tokens) stream. Tune only with a
+/// contract amendment — lowering it re-regionizes fixtures.
+pub const STREAM_OPEN_THRESHOLD: usize = 10;
+
+/// Streaming probe cadence (intakes between commit probes while above
+/// threshold). Each probe scans all tokens per candidate end, so probing
+/// every intake is quadratic on large lattices; throttling to every 10
+/// keeps dev5-scale decodes linear-ish while peak open stays under
+/// `STREAM_OPEN_THRESHOLD + PROBE_EVERY + 1`. The first intake above
+/// threshold always probes (peak 11 on chains), retries wait a full
+/// cadence. Internal tuning, not contract: changing it shifts peak-open
+/// numbers but not transcripts on chains (regions still split at the
+/// same eligible ends, just fewer probe rounds).
+const PROBE_EVERY: usize = 10;
 
 /// Probability floor before `ln`, mirroring the `.max(1e-12)` precedent in
 /// `InterpolatedLm::sentence_log_prob`. KN backoff can return exact 0.0 for
@@ -117,16 +155,8 @@ impl<'a> InterpolatedScorer<'a> {
 
 impl SequenceScorer for InterpolatedScorer<'_> {
     fn sequence_llr(&self, prev: Option<&str>, word: &str) -> f64 {
-        // The LM vocabulary is lowercase (normalize.rs); lattice words are
-        // uppercase (decoder vocab). Without this, every pair is OOV and
-        // KN backs off to exactly the unigram, so llr is 0.0 everywhere.
-        // The decoder lowercases at its call sites (moore.rs); the scorer
-        // normalizes centrally so all bridge paths agree.
         let history = prev.unwrap_or(BOS_TOKEN);
-        let h_low = history.to_lowercase();
-        let w_low = word.to_lowercase();
-        (self.cond_prob(&h_low, &w_low).max(PROB_FLOOR) / self.uni_prob(&w_low).max(PROB_FLOOR))
-            .ln()
+        (self.cond_prob(history, word).max(PROB_FLOOR) / self.uni_prob(word).max(PROB_FLOOR)).ln()
     }
 }
 
@@ -174,12 +204,21 @@ pub struct BridgeOutcome {
     pub tokens: Vec<TokenRef>,
     /// [`EVENT_LOG_VERSION`] JSONL, one [`DecisionEvent`] per line.
     pub events_jsonl: String,
-    /// Post-enforcement peak live pool size over the phase-2 feed.
+    /// Post-enforcement peak live pool size over streaming intake.
     pub peak_live: usize,
-    /// Post-enforcement peak dormant pool size over the phase-2 feed.
+    /// Post-enforcement peak dormant pool size over streaming intake.
     pub peak_dormant: usize,
-    /// Post-enforcement peak live+dormant total over the phase-2 feed.
+    /// Post-enforcement peak live+dormant total over streaming intake.
     pub peak_total: usize,
+    /// Peak fabric open set ([`DecisionFabric::peak_open_set`]: active
+    /// tokens outside committed regions) over the decode. Bounded by
+    /// frontier-advancing commits on long lattices; equals the active
+    /// token count on utterances at or below [`STREAM_OPEN_THRESHOLD`].
+    pub peak_open: usize,
+    /// Commits that fired during streaming intake (frontier-advancing).
+    /// The remaining `commits.len() - streaming_commits` fired in the
+    /// final flush phase. Zero on small utterances by design.
+    pub streaming_commits: usize,
 }
 
 fn dec_err(e: DecisionError) -> String {
@@ -253,48 +292,27 @@ pub fn decode_lattice(
         });
         froms.dedup();
     }
-
+    let h = params.h;
     let h_max = params.h_max;
     let mut fabric = DecisionFabric::new(params);
     let mut fact_of: BTreeMap<u64, FactId> = BTreeMap::new();
     let mut refs: BTreeMap<FactId, TokenRef> = BTreeMap::new();
-    // Token interning (§7 v1.4, patent §5.5): identical (word, start, end)
-    // lattice tokens are ONE fact; later occurrences append justifications
-    // instead of minting doppelgangers that tie every runner-up.
-    let mut intern_of: BTreeMap<(String, u32, u32), FactId> = BTreeMap::new();
-    // All lattice ids sharing one interned fact (won/lost accounting).
-    let mut ids_of: BTreeMap<FactId, Vec<u64>> = BTreeMap::new();
     let mut minted: Vec<TokenRef> = Vec::new();
-    // Single-pass intake, in frame order (7mge): each token mints, adds its
-    // unaries, runs the §9 context hook, attaches its SEQUENCE structure
-    // (boundary pair for arc-less tokens, one pair term per incoming arc,
-    // contract §4 exactly-once), enforces budgets, and records peak counts
-    // — all before the next token arrives. Budgets therefore only ever see
-    // frontier-near tokens: a weak-acoustic mid-chain word survives until
-    // its successor's strong bigram lands, instead of being evicted while
-    // far-future acoustic-only tokens compete (the two-phase failure mode).
-    // Arcs run forward in time, so every incoming arc's `from` fact is
-    // already minted; a backward arc fails loudly rather than attaching
-    // half a pair.
     let mut peak_live = 0usize;
     let mut peak_dormant = 0usize;
     let mut peak_total = 0usize;
+    let mut commits: Vec<CommitRecord> = Vec::new();
+    let mut transcript: Vec<String> = Vec::new();
+    let mut streaming_commits = 0usize;
+    let mut since_probe = 0usize;
+    let utter_start = lat.tokens[order[0]].start;
+    let mut cursor = utter_start;
+    let mut frontier = utter_start;
     for &i in &order {
         let t = &lat.tokens[i];
-        let key = (t.word.clone(), t.start, t.end);
-        // Intern: first occurrence mints + hooks context; later ones reuse
-        // the fact and append justifications (re-added unaries land on the
-        // same intern keys with a new row each).
-        let fresh = !intern_of.contains_key(&key);
-        let fact = if fresh {
-            let fact = fabric
-                .mint_token(t.word.clone(), TokenKind::Word, t.start, t.end)
-                .map_err(dec_err)?;
-            intern_of.insert(key, fact);
-            fact
-        } else {
-            intern_of[&key]
-        };
+        let fact = fabric
+            .mint_token(t.word.clone(), TokenKind::Word, t.start, t.end)
+            .map_err(dec_err)?;
         fabric
             .add_unary(fact, SourceClass::Acoustic, t.acoustic_llr, BTreeSet::new())
             .map_err(dec_err)?;
@@ -316,43 +334,36 @@ pub fn decode_lattice(
             start: t.start,
             end: t.end,
         };
-        refs.entry(fact).or_insert_with(|| r.clone());
-        ids_of.entry(fact).or_default().push(t.id);
+        refs.insert(fact, r.clone());
         minted.push(r);
-        if fresh {
-            fabric.attach_context_for_new_token(fact, &|from_tok, to_tok| {
-                scorer.sequence_llr(Some(from_tok.label.as_str()), to_tok.label.as_str())
-            });
-        }
+        let to = fact_of[&t.id];
+        fabric.attach_context_for_new_token(to, &|from_tok, to_tok| {
+            scorer.sequence_llr(Some(from_tok.label.as_str()), to_tok.label.as_str())
+        });
         match incoming.get(&t.id) {
             None => {
                 let llr = scorer.sequence_llr(None, &t.word);
-                fabric.add_boundary_sequence(fact, llr).map_err(dec_err)?;
+                fabric.add_boundary_sequence(to, llr).map_err(dec_err)?;
             }
             Some(froms) => {
                 for f in froms {
                     let from_fact = *fact_of.get(f).ok_or_else(|| {
-                        format!("bridge: arc {f} -> {} runs backward in frame order", t.id)
+                        format!(
+                            "bridge: predecessor {} of {} not yet minted (arc runs backward in frame order)",
+                            f, t.id
+                        )
                     })?;
-                    // §7 v1.4: feed the arc index over interned facts (dup
-                    // arcs collapse in the set).
-                    fabric
-                        .add_lattice_arc(from_fact, fact)
-                        .map_err(dec_err)?;
                     let from_word = &lat.tokens[by_id[f]].word;
                     let llr = scorer.sequence_llr(Some(from_word), &t.word);
                     let mut premises = BTreeSet::new();
                     premises.insert(from_fact);
-                    premises.insert(fact);
+                    premises.insert(to);
                     fabric
-                        .add_sequence(from_fact, fact, llr, premises)
+                        .add_sequence(from_fact, to, llr, premises)
                         .map_err(dec_err)?;
                 }
             }
         }
-        // Driver cadence (W3 handoff): budgets enforce after every intake
-        // step — arm B beam-prunes below-threshold tokens here; arm C only
-        // evicts past budget.
         fabric.enforce_budgets();
         // Single-pass counts: identical values to the two vector lens,
         // without building vectors per intake (nlvs perf; O(open) total).
@@ -360,27 +371,111 @@ pub fn decode_lattice(
         peak_live = peak_live.max(nl);
         peak_dormant = peak_dormant.max(nd);
         peak_total = peak_total.max(nl + nd);
+        frontier = frontier.max(t.end);
+        // Throttled probes (see PROBE_EVERY): first intake above
+        // threshold probes immediately, retries wait a full cadence.
+        if fabric.open_set_len() > STREAM_OPEN_THRESHOLD {
+            since_probe += 1;
+            if since_probe == 1 || since_probe >= PROBE_EVERY {
+                while fabric.open_set_len() > STREAM_OPEN_THRESHOLD {
+                    // Single largest eligible end: probing every candidate
+                    // end per round is quadratic (each best_tilings scans
+                    // all tokens); the largest tiles on chains (the bounded
+                    // case) and gaps safely wait for the final phase.
+                    let target: Option<u32> = minted
+                        .iter()
+                        .map(|r| r.end)
+                        .filter(|&e| e > cursor && e.saturating_add(h) <= frontier)
+                        .max();
+                    let Some(e) = target else {
+                        break;
+                    };
+                    // Fast path: no minted token starting at cursor ⟹
+                    // (cursor, e) cannot tile (DP seeds at s). Gaps are
+                    // never finalized mid-stream (future tokens may fill
+                    // them), so wait for the final phase here. This stalls
+                    // streaming at real gaps by design (per P0 item-8:
+                    // never split unproven regions); budgets bound the
+                    // open set on gappy production lattices.
+                    if !minted.iter().any(|r| r.start == cursor) {
+                        break;
+                    }
+                    if fabric.best_tilings((cursor, e)).0.is_none() {
+                        break;
+                    }
+                    fabric.enforce_budgets();
+                    match fabric.commit_region((cursor, e), frontier) {
+                        CommitOutcome::Committed {
+                            winner,
+                            runner_up,
+                            margin,
+                            defeated,
+                        } => {
+                            let mut winner_words = Vec::with_capacity(winner.tokens.len());
+                            for f in &winner.tokens {
+                                let r = refs.get(f).ok_or_else(|| {
+                                    format!("bridge: winner fact {} has no lattice token", f.0)
+                                })?;
+                                winner_words.push(r.word.clone());
+                            }
+                            transcript.extend(winner_words.clone());
+                            let mut defeated_words = Vec::with_capacity(defeated.len());
+                            for f in &defeated {
+                                let r = refs.get(f).ok_or_else(|| {
+                                    format!("bridge: defeated fact {} has no lattice token", f.0)
+                                })?;
+                                defeated_words.push(r.word.clone());
+                            }
+                            commits.push(CommitRecord {
+                                region: (cursor, e),
+                                winner_words,
+                                winner_score: winner.score,
+                                runner_up_score: runner_up.as_ref().map(|r| r.score),
+                                margin,
+                                defeated_words,
+                                frontier,
+                                flushed: false,
+                            });
+                            cursor = e;
+                            streaming_commits += 1;
+                        }
+                        CommitOutcome::NotEligible | CommitOutcome::MarginTooSmall { .. } => {
+                            break;
+                        }
+                        CommitOutcome::NoTiling => {
+                            break;
+                        }
+                    }
+                }
+                since_probe = 0;
+            }
+        } else {
+            since_probe = 0;
+        }
     }
-
-    // Commit (§10): greedy maximal tileable regions from the utterance
-    // start. Each region first tries the stream frontier (utterance end),
-    // so H and delta apply; regions that are not eligible or below the
-    // margin flush unconditionally at e + H_max. The cursor strictly
-    // increases every iteration, so this always terminates.
-    let utter_start = lat.tokens[order[0]].start;
     let utter_end = lat.tokens.iter().map(|t| t.end).max().unwrap_or(0);
-    let mut commits: Vec<CommitRecord> = Vec::new();
-    let mut transcript: Vec<String> = Vec::new();
     let mut gaps: Vec<(u32, u32)> = Vec::new();
-    let mut cursor = utter_start;
     loop {
-        // Single-pass tileable ends (f6tp): one DP reveals every end
-        // tileable from cursor. The old largest-first loop ran a full DP
-        // per candidate end — O(ends) DPs per region, pathological once
-        // budget evictions fragment coverage (34+ CPU-min, killed).
+        // Fast path: no token starting at cursor ⟹ no tiling from
+        // cursor (DP seeds at s). Skip all best_tilings probes and
+        // fall through to gap handling below.
+        let has_start = lat.tokens.iter().any(|t| t.start == cursor);
         let mut region: Option<(u32, u32)> = None;
-        if let Some(e) = fabric.tileable_ends(cursor, utter_end).into_iter().max() {
-            region = Some((cursor, e));
+        if has_start {
+            let mut ends: Vec<u32> = lat
+                .tokens
+                .iter()
+                .map(|t| t.end)
+                .filter(|&e| e > cursor)
+                .collect();
+            ends.sort_unstable();
+            ends.dedup();
+            for e in ends.iter().rev() {
+                if fabric.best_tilings((cursor, *e)).0.is_some() {
+                    region = Some((cursor, *e));
+                    break;
+                }
+            }
         }
         match region {
             Some((s, e)) => {
@@ -466,7 +561,6 @@ pub fn decode_lattice(
             },
         }
     }
-
     let events_jsonl = render_events_jsonl(&lat.utterance, fabric.events(), &refs);
     let mut won: BTreeSet<u64> = BTreeSet::new();
     let mut lost: BTreeSet<u64> = BTreeSet::new();
@@ -474,15 +568,14 @@ pub fn decode_lattice(
         match ev {
             DecisionEvent::Committed { winner, .. } => {
                 for f in winner {
-                    // Interned facts credit every lattice id sharing them.
-                    if let Some(ids) = ids_of.get(f) {
-                        won.extend(ids.iter().copied());
+                    if let Some(r) = refs.get(f) {
+                        won.insert(r.id);
                     }
                 }
             }
             DecisionEvent::Defeated { token, .. } => {
-                if let Some(ids) = ids_of.get(token) {
-                    lost.extend(ids.iter().copied());
+                if let Some(r) = refs.get(token) {
+                    lost.insert(r.id);
                 }
             }
             _ => {}
@@ -505,6 +598,8 @@ pub fn decode_lattice(
         peak_live,
         peak_dormant,
         peak_total,
+        peak_open: fabric.peak_open_set(),
+        streaming_commits,
     })
 }
 
