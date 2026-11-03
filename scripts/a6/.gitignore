@@ -1,0 +1,2 @@
+# Gate artifacts regenerate on every run; do not commit them.
+out/
