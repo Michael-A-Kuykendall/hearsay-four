@@ -37,6 +37,7 @@ members = [
     "src/eval",
     "src/decoder",
     "src/a2",
+    "src/experiment",
 ]
 exclude = [
     "src/wasm-demo",

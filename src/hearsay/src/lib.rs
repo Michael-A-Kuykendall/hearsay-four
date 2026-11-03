@@ -166,6 +166,12 @@ pub struct BridgeOutcome {
     pub tokens: Vec<TokenRef>,
     /// [`EVENT_LOG_VERSION`] JSONL, one [`DecisionEvent`] per line.
     pub events_jsonl: String,
+    /// Post-enforcement peak live pool size over the phase-2 feed.
+    pub peak_live: usize,
+    /// Post-enforcement peak dormant pool size over the phase-2 feed.
+    pub peak_dormant: usize,
+    /// Post-enforcement peak live+dormant total over the phase-2 feed.
+    pub peak_total: usize,
 }
 
 fn dec_err(e: DecisionError) -> String {
@@ -279,6 +285,9 @@ pub fn decode_lattice(
     // within J frames revive with provenance; then the lattice's own
     // structure attaches (boundary pair for arc-less tokens, one pair term
     // per arc, contract §4 exactly-once).
+    let mut peak_live = 0usize;
+    let mut peak_dormant = 0usize;
+    let mut peak_total = 0usize;
     for &i in &order {
         let t = &lat.tokens[i];
         let to = fact_of[&t.id];
@@ -307,6 +316,10 @@ pub fn decode_lattice(
         // step — arm B beam-prunes below-threshold tokens here; arm C only
         // evicts past budget.
         fabric.enforce_budgets();
+        let (nl, nd) = (fabric.live_tokens().len(), fabric.dormant_tokens().len());
+        peak_live = peak_live.max(nl);
+        peak_dormant = peak_dormant.max(nd);
+        peak_total = peak_total.max(nl + nd);
     }
 
     // Commit (§10): greedy maximal tileable regions from the utterance
@@ -455,6 +468,9 @@ pub fn decode_lattice(
         uncommitted_ids,
         tokens: minted,
         events_jsonl,
+        peak_live,
+        peak_dormant,
+        peak_total,
     })
 }
 
