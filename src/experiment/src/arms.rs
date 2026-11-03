@@ -210,3 +210,17 @@ pub fn run_fabric_arm(
         span_sec,
     })
 }
+
+/// Demo driver (bead `hearsay-four-4lsp--fabric-path-demo`): arm-C decode
+/// of one lattice with the fixture scorer, returning the full bridge
+/// outcome. Same [`hearsay::decode_lattice`] call as [`run_fabric_arm`]
+/// with [`ArmParams::fixture_defaults`]; the [`ArmOutcome`] summary drops
+/// the event log, so the demo needs this fuller return to write the bridge
+/// handoff (transcript + v1 event JSONL).
+pub fn decode_demo_lattice(lat: &Lattice, budget: usize) -> Result<hearsay::BridgeOutcome, String> {
+    let params = ArmParams::fixture_defaults(budget);
+    let scorer = ClosureScorer {
+        lm: &crate::fixtures::fixture_bigram,
+    };
+    hearsay::decode_lattice(lat, &scorer, params.decision_params(Arm::C))
+}

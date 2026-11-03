@@ -15,6 +15,7 @@
 
 pub mod decode_stream;
 pub mod demo_transcribe;
+pub mod fabric_path;
 pub mod live;
 pub mod rtf;
 pub mod vad;

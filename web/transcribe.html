@@ -8,7 +8,7 @@
   LANE D demo viewer (bead hearsay-four-wgit--why-panel-demo-script).
   GENERATED DATA: run web/demo.sh from the repo root first; it writes
     web/demo-out/demo-transcripts.json (array of transcript objects, one per
-    fixed demo file, each word carrying a `why` panel object).
+    chosen fabric utterance, each word carrying a `why` panel object).
   SERVE: python3 -m http.server 8000   # then open /web/transcribe.html
   The page fetches ./demo-out/demo-transcripts.json over http; under file://
   it falls back to a file picker. No network beyond local fetch, no WASM,
@@ -31,15 +31,16 @@
 </style>
 </head>
 <body>
-<h1>Hearsay-IV file-transcription demo (8-mix + why panel)</h1>
+<h1>Hearsay-IV fabric-path demo (bridge + why panel)</h1>
 
 <div class="notice">
   <strong>classical pipeline, no-model guard:</strong> transcripts come from
-  <code>hearsay-transcribe</code> (HMM-GMM acoustic model, Kneser-Ney LM,
-  Viterbi search — no neural net, transformer, embedding model, or learned
-  weights). The model path is a single config value
-  (<code>demo_transcribe::DEFAULT_AM</code>) so a later model swap touches one
-  line. This page only renders the JSON; it scores nothing.
+  <code>hearsay-bridge</code> (decision fabric over decoder K-best lattices,
+  interpolated n-gram LM — no neural net, transformer, embedding model, or
+  learned weights), rendered by
+  <code>hearsay-transcribe --fabric-input</code>. Demo utterances are chosen
+  revival / late-rescue cases (labeled <code>chosen</code> in the JSON).
+  This page only renders the JSON; it scores nothing.
 </div>
 
 <p id="status">loading demo transcripts…</p>
@@ -87,7 +88,10 @@ function render(items, ref) {
     meta.className = 'meta';
     meta.textContent = (item.input || '') + ' — ' +
       Number(item.audio_secs).toFixed(2) + 's audio, ' +
-      Number(item.decode_secs).toFixed(2) + 's decode';
+      Number(item.decode_secs).toFixed(2) + 's decode' +
+      (item.path ? ' — path: ' + item.path : '') +
+      (item.chosen ? ' — ' + item.chosen : '') +
+      (item.timing_note ? ' (' + item.timing_note + ')' : '');
     box.appendChild(meta);
     const text = document.createElement('p');
     text.className = 'text';
@@ -112,9 +116,8 @@ function render(items, ref) {
             ' | ' + escapeHtml((why.lm_history || []).join(', ')) + ') = ' +
             fmtNum(why.lm_probability) + '</div>' +
           '<div><span class="k">LEXICON:</span> ' + escapeHtml(why.lexicon_source || '(missing)') + '</div>' +
-          '<div><span class="k">FABRIC:</span> <span class="tbd">' +
-            escapeHtml(why.fabric_events || '') + '</span> — ' +
-            escapeHtml(why.fabric_note || '') + '</div>' +
+          renderEvidence(why) +
+          '<div><span class="k">FABRIC:</span> ' + renderFabric(why) + '</div>' +
         '</div>';
       div.addEventListener('click', () => div.classList.toggle('open'));
       box.appendChild(div);
@@ -130,6 +133,44 @@ function fmtNum(v) {
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/** Per-class evidence row (fabric path only; absent on decoder transcripts). */
+function renderEvidence(why) {
+  if (!why.evidence || typeof why.evidence !== 'object') return '';
+  const e = why.evidence;
+  return '<div><span class="k">EVIDENCE:</span> acoustic ' + fmtNum(e.acoustic) +
+    ', lexical ' + fmtNum(e.lexical) + ', speaker ' + fmtNum(e.speaker) +
+    ', verify ' + fmtNum(e.verify) + ', user ' + fmtNum(e.user) + '</div>';
+}
+
+/** Fabric record panel: bridge-path object record, else the legacy TBD string. */
+function renderFabric(why) {
+  const fe = why.fabric_events;
+  if (!fe || typeof fe !== 'object') {
+    return '<span class="tbd">' + escapeHtml(fe || '') + '</span> — ' +
+      escapeHtml(why.fabric_note || '');
+  }
+  const rev = (fe.revivals || [])
+    .map((r) => escapeHtml(r.via) + ' (llr ' + fmtNum(r.llr) + ')')
+    .join('; ') || '(none)';
+  const dormant = (fe.pruned_liveness == null ? 'never pruned' : 'pruned @ ' + fmtNum(fe.pruned_liveness)) +
+    (fe.evicted ? ', evicted (' + escapeHtml(fe.evicted.budget) + ' @ ' + fmtNum(fe.evicted.liveness) + ')' : ', never evicted');
+  const beaten = escapeHtml((fe.alternatives_beaten || []).join(', ')) || '(none)';
+  const db = fe.defeated_by;
+  const lost = db ? 'lost to ' + escapeHtml((db.winner || []).join(' ')) +
+    ' (margin ' + fmtNum(db.margin) + ')' : 'unbeaten here';
+  const com = fe.committed || {};
+  const tiling = escapeHtml((com.tiling || []).join(' ')) || '(none)';
+  const region = com.region ? ' [' + com.region[0] + '-' + com.region[1] + ']' : '';
+  const corr = (fe.corrections && fe.corrections.length)
+    ? escapeHtml(fe.corrections.join(', ')) : '(none)';
+  return 'revivals: ' + rev + ' — dormancy: ' + dormant +
+    ' — beat: ' + beaten + ' — ' + lost +
+    ' — committed' + region + ' <em>' + tiling + '</em> (margin ' + fmtNum(com.margin) + ')' +
+    ' — corrections: ' + corr + ' (undo: ' + escapeHtml(fe.correction_undo || '?') + ')' +
+    ' — ' + escapeHtml(why.fabric_note || '') +
+    (fe.corrections_note ? ' [' + escapeHtml(fe.corrections_note) + ']' : '');
 }
 
 boot();

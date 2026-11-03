@@ -176,13 +176,12 @@ impl Transcriber {
     /// history encoding (lowercased words, [`lm::BOS_TOKEN`] for missing
     /// predecessors). `history` holds lowercased words before `word`.
     pub fn lm_probability(&self, history: &[String], word: &str) -> f64 {
-        let (h1, h2) = lm_history_pair(history);
-        self.lm.prob(&h1, &h2, &word.to_lowercase())
+        demo_lm_probability(&self.lm, history, word)
     }
 
     /// Lexicon provenance tag for an UPPER-CASE word, if it has one.
     pub fn lexicon_source(&self, word_upper: &str) -> Option<&'static str> {
-        self.lexicon.sources.get(word_upper).map(|s| s.as_str())
+        demo_lexicon_source(&self.lexicon, word_upper)
     }
 
     /// [`transcript_json`] plus a per-word `why` panel (bead wgit shape) and
@@ -217,34 +216,97 @@ impl Transcriber {
     }
 }
 
+/// Sniff one LM file into its models: interpolated wins, plain KN is the
+/// fallback, anything else fails loudly. Shared by the decoder path
+/// ([`load_transcriber`]) and the fabric path ([`load_why_enrichment`]).
+fn load_lm_models(
+    lm_path: &Path,
+) -> Result<
+    (
+        Option<lm::InterpolatedLm>,
+        Option<lm::KnTrigram>,
+        &'static str,
+    ),
+    String,
+> {
+    let lm_bytes =
+        std::fs::read(lm_path).map_err(|e| format!("read LM {}: {e}", lm_path.display()))?;
+    let models: (
+        Option<lm::InterpolatedLm>,
+        Option<lm::KnTrigram>,
+        &'static str,
+    ) = match lm::persist::interpolated_from_bytes(&lm_bytes) {
+        Ok(model) => (Some(model), None, "interpolated"),
+        Err(_) => match lm::persist::kn_from_bytes(&lm_bytes) {
+            Ok(model) => (None, Some(model), "general"),
+            Err(e) => {
+                return Err(format!(
+                    "LM {}: neither interpolated nor plain archive ({e})",
+                    lm_path.display()
+                ));
+            }
+        },
+    };
+    drop(lm_bytes);
+    Ok(models)
+}
+
+fn demo_lm_probability(lm: &DemoLm, history: &[String], word: &str) -> f64 {
+    let (h1, h2) = lm_history_pair(history);
+    lm.prob(&h1, &h2, &word.to_lowercase())
+}
+
+fn demo_lexicon_source(lexicon: &lexicon::TieredLexicon, word_upper: &str) -> Option<&'static str> {
+    lexicon.sources.get(word_upper).map(|s| s.as_str())
+}
+
+/// LM + lexicon without the decoder: why-panel enrichment for the fabric
+/// path (bead `hearsay-four-4lsp--fabric-path-demo`). The fabric demo reads
+/// stored bridge outputs, so it never loads the AM or builds a vocabulary.
+pub struct WhyEnrichment {
+    lm: DemoLm,
+    lexicon: lexicon::TieredLexicon,
+    /// `general` or `interpolated`, detected from the LM bytes.
+    pub flavor: String,
+}
+
+impl WhyEnrichment {
+    /// `P(word | history)` under the loaded LM, mirroring the decoder's own
+    /// history encoding (lowercased words, [`lm::BOS_TOKEN`] for missing
+    /// predecessors). `history` holds lowercased words before `word`.
+    pub fn lm_probability(&self, history: &[String], word: &str) -> f64 {
+        demo_lm_probability(&self.lm, history, word)
+    }
+
+    /// Lexicon provenance tag for an UPPER-CASE word, if it has one.
+    pub fn lexicon_source(&self, word_upper: &str) -> Option<&'static str> {
+        demo_lexicon_source(&self.lexicon, word_upper)
+    }
+}
+
+/// Load the LM + tiered lexicon for fabric-path why panels. Same files as
+/// [`load_transcriber`], minus the AM and the decoder vocabulary.
+pub fn load_why_enrichment(cfg: &DemoConfig) -> Result<WhyEnrichment, String> {
+    let (interpolated, plain, flavor) = load_lm_models(&cfg.lm)?;
+    let lexicon = lexicon::load_tiered(&cfg.tier1, &cfg.tier2)
+        .map_err(|e| format!("load tiered lexicon: {e}"))?;
+    let lm = match (interpolated, plain) {
+        (Some(ix), _) => DemoLm::Ix(Box::new(ix)),
+        (None, Some(kn)) => DemoLm::Kn(Box::new(kn)),
+        (None, None) => unreachable!("LM load branches above"),
+    };
+    Ok(WhyEnrichment {
+        lm,
+        lexicon,
+        flavor: flavor.to_string(),
+    })
+}
+
 /// Load the AM + LM + tiered lexicon and build the decoder vocabulary.
 /// Follows the `wer_devclean` harness recipe (LM top-N union book words,
 /// tiered-lexicon pronunciations); fails loudly on any missing input.
 pub fn load_transcriber(cfg: &DemoConfig) -> Result<Transcriber, String> {
-    let lm_bytes =
-        std::fs::read(&cfg.lm).map_err(|e| format!("read LM {}: {e}", cfg.lm.display()))?;
-    let mut interpolated: Option<lm::InterpolatedLm> = None;
-    let mut plain: Option<lm::KnTrigram> = None;
-    let flavor: &str;
-    match lm::persist::interpolated_from_bytes(&lm_bytes) {
-        Ok(model) => {
-            flavor = "interpolated";
-            interpolated = Some(model);
-        }
-        Err(_) => match lm::persist::kn_from_bytes(&lm_bytes) {
-            Ok(model) => {
-                flavor = "general";
-                plain = Some(model);
-            }
-            Err(e) => {
-                return Err(format!(
-                    "LM {}: neither interpolated nor plain archive ({e})",
-                    cfg.lm.display()
-                ));
-            }
-        },
-    }
-    drop(lm_bytes);
+    let (interpolated, plain, flavor) = load_lm_models(&cfg.lm)?;
     let (general, personal) = match (&interpolated, &plain) {
         (Some(ix), _) => (ix.general(), Some(ix.personal())),
         (None, Some(kn)) => (kn, None),

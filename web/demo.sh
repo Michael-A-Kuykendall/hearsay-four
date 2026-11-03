@@ -1,8 +1,16 @@
 #!/bin/bash
-# One-command lane-D demo: file transcription + why-panel data on the fixed
-# demo file list (bead hearsay-four-wgit--why-panel-demo-script). No manual
-# steps: builds, transcribes all fixed files, validates the transcripts and
-# the per-word why panels, and points at the click-a-word viewer.
+# Fabric-path demo (bead hearsay-four-4lsp--fabric-path-demo): bridge handoff
+# + fabric why panels on the experiment fixture population (u1-u4, including
+# the u1 late rescue of `cat`). No manual steps: generates bridge outputs,
+# renders transcripts with fabric why panels, validates structure + revival,
+# exercises the correction entry point on the fabric path, and checks the
+# click-a-word viewer wiring.
+#
+# Binaries run via `cargo run --release` (no hardcoded target dir): correct
+# under both the shared-target config and the standard layout.
+# Externals: why-panel LM/lexicon enrichment reads HEARSAY_LM/HEARSAY_TIER1/
+# HEARSAY_TIER2 (or the repo-relative defaults on a checkout with externals).
+# The bridge itself runs the fixture scorer — no model files.
 #
 # Usage: bash web/demo.sh   (from the repo root; exit 0 on full PASS)
 set -euo pipefail
@@ -10,35 +18,48 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 OUT="$ROOT/web/demo-out"
-mkdir -p "$OUT"
+BRIDGE="$OUT/bridge"
+mkdir -p "$BRIDGE"
 
-echo "==> [1/4] building hearsay-transcribe (release)"
-cargo build --release -p runner --bin hearsay-transcribe
+echo "==> [1/6] building demo binaries (release)"
+cargo build --release -p experiment --example fabric_demo_inputs
+cargo build --release -p runner --bin hearsay-transcribe --bin hearsay-correct
 
-echo "==> [2/4] transcribing fixed demo files"
-./target/release/hearsay-transcribe --demo --json --out-dir "$OUT" \
+echo "==> [2/6] generating bridge handoff (arm-C fixture decode)"
+cargo run --release -q -p experiment --example fabric_demo_inputs -- "$BRIDGE"
+
+echo "==> [3/6] rendering fabric transcripts"
+cargo run --release -q -p runner --bin hearsay-transcribe -- \
+  --fabric-input "$BRIDGE/u1-revival.lat.jsonl" \
+  --fabric-input "$BRIDGE/u2-clean.lat.jsonl" \
+  --fabric-input "$BRIDGE/u3-bulk.lat.jsonl" \
+  --fabric-input "$BRIDGE/u4-absent.lat.jsonl" \
+  --fabric-dir "$BRIDGE" --json --out-dir "$OUT" \
   > "$OUT/demo-transcripts.json"
 
-echo "==> [3/4] validating transcripts + why panels"
+echo "==> [4/6] validating transcripts + fabric why panels"
 python3 - "$OUT/demo-transcripts.json" <<'EOF'
 import json, math, sys
 
 path = sys.argv[1]
 items = json.load(open(path))
-assert isinstance(items, list) and len(items) == 3, f"want 3 transcripts, got {len(items)}"
-want_ids = ["777-126732-0081", "2035-147960-0015", "1919-142785-0021"]
+assert isinstance(items, list) and len(items) == 4, f"want 4 transcripts, got {len(items)}"
+want_ids = ["u1-revival", "u2-clean", "u3-bulk", "u4-absent"]
 got_ids = [t.get("utt_id") for t in items]
-assert got_ids == want_ids, f"utt ids {got_ids} != fixed list {want_ids}"
+assert got_ids == want_ids, f"utt ids {got_ids} != fixture list {want_ids}"
 
 nwords = 0
 for t in items:
-    assert t.get("text"), f"{t.get('utt_id')}: empty transcript text"
+    uid = t.get("utt_id")
+    assert t.get("path") == "fabric", f"{uid}: path != fabric"
+    assert "disclosed as chosen" in t.get("chosen", ""), f"{uid}: chosen label missing"
+    assert t.get("text"), f"{uid}: empty transcript text"
     words = t.get("words")
-    assert words, f"{t.get('utt_id')}: no words"
+    assert words, f"{uid}: no words"
     for w in words:
         nwords += 1
         why = w.get("why")
-        assert why, f"{t['utt_id']} {w.get('text')}: why panel missing"
+        assert why, f"{uid} {w.get('text')}: why panel missing"
         # 1. acoustic score: finite number + note
         assert isinstance(why.get("acoustic_score"), (int, float)) and \
             math.isfinite(why["acoustic_score"]), f"{w}: bad acoustic_score"
@@ -51,23 +72,49 @@ for t in items:
         assert isinstance(p, (int, float)) and 0.0 < p <= 1.0, f"{w}: bad lm_probability {p}"
         assert isinstance(why.get("lm_history"), list) and \
             len(why["lm_history"]) == 2, f"{w}: bad lm_history"
-        # 4. lexicon source tag (decoded words always carry one)
+        # 4. lexicon source tag (fixture words are all cmudict)
         assert why.get("lexicon_source") in ("cmudict", "librispeech-g2p"), \
             f"{w}: bad lexicon_source"
-        # 5. fabric events: the ONLY permitted TBD
-        assert why.get("fabric_events") == "TBD", f"{w}: fabric_events must be explicit TBD"
+        # 5. per-class evidence the bridge saw
+        ev = why.get("evidence")
+        assert isinstance(ev, dict) and \
+            isinstance(ev.get("acoustic"), (int, float)), f"{w}: evidence missing"
+        # 6. fabric record: object, never TBD
+        fe = why.get("fabric_events")
+        assert isinstance(fe, dict), f"{w}: fabric record must be an object, got {fe!r}"
+        assert isinstance(fe.get("revivals"), list), f"{w}: revivals missing"
+        assert isinstance(fe.get("alternatives_beaten"), list), f"{w}: beaten missing"
+        com = fe.get("committed")
+        assert isinstance(com, dict) and com.get("tiling"), f"{w}: defeating tiling missing"
         assert why.get("fabric_note"), f"{w}: fabric_note missing"
 
-print(f"PASS: 3 files, {nwords} words, every word carries all five why elements")
+# The late rescue: u1 commits `cat`, revived via `sat`, beating `bat`.
+u1 = items[0]
+assert u1["text"] == "the cat sat down", f"u1 text {u1['text']!r}"
+cat = [w for w in u1["words"] if w["text"] == "cat"]
+assert len(cat) == 1, "u1 must commit cat exactly once"
+rev = cat[0]["why"]["fabric_events"]["revivals"]
+assert len(rev) == 1 and rev[0]["via"] == "sat", f"u1 cat revival {rev!r}"
+assert "bat" in cat[0]["why"]["alternatives"], "u1 cat must show bat beaten"
+
+print(f"PASS: 4 fixture transcripts, {nwords} words, fabric record on every word")
 for t in items:
     print(f"  {t['utt_id']}: {t['text']}")
+print("PASS: u1 late rescue verified (cat revived via sat, beats bat)")
 EOF
 
-echo "==> [4/4] checking viewer wiring"
+echo "==> [5/6] correction entry point reads the fabric path"
+cargo run --release -q -p runner --bin hearsay-correct -- \
+  decode --utt u1-revival --fabric-dir "$BRIDGE" \
+  --lattice "$BRIDGE/u1-revival.lat.jsonl" > "$OUT/correct-fabric.txt"
+grep -q "the cat sat down" "$OUT/correct-fabric.txt"
+echo "PASS: hearsay-correct decode reads bridge outputs (u1 hyp verified)"
+
+echo "==> [6/6] checking viewer wiring"
 grep -q "demo-out/demo-transcripts.json" "$ROOT/web/transcribe.html"
 echo "PASS: web/transcribe.html loads demo-out/demo-transcripts.json"
 
 echo ""
-echo "DEMO GREEN: transcripts + why-panel data for all fixed files in $OUT"
+echo "DEMO GREEN: fabric transcripts + why panels for u1-u4 in $OUT"
 echo "To view the click-a-word why panel:"
 echo "  python3 -m http.server 8000   # then open http://localhost:8000/web/transcribe.html"
