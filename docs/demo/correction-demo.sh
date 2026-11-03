@@ -17,4 +17,4 @@ exec nice -n 15 env \
   HEARSAY_TIER2="$ROOT/data/lexicon/librispeech-lexicon.txt" \
   HEARSAY_WAV_ROOT="$ROOT/data/librispeech/wav" \
   HEARSAY_TRANS_ROOT="$ROOT/data/librispeech" \
-  ./target/release/hearsay-correct --workdir target/correction-demo demo
+  "${CARGO_TARGET_DIR:-$ROOT/target}/release/hearsay-correct" --workdir target/correction-demo demo

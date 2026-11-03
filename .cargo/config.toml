@@ -1,7 +1,8 @@
-# Shared build output for ALL checkouts (main + lane worktrees) of this repo.
-# One target dir, always overwritten in place — never per-lane copies.
-# Fresh slate: `cargo clean` (run from anywhere in this repo cleans this dir).
-# MACHINE-LOCAL PATH: the release checklist neutralizes this file before
-# the repo goes public (absolute /home/michael path breaks other machines).
+# Build output: machine-wide shared target dir via $CARGO_TARGET_DIR
+# (see ~/.bashrc / ~/.profile). No per-repo target-dir here: an absolute
+# /home/michael path breaks other machines, and per-checkout target dirs
+# duplicate gigabytes across lane worktrees.
+# Fresh slate: run ~/bin/cargo-tidy (also on a 6h systemd user timer).
 [build]
-target-dir = "/home/michael/.cargo/targets/hearsay-four"
+# target-dir intentionally unset; $CARGO_TARGET_DIR governs.
+

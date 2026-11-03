@@ -16,7 +16,7 @@ echo "==> [1/4] building hearsay-transcribe (release)"
 cargo build --release -p runner --bin hearsay-transcribe
 
 echo "==> [2/4] transcribing fixed demo files"
-./target/release/hearsay-transcribe --demo --json --out-dir "$OUT" \
+"${CARGO_TARGET_DIR:-$ROOT/target}/release/hearsay-transcribe" --demo --json --out-dir "$OUT" \
   > "$OUT/demo-transcripts.json"
 
 echo "==> [3/4] validating transcripts + why panels"
