@@ -9,7 +9,7 @@
 //! line) into `--out`. Exit 0 on success, 1 with a stderr message on any
 //! failure. Utterance ids are sanitized to `[A-Za-z0-9._-]` for filenames.
 
-use fabric::decision::DecisionParams;
+use fabric::decision::{Arm, DecisionParams};
 use hearsay::{InterpolatedScorer, decode_lattice};
 use lattice::read_lattice;
 use lm::persist::load_interpolated;
@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 fn usage() -> &'static str {
-    "usage: hearsay-bridge --lattice <utt.lat.jsonl> --lm <lm-interpolated.json> --out <dir>"
+    "usage: hearsay-bridge --lattice <utt.lat.jsonl> --lm <lm-interpolated.json> --out <dir> [--arm B|C] [--budget N]\n  --budget N: frozen A6 mapping (a4 R2): B: live=N dormant=0 combined=None; C: live=N dormant=N combined=Some(N)"
 }
 
 fn take_value(args: &[String], i: &mut usize, flag: &str) -> Result<String, String> {
@@ -43,6 +43,8 @@ fn run(args: &[String]) -> Result<String, String> {
     let mut lattice_path: Option<PathBuf> = None;
     let mut lm_path: Option<PathBuf> = None;
     let mut out_dir: Option<PathBuf> = None;
+    let mut arm = Arm::C;
+    let mut budget: Option<usize> = None;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -51,6 +53,23 @@ fn run(args: &[String]) -> Result<String, String> {
             }
             "--lm" => lm_path = Some(PathBuf::from(take_value(args, &mut i, "--lm")?)),
             "--out" => out_dir = Some(PathBuf::from(take_value(args, &mut i, "--out")?)),
+            "--arm" => {
+                let v = take_value(args, &mut i, "--arm")?;
+                arm = match v.as_str() {
+                    "B" | "b" => Arm::B,
+                    "C" | "c" => Arm::C,
+                    _ => return Err(format!("--arm must be B or C, got {v:?}\n{}", usage())),
+                }
+            }
+            "--budget" => {
+                let v = take_value(args, &mut i, "--budget")?;
+                budget = Some(v.parse::<usize>().map_err(|_| {
+                    format!(
+                        "--budget must be a positive integer, got {v:?}\n{}",
+                        usage()
+                    )
+                })?);
+            }
             "--help" | "-h" => return Ok(usage().to_string()),
             other => return Err(format!("unknown argument {other:?}\n{}", usage())),
         }
@@ -60,12 +79,34 @@ fn run(args: &[String]) -> Result<String, String> {
     let lm_path = lm_path.ok_or_else(|| format!("missing --lm\n{}", usage()))?;
     let out_dir = out_dir.ok_or_else(|| format!("missing --out\n{}", usage()))?;
 
+    // Frozen A6 mapping (docs/design/a4-budget-semantics.md R2).
+    let params = match (arm, budget) {
+        (Arm::B, Some(n)) => DecisionParams {
+            arm,
+            live_budget: n,
+            dormant_budget: 0,
+            combined_budget: None,
+            ..Default::default()
+        },
+        (Arm::C, Some(n)) => DecisionParams {
+            arm,
+            live_budget: n,
+            dormant_budget: n,
+            combined_budget: Some(n),
+            ..Default::default()
+        },
+        (_, None) => DecisionParams {
+            arm,
+            ..Default::default()
+        },
+    };
+
     let text = std::fs::read_to_string(&lattice_path)
         .map_err(|e| format!("read {}: {e}", lattice_path.display()))?;
     let lat = read_lattice(&text)?;
     let lm = load_interpolated(Path::new(&lm_path))?;
     let scorer = InterpolatedScorer::new(&lm);
-    let outcome = decode_lattice(&lat, &scorer, DecisionParams::default())?;
+    let outcome = decode_lattice(&lat, &scorer, params)?;
 
     std::fs::create_dir_all(&out_dir).map_err(|e| format!("create {}: {e}", out_dir.display()))?;
     let stem = sanitize(&outcome.utterance);
@@ -79,11 +120,14 @@ fn run(args: &[String]) -> Result<String, String> {
     std::fs::write(&events_path, &outcome.events_jsonl)
         .map_err(|e| format!("write {}: {e}", events_path.display()))?;
     Ok(format!(
-        "{}: {} words, {} commits, {} event lines -> {}",
+        "{}: {} words, {} commits, {} event lines, peak live/dormant/total {}/{}/{} -> {}",
         outcome.utterance,
         outcome.transcript.len(),
         outcome.commits.len(),
         outcome.events_jsonl.lines().count(),
+        outcome.peak_live,
+        outcome.peak_dormant,
+        outcome.peak_total,
         out_dir.display()
     ))
 }
