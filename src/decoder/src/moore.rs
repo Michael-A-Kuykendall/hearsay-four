@@ -108,6 +108,8 @@ struct PhoneTopology {
 /// One completed word on a hypothesis path.
 #[derive(Clone)]
 struct WordLink {
+    /// Creation sequence within one decode; links predecessor records.
+    seq: u64,
     word: String,
     start: u32,
     end: u32,
@@ -123,6 +125,27 @@ struct VToken {
     word_start: u32,
     word_acoustic: f64,
     path: Option<Rc<WordLink>>,
+}
+
+/// Word-end hypotheses kept per end frame in k-best lattices.
+const KBEST_PER_END_FRAME: usize = 10;
+
+/// One recorded word-end hypothesis: every word end created during token
+/// passing is recorded with the full path score; the k-best lattice keeps
+/// the top [`KBEST_PER_END_FRAME`] per end frame by `path_score`, plus the
+/// 1-best path links so the 1-best transcript stays reproducible.
+#[derive(Clone, Debug)]
+struct WordEndHyp {
+    seq: u64,
+    word: String,
+    start: u32,
+    end: u32,
+    /// log P(frames[start..end] | word model): transitions + emissions.
+    acoustic: f64,
+    /// Full path score at the word end (acoustic + LM + penalties).
+    /// Ranking only: never written into the lattice (contract §6).
+    path_score: f64,
+    prev_seq: Option<u64>,
 }
 
 type Key = (usize, usize, u32, u32);
@@ -367,7 +390,17 @@ impl MooreDecoder {
     pub fn has_lm(&self) -> bool {
         self.lm.is_some()
     }
-
+    /// Decode 16 kHz mono PCM to a k-best word lattice: top
+    /// [`KBEST_PER_END_FRAME`] word ends per end frame by path score plus
+    /// the 1-best path, arcs from predecessor links, one SIL twin per word
+    /// token. Word `acoustic_llr` is the contract §3 ACOUSTIC llr (word
+    /// model minus SIL null over exactly the token frames, no LM term).
+    /// The 1-best path is always present; use [`Recognizer::decode`] for
+    /// the plain 1-best lattice.
+    pub fn decode_kbest(&self, pcm16k: &[i16]) -> Lattice {
+        let frames = self.frontend(pcm16k);
+        self.decode_inner_kbest(&frames).0
+    }
     /// Clear the streaming buffer (next `stream` chunk starts fresh).
     pub fn reset_stream(&mut self) {
         self.stream_buf.clear();
@@ -499,7 +532,31 @@ impl MooreDecoder {
         cache.insert((node, state), score);
         score
     }
-
+    /// Per-frame SIL null scores: best-state-per-frame emission log-prob
+    /// under the SIL HMM (contract §3 ACOUSTIC null). `None` when the
+    /// loaded AM has no usable SIL phone.
+    fn sil_frame_nulls(&self, frames: &[fse::Frame]) -> Option<Vec<f64>> {
+        let sil = self.am.phones.get("SIL")?;
+        if sil.n_states == 0 {
+            return None;
+        }
+        let mut nulls = Vec::with_capacity(frames.len());
+        for frame in frames {
+            let mut best = f64::NEG_INFINITY;
+            let mut found = false;
+            for s in 0..sil.n_states {
+                if let Ok(mix) = self.am.emission("SIL", s) {
+                    found = true;
+                    best = best.max(mix.log_prob(frame));
+                }
+            }
+            if !found {
+                return None;
+            }
+            nulls.push(best);
+        }
+        Some(nulls)
+    }
     fn insert_tok(next: &mut BTreeMap<Key, VToken>, key: Key, tok: VToken) {
         match next.get(&key) {
             Some(old) if old.score >= tok.score => {}
@@ -522,6 +579,8 @@ impl MooreDecoder {
         tok: &VToken,
         frame: &fse::Frame,
         t_next: u32,
+        seq_next: &mut u64,
+        mut record: Option<&mut Vec<WordEndHyp>>,
     ) {
         let phone = match &self.trie.nodes[node].phone {
             Some(phone) => phone,
@@ -560,11 +619,27 @@ impl MooreDecoder {
                 let wid = self.word_ids[word];
                 let lmscore =
                     self.cfg.lm_weight * self.lm_log_prob(w1, w2, word) + self.cfg.word_penalty;
+                let seq = *seq_next;
+                *seq_next += 1;
+                let acoustic = tok.word_acoustic + topo.exit_lp;
+                let path_score = tok.score + topo.exit_lp + lmscore;
+                if let Some(hyps) = record.as_mut() {
+                    hyps.push(WordEndHyp {
+                        seq,
+                        word: word.clone(),
+                        start: tok.word_start,
+                        end: t_next,
+                        acoustic,
+                        path_score,
+                        prev_seq: tok.path.as_ref().map(|p| p.seq),
+                    });
+                }
                 let link = Rc::new(WordLink {
+                    seq,
                     word: word.clone(),
                     start: tok.word_start,
                     end: t_next,
-                    acoustic: tok.word_acoustic + topo.exit_lp,
+                    acoustic,
                     prev: tok.path.clone(),
                 });
                 for &child in &self.trie.nodes[0].children {
@@ -657,7 +732,96 @@ impl MooreDecoder {
             arcs,
         }
     }
-
+    /// Build the k-best word lattice from recorded word-end hypotheses:
+    /// top [`KBEST_PER_END_FRAME`] per end frame by path score plus the
+    /// 1-best path, arcs from predecessor links, one SIL twin per word
+    /// token (same span, `acoustic_llr` 0). Word `acoustic_llr` is the
+    /// contract §3 ACOUSTIC llr: word-model log-score minus the SIL-null
+    /// sum over exactly the token frames, no LM term. Falls back to the
+    /// legacy 1-best lattice when the AM has no SIL phone.
+    fn lattice_from_kbest(
+        &self,
+        frames: &[fse::Frame],
+        hyps: &[WordEndHyp],
+        best: &Option<Rc<WordLink>>,
+    ) -> Lattice {
+        let nframes = frames.len() as u32;
+        let mut best_seqs: HashSet<u64> = HashSet::new();
+        let mut cursor = best.as_ref();
+        while let Some(link) = cursor {
+            best_seqs.insert(link.seq);
+            cursor = link.prev.as_ref();
+        }
+        let kept = select_kbest(hyps, KBEST_PER_END_FRAME, &best_seqs);
+        let nulls = match self.sil_frame_nulls(frames) {
+            Some(nulls) => nulls,
+            None => return self.lattice_from_path(best, nframes),
+        };
+        let mut id_of: HashMap<u64, u64> = HashMap::new();
+        let mut tokens: Vec<Token> = Vec::with_capacity(kept.len() * 2);
+        for h in &kept {
+            let id = tokens.len() as u64 + 1;
+            id_of.insert(h.seq, id);
+            let null_sum: f64 = (h.start..h.end)
+                .map(|t| nulls.get(t as usize).copied().unwrap_or(f64::NEG_INFINITY))
+                .sum();
+            tokens.push(Token {
+                id,
+                word: h.word.clone(),
+                start: h.start,
+                end: h.end,
+                source: PRODUCER.to_string(),
+                acoustic_llr: finite_llr(h.acoustic - null_sum),
+                lexical_llr: None,
+                speaker_llr: None,
+                verify_llr: None,
+                user_llr: None,
+            });
+        }
+        let mut arcs: Vec<Arc> = Vec::new();
+        let mut incoming: HashMap<u64, u64> = HashMap::new();
+        for h in &kept {
+            let id = id_of[&h.seq];
+            if let Some(pred) = h.prev_seq.and_then(|p| id_of.get(&p)) {
+                arcs.push(Arc {
+                    from: *pred,
+                    to: id,
+                });
+                incoming.insert(id, *pred);
+            }
+        }
+        let n_word = tokens.len();
+        for i in 0..n_word {
+            let (start, end) = (tokens[i].start, tokens[i].end);
+            let word_id = i as u64 + 1;
+            let id = tokens.len() as u64 + 1;
+            if let Some(pred) = incoming.get(&word_id) {
+                arcs.push(Arc {
+                    from: *pred,
+                    to: id,
+                });
+            }
+            tokens.push(Token {
+                id,
+                word: "SIL".to_string(),
+                start,
+                end,
+                source: PRODUCER.to_string(),
+                acoustic_llr: 0.0,
+                lexical_llr: None,
+                speaker_llr: None,
+                verify_llr: None,
+                user_llr: None,
+            });
+        }
+        Lattice {
+            utterance: format!("decode-{nframes}frames"),
+            frame_shift_ms: fse::SHIFT_MS,
+            producer: PRODUCER.to_string(),
+            tokens,
+            arcs,
+        }
+    }
     /// Decode to (lattice, total path score, frame count).
     fn decode_inner(&self, frames: &[fse::Frame]) -> (Lattice, f64, u32) {
         let nframes = frames.len() as u32;
@@ -666,6 +830,7 @@ impl MooreDecoder {
         }
         let mut cache: HashMap<(usize, usize), f64> = HashMap::new();
         let mut cur: BTreeMap<Key, VToken> = BTreeMap::new();
+        let mut seq_next: u64 = 0;
         for &child in &self.trie.nodes[0].children {
             let emit = self.emit_cached(&mut cache, child, 0, &frames[0]);
             cur.insert(
@@ -694,6 +859,8 @@ impl MooreDecoder {
                     tok,
                     &frames[t + 1],
                     t_next,
+                    &mut seq_next,
+                    None,
                 );
             }
             cur = next;
@@ -724,7 +891,10 @@ impl MooreDecoder {
                 let lmscore =
                     self.cfg.lm_weight * self.lm_log_prob(*w1, *w2, word) + self.cfg.word_penalty;
                 let score = tok.score + topo.exit_lp + lmscore;
+                let seq = seq_next;
+                seq_next += 1;
                 let link = Rc::new(WordLink {
+                    seq,
                     word: word.clone(),
                     start: tok.word_start,
                     end: nframes,
@@ -739,6 +909,126 @@ impl MooreDecoder {
         }
         match best {
             Some((score, path)) => (self.lattice_from_path(&path, nframes), score, nframes),
+            None => {
+                // No word completed: emit the best prefix path (may be empty).
+                let tail = cur
+                    .values()
+                    .max_by(|a, b| a.score.partial_cmp(&b.score).unwrap_or(Ordering::Equal));
+                match tail {
+                    Some(tok) => (
+                        self.lattice_from_path(&tok.path, nframes),
+                        tok.score,
+                        nframes,
+                    ),
+                    None => (self.empty_lattice(nframes), f64::NEG_INFINITY, nframes),
+                }
+            }
+        }
+    }
+    /// Token passing with word-end recording; emits the k-best lattice.
+    /// Search is identical to [`MooreDecoder::decode_inner`] (same beam,
+    /// prune, and best-path selection); the two must stay in sync.
+    fn decode_inner_kbest(&self, frames: &[fse::Frame]) -> (Lattice, f64, u32) {
+        let nframes = frames.len() as u32;
+        if frames.is_empty() || self.trie.is_empty() {
+            return (self.empty_lattice(nframes), f64::NEG_INFINITY, 0);
+        }
+        let mut hyps: Vec<WordEndHyp> = Vec::new();
+        let mut seq_next: u64 = 0;
+        let mut cache: HashMap<(usize, usize), f64> = HashMap::new();
+        let mut cur: BTreeMap<Key, VToken> = BTreeMap::new();
+        for &child in &self.trie.nodes[0].children {
+            let emit = self.emit_cached(&mut cache, child, 0, &frames[0]);
+            cur.insert(
+                (child, 0, NO_WORD, NO_WORD),
+                VToken {
+                    score: emit,
+                    word_start: 0,
+                    word_acoustic: emit,
+                    path: None,
+                },
+            );
+        }
+        self.prune(&mut cur);
+        for t in 0..frames.len().saturating_sub(1) {
+            let mut next: BTreeMap<Key, VToken> = BTreeMap::new();
+            let mut cache: HashMap<(usize, usize), f64> = HashMap::new();
+            let t_next = (t + 1) as u32;
+            for (&(node, state, w1, w2), tok) in cur.iter() {
+                self.expand(
+                    &mut next,
+                    &mut cache,
+                    node,
+                    state,
+                    w1,
+                    w2,
+                    tok,
+                    &frames[t + 1],
+                    t_next,
+                    &mut seq_next,
+                    Some(&mut hyps),
+                );
+            }
+            cur = next;
+            self.prune(&mut cur);
+            if cur.is_empty() {
+                break;
+            }
+        }
+        // Flush: complete trailing words ending exactly at the final frame.
+        let mut best: Option<(f64, Option<Rc<WordLink>>)> = None;
+        for ((node, state, w1, w2), tok) in cur.iter() {
+            let words = &self.trie.nodes[*node].words;
+            if words.is_empty() {
+                continue;
+            }
+            let phone = match &self.trie.nodes[*node].phone {
+                Some(phone) => phone,
+                None => continue,
+            };
+            let topo = match self.topo.get(phone) {
+                Some(topo) => topo,
+                None => continue,
+            };
+            if *state + 1 != topo.n_states {
+                continue;
+            }
+            for word in words {
+                let lmscore =
+                    self.cfg.lm_weight * self.lm_log_prob(*w1, *w2, word) + self.cfg.word_penalty;
+                let score = tok.score + topo.exit_lp + lmscore;
+                let seq = seq_next;
+                seq_next += 1;
+                let acoustic = tok.word_acoustic + topo.exit_lp;
+                hyps.push(WordEndHyp {
+                    seq,
+                    word: word.clone(),
+                    start: tok.word_start,
+                    end: nframes,
+                    acoustic,
+                    path_score: score,
+                    prev_seq: tok.path.as_ref().map(|p| p.seq),
+                });
+                let link = Rc::new(WordLink {
+                    seq,
+                    word: word.clone(),
+                    start: tok.word_start,
+                    end: nframes,
+                    acoustic,
+                    prev: tok.path.clone(),
+                });
+                let better = best.as_ref().map(|(s, _)| score > *s).unwrap_or(true);
+                if better {
+                    best = Some((score, Some(link)));
+                }
+            }
+        }
+        match best {
+            Some((score, path)) => (
+                self.lattice_from_kbest(frames, &hyps, &path),
+                score,
+                nframes,
+            ),
             None => {
                 // No word completed: emit the best prefix path (may be empty).
                 let tail = cur
@@ -792,6 +1082,65 @@ impl Recognizer for MooreDecoder {
             frame_end: nframes.saturating_sub(1),
             score,
         }]
+    }
+}
+
+/// Keep top `k` hyps per end frame by path score (ties broken by word,
+/// start, then seq, so the order is total and deterministic), plus every
+/// 1-best-path seq. Returns kept hyps ordered by (end, path score desc,
+/// word, start, seq).
+fn select_kbest(hyps: &[WordEndHyp], k: usize, best_seqs: &HashSet<u64>) -> Vec<WordEndHyp> {
+    let mut by_end: BTreeMap<u32, Vec<&WordEndHyp>> = BTreeMap::new();
+    for h in hyps {
+        by_end.entry(h.end).or_default().push(h);
+    }
+    let mut kept: Vec<WordEndHyp> = Vec::new();
+    let mut seen: HashSet<u64> = HashSet::new();
+    for group in by_end.values_mut() {
+        group.sort_by(|a, b| {
+            b.path_score
+                .partial_cmp(&a.path_score)
+                .unwrap_or(Ordering::Equal)
+                .then_with(|| a.word.cmp(&b.word))
+                .then_with(|| a.start.cmp(&b.start))
+                .then_with(|| a.seq.cmp(&b.seq))
+        });
+        for h in group.iter().take(k) {
+            if seen.insert(h.seq) {
+                kept.push((*h).clone());
+            }
+        }
+    }
+    // 1-best backfill: every best-path link stays, with its chain intact.
+    for h in hyps {
+        if best_seqs.contains(&h.seq) && seen.insert(h.seq) {
+            kept.push(h.clone());
+        }
+    }
+    kept.sort_by(|a, b| {
+        a.end
+            .cmp(&b.end)
+            .then_with(|| {
+                b.path_score
+                    .partial_cmp(&a.path_score)
+                    .unwrap_or(Ordering::Equal)
+            })
+            .then_with(|| a.word.cmp(&b.word))
+            .then_with(|| a.start.cmp(&b.start))
+            .then_with(|| a.seq.cmp(&b.seq))
+    });
+    kept
+}
+
+/// Clamp a lattice llr to finite values, preserving the sign of infinity:
+/// +inf (null impossible) saturates high, -inf/NaN saturates low.
+fn finite_llr(value: f64) -> f64 {
+    if value.is_finite() {
+        value
+    } else if value == f64::INFINITY {
+        1e9
+    } else {
+        -1e9
     }
 }
 
