@@ -10,3 +10,5 @@ corpus = { path = "../corpus" }
 fabric = { path = "../fabric" }
 output = { path = "../output" }
 a2 = { path = "../a2" }
+hearsay = { path = "../hearsay" }
+serde_json = "1"

@@ -462,8 +462,10 @@ dependencies = [
  "corpus",
  "eval",
  "fabric",
+ "hearsay",
  "lattice",
  "output",
+ "serde_json",
 ]
 
 [[package]]

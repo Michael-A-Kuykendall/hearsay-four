@@ -66,7 +66,10 @@ fn sampling_test200_rejects_short_manifest() {
 #[test]
 fn oracle_sweep_fixture_gap() {
     let fxs = all_fixtures();
-    let texts: Vec<String> = fxs.iter().map(|f| lattice_text(f).expect("write")).collect();
+    let texts: Vec<String> = fxs
+        .iter()
+        .map(|f| lattice_text(f).expect("write"))
+        .collect();
     // Round-trip: the sweep reader accepts fixture lattices.
     for t in &texts {
         lattice::read_lattice(t).expect("fixture lattice reads");
@@ -84,10 +87,8 @@ fn oracle_sweep_fixture_gap() {
         .map(|(t, f)| (t.as_str(), f.reference.as_slice()))
         .collect();
     let corpus = sweep_corpus(&items, &SWEEP_KS).expect("sweep corpus");
-    let totals: Vec<(usize, u32, u32)> = corpus
-        .iter()
-        .map(|r| (r.k, r.errors, r.ref_len))
-        .collect();
+    let totals: Vec<(usize, u32, u32)> =
+        corpus.iter().map(|r| (r.k, r.errors, r.ref_len)).collect();
     assert_eq!(totals, vec![(3, 2, 11), (5, 1, 11), (10, 1, 11)]);
     for r in &corpus {
         assert!(r.wer() < 1.0, "K={} WER below 1.0", r.k);
@@ -95,8 +96,7 @@ fn oracle_sweep_fixture_gap() {
     // Oracle never exceeds 1-best errors per utterance (backbone property).
     for f in &fxs {
         let text = lattice_text(f).expect("write");
-        let (_, oracle, _, _) = &sweep_utterance(&text, &f.reference, &[10])
-            .expect("sweep")[0];
+        let (_, oracle, _, _) = &sweep_utterance(&text, &f.reference, &[10]).expect("sweep")[0];
         let one = one_best_path(&f.lattice);
         let s = output::wer(&f.reference, &one);
         let one_errs = (s.substitutions + s.deletions + s.insertions) as u32;
@@ -170,10 +170,8 @@ fn arms_agree_on_clean_bulk_absent() {
     for f in [u2_clean(), u3_bulk(), u4_absent()] {
         for &budget in &BUDGETS {
             let params = ArmParams::fixture_defaults(budget);
-            let b =
-                run_fabric_arm(&f.lattice, Arm::B, &params, &fixture_bigram).expect("arm B");
-            let c =
-                run_fabric_arm(&f.lattice, Arm::C, &params, &fixture_bigram).expect("arm C");
+            let b = run_fabric_arm(&f.lattice, Arm::B, &params, &fixture_bigram).expect("arm B");
+            let c = run_fabric_arm(&f.lattice, Arm::C, &params, &fixture_bigram).expect("arm C");
             assert!(b.committed && c.committed, "{} @ {budget}", f.id);
             assert_eq!(b.hypothesis, c.hypothesis, "{} @ {budget}", f.id);
         }
@@ -212,8 +210,13 @@ fn empty_lattice_commits_nothing_without_panic() {
         arcs: Vec::new(),
     };
     for arm in [Arm::B, Arm::C] {
-        let o = run_fabric_arm(&empty, arm, &ArmParams::fixture_defaults(50), &fixture_bigram)
-            .expect("empty run");
+        let o = run_fabric_arm(
+            &empty,
+            arm,
+            &ArmParams::fixture_defaults(50),
+            &fixture_bigram,
+        )
+        .expect("empty run");
         assert!(!o.committed);
         assert!(o.hypothesis.is_empty());
     }

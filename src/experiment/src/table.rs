@@ -60,9 +60,7 @@ pub fn run_budget_table(fxs: &[Fixture]) -> BudgetTable {
                 .map(|t| t.end)
                 .max()
                 .unwrap_or(0)
-                .saturating_sub(
-                    f.lattice.tokens.iter().map(|t| t.start).min().unwrap_or(0),
-                );
+                .saturating_sub(f.lattice.tokens.iter().map(|t| t.start).min().unwrap_or(0));
             frames as f64 * f.lattice.frame_shift_ms / 1000.0
         })
         .sum();
@@ -169,9 +167,7 @@ pub fn render_markdown(table: &BudgetTable) -> String {
     let mut s = String::from(
         "| budget | arm | WER | S | D | I | RTF | peak live | peak dormant | late rescues | delta-WER(C-B) + 95% CI |\n",
     );
-    s.push_str(
-        "|---|---|---|---|---|---|---|---|---|---|---|\n",
-    );
+    s.push_str("|---|---|---|---|---|---|---|---|---|---|---|\n");
     for r in &table.rows {
         for (name, cell) in [("A", &r.a), ("B", &r.b), ("C", &r.c)] {
             let (pl, pd) = peaks(cell);
@@ -180,9 +176,7 @@ pub fn render_markdown(table: &BudgetTable) -> String {
                     r.rescues.to_string(),
                     format!(
                         "{:+.4} [{:+.4}, {:+.4}]",
-                        r.delta_c_minus_b.estimate,
-                        r.delta_c_minus_b.lo,
-                        r.delta_c_minus_b.hi
+                        r.delta_c_minus_b.estimate, r.delta_c_minus_b.lo, r.delta_c_minus_b.hi
                     ),
                 )
             } else {
@@ -190,8 +184,17 @@ pub fn render_markdown(table: &BudgetTable) -> String {
             };
             s.push_str(&format!(
                 "| {} | {} | {:.4} | {} | {} | {} | {:.4} | {} | {} | {} | {} |\n",
-                r.budget, name, cell.wer, cell.subs, cell.dels, cell.inss, cell.rtf, pl, pd,
-                rescues, delta
+                r.budget,
+                name,
+                cell.wer,
+                cell.subs,
+                cell.dels,
+                cell.inss,
+                cell.rtf,
+                pl,
+                pd,
+                rescues,
+                delta
             ));
         }
     }

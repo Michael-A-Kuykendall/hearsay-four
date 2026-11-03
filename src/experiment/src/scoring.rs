@@ -57,10 +57,7 @@ pub fn score_corpus(refs: &[Vec<String>], hyps: &[Vec<String>]) -> WerTotals {
 }
 
 /// Per-utterance `(errors, normalized reference lengths)` for [`delta_ci`].
-pub fn per_utterance_errors(
-    refs: &[Vec<String>],
-    hyps: &[Vec<String>],
-) -> (Vec<u32>, Vec<u32>) {
+pub fn per_utterance_errors(refs: &[Vec<String>], hyps: &[Vec<String>]) -> (Vec<u32>, Vec<u32>) {
     assert_eq!(
         refs.len(),
         hyps.len(),
@@ -93,8 +90,11 @@ pub fn one_best_path(lat: &Lattice) -> Vec<String> {
     }
     let mut order: Vec<usize> = (0..n).collect();
     order.sort_by(|&a, &b| {
-        (lat.tokens[a].end, lat.tokens[a].start, lat.tokens[a].id)
-            .cmp(&(lat.tokens[b].end, lat.tokens[b].start, lat.tokens[b].id))
+        (lat.tokens[a].end, lat.tokens[a].start, lat.tokens[a].id).cmp(&(
+            lat.tokens[b].end,
+            lat.tokens[b].start,
+            lat.tokens[b].id,
+        ))
     });
     let mut rank_of: HashMap<u64, usize> = HashMap::new();
     for (rank, &i) in order.iter().enumerate() {

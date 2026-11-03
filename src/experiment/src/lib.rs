@@ -16,18 +16,20 @@
 //! - [`scoring`]: 1-best baseline path, WER aggregation via [`output::wer`],
 //!   and paired-bootstrap delta CIs via [`eval::corpus_delta_ci`].
 //! - [`arms`]: arm runners. Arm A is the 1-best baseline (no fabric).
-//!   Arms B/C drive [`fabric::decision::DecisionFabric`] with the native
-//!   [`fabric::decision::Arm`] flag: arm B beam-prunes below-threshold
-//!   tokens at once (never revived); arm C keeps them dormant and revivable
-//!   with live plus dormant sharing one combined total.
+//!   Arms B/C run through the real bridge ([`hearsay::decode_lattice`])
+//!   with the native [`hearsay::Arm`] flag: arm B beam-prunes
+//!   below-threshold tokens at once (never revived); arm C keeps them
+//!   dormant and revivable with live plus dormant sharing one total.
 //! - [`fixtures`]: four synthetic utterances (revival, clean, bulk,
 //!   absent-word) plus a fixture bigram used as the sequence-LLR source.
 //! - [`table`]: the A/B/C by {50, 100, 250, 500} budget table.
 //!
-//! When the sibling beads land, the fixture lattice builders are replaced
-//! by `lattice::read_lattice` over saved lattice files, the fixture bigram
-//! by the interpolated language model, and the arm flag by the fabric
-//! `Arm` enum — the table, scoring, and sampling code is unchanged.
+//! The bridge and arm flag have landed and are integrated here. Remaining
+//! main-workspace steps: replace the fixture lattice builders with
+//! `lattice::read_lattice` over saved lattice files (decoder K-best bead),
+//! the fixture bigram with [`hearsay::InterpolatedScorer`] over the
+//! interpolated language model, and run TEST-200 sampling on main — the
+//! table, scoring, and sampling code is unchanged.
 
 pub mod arms;
 pub mod fixtures;

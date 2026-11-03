@@ -41,10 +41,7 @@ pub fn sweep_utterance(
 
 /// Sweep a corpus: aggregate oracle errors and reference lengths per K.
 /// `items` holds `(lattice JSONL text, reference words)` per utterance.
-pub fn sweep_corpus(
-    items: &[(&str, &[String])],
-    ks: &[usize],
-) -> Result<Vec<SweepRow>, String> {
+pub fn sweep_corpus(items: &[(&str, &[String])], ks: &[usize]) -> Result<Vec<SweepRow>, String> {
     let mut rows: Vec<SweepRow> = ks
         .iter()
         .map(|&k| SweepRow {
