@@ -17,12 +17,15 @@
 //! CMVN 8-mix AM + interpolated R1-v2 LM, top_n 20000, lmw 6, wip 0.
 
 use std::collections::BTreeSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use fabric::correction::{CorrectionInput, CorrectionLedger};
 use fabric::Fabric;
-use runner::demo_transcribe::{demo_wav_root, DemoConfig, load_transcriber, Transcriber};
+use fabric::correction::{CorrectionInput, CorrectionLedger};
+use runner::demo_transcribe::{
+    DemoConfig, Transcriber, demo_wav_root, load_transcriber, load_why_enrichment,
+};
+use runner::fabric_path::{load_fabric_utt, transcript_json_from_fabric};
 
 /// Every cell.tsv row with exactly one error and `ref_len == hyp_len`
 /// (single-word substitution shape; refs verified against the
@@ -102,7 +105,8 @@ fn flag(args: &[String], name: &str) -> Option<String> {
 
 fn usage() -> ! {
     eprintln!(
-        "usage: hearsay-correct [--am P] [--lm P] [--tier1 P] [--tier2 P] [--wav-root D] [--trans-root D] [--workdir D] [--repeat N] <decode --utt ID | probe | demo>"
+        "usage: hearsay-correct [--am P] [--lm P] [--tier1 P] [--tier2 P] [--wav-root D] [--trans-root D] [--workdir D] [--repeat N] <decode --utt ID | probe | demo>\n\
+         \tdecode --utt ID --fabric-dir D --lattice P reads bridge outputs instead of audio (no AM)"
     );
     std::process::exit(2);
 }
@@ -130,11 +134,7 @@ fn resolve_paths(args: &[String]) -> Paths {
         .unwrap_or_else(demo_wav_root);
     let trans_root = flag(args, "--trans-root")
         .map(PathBuf::from)
-        .or_else(|| {
-            std::env::var("HEARSAY_TRANS_ROOT")
-                .ok()
-                .map(PathBuf::from)
-        })
+        .or_else(|| std::env::var("HEARSAY_TRANS_ROOT").ok().map(PathBuf::from))
         .unwrap_or_else(|| {
             wav_root
                 .parent()
@@ -310,7 +310,11 @@ fn apply_correction(
         .and_then(|v| v.first())
         .cloned()
         .ok_or_else(|| format!("utt {utt}: hyp word {} has no lexicon entry", hyp[sub_idx]))?;
-    let lexicon_variants = lexicon.table.get(&reference[sub_idx]).cloned().unwrap_or_default();
+    let lexicon_variants = lexicon
+        .table
+        .get(&reference[sub_idx])
+        .cloned()
+        .unwrap_or_default();
     // Span in frames, half-open (lattice token frames are u32).
     let (start, end) = (u64::from(token.start), u64::from(token.end));
     let mut fabric = Fabric::new();
@@ -332,15 +336,18 @@ fn apply_correction(
         .map_err(|e| format!("utt {utt}: ledger apply: {e}"))?;
     // Trigram evidence for the corrected position (decoder history encoding:
     // last two lowercased predecessors, BOS-padded).
-    let (h1, h2) = runner::demo_transcribe::lm_history_pair(&sentence[..sub_idx].to_vec());
+    let (h1, h2) = runner::demo_transcribe::lm_history_pair(&sentence[..sub_idx]);
     let tri_key = format!("{h1} {h2} {corrected_word}");
     let tri_before = base_lm.personal().count_trigram(&h1, &h2, &corrected_word);
     let personal2 = corrected_personal(base_lm.personal(), &sentence, repeat)?;
     let tri_after = personal2.count_trigram(&h1, &h2, &corrected_word);
     let prob_before = base_lm.prob(&h1, &h2, &corrected_word);
-    let corrected =
-        lm::InterpolatedLm::new(base_lm.general().clone(), personal2, base_lm.personal_weight())
-            .map_err(|e| format!("utt {utt}: interpolate: {e}"))?;
+    let corrected = lm::InterpolatedLm::new(
+        base_lm.general().clone(),
+        personal2,
+        base_lm.personal_weight(),
+    )
+    .map_err(|e| format!("utt {utt}: interpolate: {e}"))?;
     let prob_after = corrected.prob(&h1, &h2, &corrected_word);
     std::fs::create_dir_all(workdir).map_err(|e| format!("mkdir {}: {e}", workdir.display()))?;
     let lm_path = workdir.join(format!("lm-corrected-{utt}.json"));
@@ -373,8 +380,38 @@ fn fail(msg: String) -> ! {
     std::process::exit(1);
 }
 
+/// Fabric-mode decode: transcript JSON from bridge outputs, the same
+/// builder `hearsay-transcribe --fabric-input` uses. No audio, no AM.
+fn cmd_decode_fabric(paths: &Paths, utt: &str, fabric_dir: &Path, lattice_path: &Path) {
+    let enrichment = load_why_enrichment(&paths.cfg).unwrap_or_else(|e| fail(e));
+    let futt = load_fabric_utt(fabric_dir, lattice_path, utt).unwrap_or_else(|e| fail(e));
+    let hyp = futt.transcript_words.join(" ");
+    println!("utt {utt}\nhyp {hyp}");
+    let display = format!(
+        "fabric: {} + {}",
+        lattice_path.display(),
+        fabric_dir.display()
+    );
+    let value = transcript_json_from_fabric(
+        &futt,
+        &display,
+        &|history, word| enrichment.lm_probability(history, word),
+        &|word| enrichment.lexicon_source(word),
+    )
+    .unwrap_or_else(|e| fail(e));
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&value).unwrap_or_else(|e| fail(e.to_string()))
+    );
+}
+
 fn cmd_decode(paths: &Paths, args: &[String]) {
     let utt = flag(args, "--utt").unwrap_or_else(|| usage());
+    if let (Some(fabric_dir), Some(lattice)) = (flag(args, "--fabric-dir"), flag(args, "--lattice"))
+    {
+        cmd_decode_fabric(paths, &utt, Path::new(&fabric_dir), Path::new(&lattice));
+        return;
+    }
     let tx = load_tx(paths, &paths.cfg.lm.clone()).unwrap_or_else(|e| fail(e));
     let wav = wav_path(paths, &utt).unwrap_or_else(|e| fail(e));
     let pcm = corpus::audio::decode_to_pcm16k(&wav)
@@ -383,13 +420,8 @@ fn cmd_decode(paths: &Paths, args: &[String]) {
     let (lat, secs) = decode_timed(&tx, &pcm.frames);
     let hyp = hyp_words(&lat).join(" ");
     println!("utt {utt}\nhyp {hyp}");
-    let value = tx.transcript_json_with_why(
-        &utt,
-        &wav.display().to_string(),
-        audio_secs,
-        secs,
-        &lat,
-    );
+    let value =
+        tx.transcript_json_with_why(&utt, &wav.display().to_string(), audio_secs, secs, &lat);
     println!(
         "{}",
         serde_json::to_string_pretty(&value).unwrap_or_else(|e| fail(e.to_string()))
@@ -400,7 +432,11 @@ fn cmd_decode(paths: &Paths, args: &[String]) {
 /// verdict. Shares the demo's apply path (not a parallel implementation).
 fn cmd_probe(paths: &Paths) {
     let base_tx = load_tx(paths, &paths.cfg.clone().lm).unwrap_or_else(|e| fail(e));
-    println!("base vocab {} flavor {}", base_tx.vocab_size(), base_tx.flavor);
+    println!(
+        "base vocab {} flavor {}",
+        base_tx.vocab_size(),
+        base_tx.flavor
+    );
     let lm_bytes =
         std::fs::read(&paths.cfg.lm).unwrap_or_else(|e| fail(format!("read base LM: {e}")));
     let base_lm = lm::persist::interpolated_from_bytes(&lm_bytes)
@@ -415,7 +451,11 @@ fn cmd_probe(paths: &Paths) {
         let (lat0, _) = decode_timed(&base_tx, &pcm.frames);
         let hyp0 = hyp_words(&lat0);
         let Some(idx) = single_sub(&hyp0, &reference) else {
-            println!("{utt} SKIP base hyp is not a single sub of ref\n  hyp0 {}\n  ref  {}", hyp0.join(" "), reference.join(" "));
+            println!(
+                "{utt} SKIP base hyp is not a single sub of ref\n  hyp0 {}\n  ref  {}",
+                hyp0.join(" "),
+                reference.join(" ")
+            );
             continue;
         };
         let corr = match apply_correction(
@@ -462,7 +502,11 @@ fn cmd_probe(paths: &Paths) {
 
 fn cmd_demo(paths: &Paths) {
     let base_tx = load_tx(paths, &paths.cfg.clone().lm).unwrap_or_else(|e| fail(e));
-    println!("base vocab {} flavor {}", base_tx.vocab_size(), base_tx.flavor);
+    println!(
+        "base vocab {} flavor {}",
+        base_tx.vocab_size(),
+        base_tx.flavor
+    );
     let lm_bytes =
         std::fs::read(&paths.cfg.lm).unwrap_or_else(|e| fail(format!("read base LM: {e}")));
     let base_lm = lm::persist::interpolated_from_bytes(&lm_bytes)
@@ -533,7 +577,10 @@ fn cmd_demo(paths: &Paths) {
         let hyp1 = hyp_words(&lat1);
         println!("after:  {}", hyp1.join(" "));
         if hyp1 != reference {
-            println!("FAIL {utt}: corrected hyp != ref\n  ref {}", reference.join(" "));
+            println!(
+                "FAIL {utt}: corrected hyp != ref\n  ref {}",
+                reference.join(" ")
+            );
             failures += 1;
             continue;
         }

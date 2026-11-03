@@ -625,6 +625,7 @@ impl WordRecord {
 // Readable-text restoration + TXT/SRT/VTT exporters (bead hearsay-four-kpz,
 // TXT-1): classical casing/punctuation restoration and subtitle exports.
 // ---------------------------------------------------------------------------
+pub mod fabric_why;
 pub mod readable;
 pub mod streaming;
 pub mod why;
