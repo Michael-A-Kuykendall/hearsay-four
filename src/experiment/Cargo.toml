@@ -1,0 +1,12 @@
+[package]
+name = "experiment"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+lattice = { path = "../lattice" }
+eval = { path = "../eval" }
+corpus = { path = "../corpus" }
+fabric = { path = "../fabric" }
+output = { path = "../output" }
+a2 = { path = "../a2" }

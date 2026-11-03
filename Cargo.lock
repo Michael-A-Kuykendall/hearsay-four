@@ -455,6 +455,18 @@ name = "eval"
 version = "0.1.0"
 
 [[package]]
+name = "experiment"
+version = "0.1.0"
+dependencies = [
+ "a2",
+ "corpus",
+ "eval",
+ "fabric",
+ "lattice",
+ "output",
+]
+
+[[package]]
 name = "fabric"
 version = "0.1.0"
 dependencies = [
