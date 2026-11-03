@@ -266,7 +266,65 @@ fn empty_lattice_fails_loudly() {
     let err = decode_lattice(&lat, &scorer, DecisionParams::default()).expect_err("must fail");
     assert!(err.contains("no tokens"));
 }
-
+#[test]
+fn finite_budgets_bind_peaks_and_evict_in_both_arms() {
+    // Six live tokens against tight caps: peaks stay within budget and
+    // evictions are logged. Arm C keeps a dormant pool; arm B holds no
+    // dormant tokens at all (a4 R3).
+    use hearsay::Arm;
+    let toks = [
+        (1, "alpha", 0, 10, 2.0),
+        (2, "bravo", 10, 20, 2.0),
+        (3, "charlie", 20, 30, 2.0),
+        (4, "delta", 30, 40, 2.0),
+        (5, "echo", 40, 50, 2.0),
+        (6, "foxtrot", 50, 60, 2.0),
+    ];
+    let arcs = [(1, 2), (2, 3), (3, 4), (4, 5), (5, 6)];
+    let scorer = map_scorer(0.0, &[], 0.0);
+    let lat_c = read(&lat_text("bind-c", &toks, &arcs));
+    let out_c = decode_lattice(
+        &lat_c,
+        &scorer,
+        DecisionParams {
+            arm: Arm::C,
+            live_budget: 2,
+            dormant_budget: 2,
+            combined_budget: Some(3),
+            ..Default::default()
+        },
+    )
+    .expect("decodes");
+    assert!(out_c.peak_live <= 2, "peak_live {}", out_c.peak_live);
+    assert!(
+        out_c.peak_dormant <= 2,
+        "peak_dormant {}",
+        out_c.peak_dormant
+    );
+    assert!(out_c.peak_total <= 3, "peak_total {}", out_c.peak_total);
+    let evicted_c = out_c
+        .events_jsonl
+        .lines()
+        .filter(|l| l.contains("\"event\":\"evicted\""))
+        .count();
+    assert!(evicted_c >= 3, "evicted {evicted_c}");
+    let lat_b = read(&lat_text("bind-b", &toks, &arcs));
+    let out_b = decode_lattice(
+        &lat_b,
+        &scorer,
+        DecisionParams {
+            arm: Arm::B,
+            live_budget: 2,
+            dormant_budget: 0,
+            combined_budget: None,
+            ..Default::default()
+        },
+    )
+    .expect("decodes");
+    assert!(out_b.peak_live <= 2, "peak_live {}", out_b.peak_live);
+    assert_eq!(out_b.peak_dormant, 0);
+    assert!(!out_b.events_jsonl.contains("\"event\":\"revived\""));
+}
 #[test]
 fn dangling_arc_fails_loudly() {
     // read_lattice already rejects dangling arcs, so build the struct
