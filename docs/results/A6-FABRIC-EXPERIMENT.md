@@ -1,3 +1,120 @@
+# A6 Fabric Experiment — Results (Template + Synthetic Sample)
+
+> Status: TEMPLATE — every number in §§ Question–Diagnosis below is SYNTHETIC SAMPLE (4 utts, 11 ref words) except where marked REALDATA. No synthetic number is a Librispeech result.
+
+Bead: `hearsay-four-7ibb--a6-results-template`. Scope: `docs/results/A6-*` only. Charts regenerate from the TSV via one command (see Reproduce). TSV schema (fixed): `budget arm WER S D I RTF peak_live peak_dormant late_rescues dWER CI_lo CI_hi`.
+
+## Question
+
+Does dormant-hold + late revival (arm C) beat hard prune (arm B) on WER at fixed budgets, without RTF blowup, on lattices where the correct word is present but acoustically low-rank?
+
+<!-- REALDATA: restate the frozen real-data question population (DEV-200/TEST-200) + success rule here -->
+
+## Method
+
+### Arms A/B/C
+
+- Arm A: max-`acoustic_llr` path (Viterbi 1-best, `experiment::scoring`). No budget. Baseline.
+- Arm B: real bridge (`hearsay::decode_lattice`) with native `hearsay::Arm::B`, fixture bigram as `SequenceScorer` in the sample; hard prune at the live cap, dormant 0.
+- Arm C: same bridge with `hearsay::Arm::C`; pruned candidates held dormant up to the dormant cap and revived on late right-context.
+
+<!-- REALDATA: canonical AM/LM/lexicon shas + tunefull winner cell for all real runs -->
+
+### Budgets
+
+Budgets: {50, 100, 250, 500} live units (contract §12). Arm B: live=B, dormant=0, combined=B (counts live only). Arm C: live=B, dormant=B, combined=B (live+dormant share the total). Sample peaks bind at 50/100 (peak live 50/100) and saturate at 101 for 250/500.
+
+### Commit rule
+
+Per-utterance commit is the max-score tiling under the arm's budgets (acoustic + sequence scores, `DecisionParams`: w_acoustic 1.0, w_sequence 1.0, theta_live 0.0, delta 0.0, H 10 / H_max 20 / J 3 in the sample). B commits the best live tiling; C may commit a tiling containing a revived token if its full-context score wins. Ties break toward fewer errors, then lower arm letter (deterministic).
+
+## Oracle sweep
+
+Sample oracle (exact DP `a2::oracle::sweep_k`, K=3/5/10) over the 4-utt synthetic lattices:
+
+| K | oracle errs | oracle WER | tokens | arcs |
+|---|-------------|------------|--------|------|
+| 3 | 2 | 0.1818 | 15 | 11 |
+| 5 | 1 | 0.0909 | 19 | 15 |
+| 10 | 1 | 0.0909 | 25 | 17 |
+
+Attribution (sample): at K=3 the oracle misses `cat` (rank 5 — K too small; K>=5 recovers it). `blue` (u4) is absent at every K: generation miss, fixable only at lattice generation.
+
+<!-- REALDATA: DEV-200 oracle errs/WER/tokens/arcs at K=3/5/10 from sweep_real + per-utt TSV path -->
+
+## Results table
+
+Sample synthetic budget table (from `A6-sample.tsv`, 11 ref words; RTF is one-run wall time, not pinned):
+
+| budget | arm | WER | S | D | I | RTF | peak live | peak dormant | late rescues | delta-WER(C-B) + 95% CI |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 50 | A | 0.1818 | 2 | 0 | 0 | 0.0000 | n/a | n/a | -- | -- |
+| 50 | B | 0.2727 | 3 | 0 | 0 | 0.0731 | 50 | 0 | 0 | -- |
+| 50 | C | 0.1818 | 2 | 0 | 0 | 0.0893 | 50 | 2 | 0 | -0.0909 [-0.2500, +0.0500] |
+| 100 | A | 0.1818 | 2 | 0 | 0 | 0.0000 | n/a | n/a | -- | -- |
+| 100 | B | 0.1818 | 2 | 0 | 0 | 0.1269 | 100 | 0 | 0 | -- |
+| 100 | C | 0.0909 | 1 | 0 | 0 | 0.1584 | 100 | 5 | 1 | -0.0909 [-0.2000, +0.0000] |
+| 250 | A | 0.1818 | 2 | 0 | 0 | 0.0000 | n/a | n/a | -- | -- |
+| 250 | B | 0.1818 | 2 | 0 | 0 | 0.1310 | 101 | 0 | 0 | -- |
+| 250 | C | 0.0909 | 1 | 0 | 0 | 0.1670 | 101 | 5 | 1 | -0.0909 [-0.2000, +0.0000] |
+| 500 | A | 0.1818 | 2 | 0 | 0 | 0.0000 | n/a | n/a | -- | -- |
+| 500 | B | 0.1818 | 2 | 0 | 0 | 0.1300 | 101 | 0 | 0 | -- |
+| 500 | C | 0.0909 | 1 | 0 | 0 | 0.1663 | 101 | 5 | 1 | -0.0909 [-0.2000, +0.0000] |
+
+Story in the sample: at budget 50 the cap binds and C cannot rescue (`cat` stays dormant); at >=100 C revives `cat` on `sat` right-context (+4.0) and holds the 1-err line while B stays at 2 errs.
+
+<!-- REALDATA: DEV-200/TEST-200 arm x budget WER/S/D/I/RTF/peaks from real_table (same columns) -->
+<!-- REALDATA: delta-WER(C-B) + paired-bootstrap 95% CI per budget (10k resamples, pinned seed) -->
+
+## Per-budget chart (WER vs budget by arm)
+
+Sample charts generated from `A6-sample.tsv` (stdlib-only, no matplotlib):
+
+![A6 WER vs budget by arm](A6-wer-vs-budget.svg)
+
+![A6 RTF vs budget by arm](A6-rtf-vs-budget.svg)
+
+Regenerate: `python3 docs/results/A6-charts.py --sample` (writes both SVGs next to the TSV). Real TSVs with the same schema render via `--input real.tsv --outdir docs/results`.
+
+<!-- REALDATA: regenerate both SVGs from the real TSV and replace the sample embeds (same filenames) -->
+
+## Late-rescue analysis
+
+Stub (sample definitions; real counts drop in below):
+
+- Definition: a late rescue is a committed word that arm B pruned (`Pruned{w}`) at intake but arm C held dormant and later emitted (`Revived{w}`) before commit.
+- Sample: 1 rescue (`cat` in u1) at every budget >=100; 0 at budget 50 (cap binds); u2/u3 0 (no prune); u4 0 (absent — nothing to revive).
+- Per-utterance diff B vs C (sample): u1 B `the bat sat down` (1 sub) vs C `the cat sat down` (0); u2/u3 identical 0 errs; u4 both `red green yellow` (1 sub, generation miss).
+
+<!-- REALDATA: per-utterance late-rescue counts + B-vs-C transcript diffs on DEV-200/TEST-200 -->
+
+## Diagnosis
+
+Stub (sample attribution; real diagnosis drops in below):
+
+- Generation miss: `blue` absent from the lattice at every K — no search (B, C, or oracle) can recover it. Fixable only at lattice generation (AM/trie), not by budgets.
+- K depth: K=3→5 recovers `cat` (rank 5); sample headroom is 1 word in 11.
+- Budget binding: peaks track caps at 50/100, saturate at 101 above — the fabric honors budgets; the 50-cap rescue failure is expected cap behavior, not a defect.
+- Significance: C's sample gain (-0.0909) has CI including 0 at n=4 — reported as measured, not significant.
+
+<!-- REALDATA: generation-miss rate + K-depth + backbone/SIL + budget-binding attribution on real lattices -->
+
+## Reproduce
+
+From the repo root:
+
+```bash
+python3 docs/results/A6-charts.py --sample
+# → writes docs/results/A6-wer-vs-budget.svg + docs/results/A6-rtf-vs-budget.svg
+grep -c REALDATA docs/results/A6-FABRIC-EXPERIMENT.md  # >= 5
+```
+
+Real-data render (same schema): `python3 docs/results/A6-charts.py --input path/to/real.tsv --outdir docs/results`.
+
+---
+
+## Preserved record (wave-2 partial, kept verbatim)
+
 # A6 Fabric Experiment — Wave-2 Real-Data Verdict (PARTIAL)
 
 Bead: `hearsay-four-ic1w--fabric-experiment-arms` (wave 1 lane
