@@ -59,11 +59,7 @@ fn map_scorer(boundary: f64, pairs: &[(&str, &str, f64)], default: f64) -> MapSc
 
 /// Build lattice JSONL in the on-disk shape, then read it through the real
 /// `read_lattice` so tests exercise the full parse path.
-fn lat_text(
-    utterance: &str,
-    toks: &[(u64, &str, u32, u32, f64)],
-    arcs: &[(u64, u64)],
-) -> String {
+fn lat_text(utterance: &str, toks: &[(u64, &str, u32, u32, f64)], arcs: &[(u64, u64)]) -> String {
     let mut s = format!(
         "{{\"format\":\"hearsay-word-lattice\",\"version_major\":1,\"version_minor\":0,\
          \"utterance\":\"{utterance}\",\"frame_shift_ms\":10.0,\"producer\":\"p0tb-test\"}}\n"
@@ -99,7 +95,10 @@ fn synthetic_two_word_chain_commits_exact_score() {
     ));
     let scorer = map_scorer(0.5, &[("hello", "world", 1.5)], 0.0);
     let out = decode_lattice(&lat, &scorer, DecisionParams::default()).expect("decodes");
-    assert_eq!(out.transcript, vec!["hello".to_string(), "world".to_string()]);
+    assert_eq!(
+        out.transcript,
+        vec!["hello".to_string(), "world".to_string()]
+    );
     assert_eq!(out.commits.len(), 1);
     assert!(approx(out.commits[0].winner_score, 9.0));
     assert_eq!(out.commits[0].margin, None);
@@ -127,9 +126,16 @@ fn lm_sequence_flips_acoustic_winner_with_margin() {
         ],
         &[(1, 3), (2, 3)],
     ));
-    let scorer = map_scorer(0.0, &[("alpha", "gamma", -1.0), ("beta", "gamma", 5.0)], 0.0);
+    let scorer = map_scorer(
+        0.0,
+        &[("alpha", "gamma", -1.0), ("beta", "gamma", 5.0)],
+        0.0,
+    );
     let out = decode_lattice(&lat, &scorer, DecisionParams::default()).expect("decodes");
-    assert_eq!(out.transcript, vec!["beta".to_string(), "gamma".to_string()]);
+    assert_eq!(
+        out.transcript,
+        vec!["beta".to_string(), "gamma".to_string()]
+    );
     assert_eq!(out.commits.len(), 1);
     let m = out.commits[0].margin.expect("numeric margin");
     assert!(approx(m, 3.0));
@@ -161,6 +167,37 @@ fn dormant_predecessor_revives_via_successor() {
     assert_eq!(revived.len(), 1);
     assert!(revived[0].contains("\"word\":\"echo\""));
     assert!(revived[0].contains("\"via\""));
+}
+
+#[test]
+fn arm_b_prunes_below_threshold_and_never_revives() {
+    // Same inputs as the arm-C revival test, but under Arm::B echo is
+    // beam-pruned at its own intake (before foxtrot's +10 can save it):
+    // no revived event, a pruned event instead, and foxtrot commits alone
+    // past the recorded gap.
+    use hearsay::Arm;
+    let lat = read(&lat_text(
+        "prune",
+        &[(1, "echo", 0, 30, -5.0), (2, "foxtrot", 30, 60, 1.0)],
+        &[(1, 2)],
+    ));
+    let scorer = map_scorer(0.0, &[("echo", "foxtrot", 10.0)], 0.0);
+    let params = DecisionParams {
+        arm: Arm::B,
+        ..Default::default()
+    };
+    let out = decode_lattice(&lat, &scorer, params).expect("decodes");
+    assert_eq!(out.transcript, vec!["foxtrot".to_string()]);
+    assert_eq!(out.gaps, vec![(0, 30)]);
+    assert_eq!(out.uncommitted_ids, vec![1]);
+    assert!(!out.events_jsonl.contains("\"event\":\"revived\""));
+    let pruned: Vec<&str> = out
+        .events_jsonl
+        .lines()
+        .filter(|l| l.contains("\"event\":\"pruned\""))
+        .collect();
+    assert_eq!(pruned.len(), 1);
+    assert!(pruned[0].contains("\"word\":\"echo\""));
 }
 
 #[test]
@@ -232,7 +269,26 @@ fn empty_lattice_fails_loudly() {
 
 #[test]
 fn dangling_arc_fails_loudly() {
-    let lat = read(&lat_text("dangle", &[(1, "solo", 0, 30, 1.0)], &[(1, 99)]));
+    // read_lattice already rejects dangling arcs, so build the struct
+    // directly to exercise the bridge's own guard.
+    let lat = Lattice {
+        utterance: "dangle".to_string(),
+        frame_shift_ms: 10.0,
+        producer: "p0tb-test".to_string(),
+        tokens: vec![lattice::Token {
+            id: 1,
+            word: "solo".to_string(),
+            start: 0,
+            end: 30,
+            source: "t".to_string(),
+            acoustic_llr: 1.0,
+            lexical_llr: None,
+            speaker_llr: None,
+            verify_llr: None,
+            user_llr: None,
+        }],
+        arcs: vec![lattice::Arc { from: 1, to: 99 }],
+    };
     let scorer = map_scorer(0.0, &[], 0.0);
     let err = decode_lattice(&lat, &scorer, DecisionParams::default()).expect_err("must fail");
     assert!(err.contains("dangles"));
@@ -308,10 +364,14 @@ fn resolve_lm() -> InterpolatedLm {
 /// decoder bead lands. Together with the D0 fixture they form the same
 /// 5-lattice gate population.
 fn synthetic_five() -> Vec<(String, Lattice)> {
-    let d0 = std::fs::read_to_string(crate_dir().join("../lattice/tests/fixtures/d0_words.lat.jsonl"))
-        .expect("D0 fixture present");
+    let d0 =
+        std::fs::read_to_string(crate_dir().join("../lattice/tests/fixtures/d0_words.lat.jsonl"))
+            .expect("D0 fixture present");
     vec![
-        ("d0-fixture-001".to_string(), read_lattice(&d0).expect("D0 reads")),
+        (
+            "d0-fixture-001".to_string(),
+            read_lattice(&d0).expect("D0 reads"),
+        ),
         (
             "synth-chain".to_string(),
             read(&lat_text(
@@ -417,7 +477,7 @@ fn non_empty_event_log() {
             assert_eq!(v["utterance"], out.utterance);
             assert_eq!(v["seq"], seq);
             let kind = v["event"].as_str().expect("event kind is a string");
-            assert!(["revived", "defeated", "evicted", "committed"].contains(&kind));
+            assert!(["pruned", "revived", "defeated", "evicted", "committed"].contains(&kind));
             if kind == "committed" {
                 committed += 1;
             }

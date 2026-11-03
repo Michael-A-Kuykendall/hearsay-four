@@ -27,11 +27,13 @@
 //! [`BridgeOutcome::events_jsonl`] holds one JSON object per line, in
 //! fabric emission order, one file per utterance (`<utterance>.events.jsonl`).
 //! Every line carries `v` (this [`EVENT_LOG_VERSION`]), `utterance`, `seq`
-//! (0-based emission order), and `event` (one of `revived`, `defeated`,
-//! `evicted`, `committed`). Token references resolve to
+//! (0-based emission order), and `event` (one of `pruned`, `revived`,
+//! `defeated`, `evicted`, `committed`). Token references resolve to
 //! `{"id","word","start","end"}` from the source lattice; a fact with no
 //! lattice token renders as `{"fact": <u64>}`.
 //!
+//! - `pruned`: `{"token","liveness"}` — arm-B beam prune: a token below
+//!   `theta_live` retracted at enforcement, never revivable.
 //! - `revived`: `{"token","via","llr"}` — dormant token crossed
 //!   `theta_live` via new context (§9.4).
 //! - `defeated`: `{"token","winner","margin"}` — non-winning token in a
@@ -43,12 +45,19 @@
 //!
 //! The experiment bead (arms A/B/C) and the demo bead (why-panel) consume
 //! this format plus [`BridgeOutcome::transcript`].
+//!
+//! Arm selection is [`DecisionParams`] passthrough ([`Arm`] re-exported;
+//! default C preserves dormant-and-revivable behavior). The driver calls
+//! `enforce_budgets()` after every token's intake and before every commit,
+//! so arm B beam-prunes below-threshold tokens with `pruned` provenance.
 
 use fabric::FactId;
+pub use fabric::decision::Arm;
 use fabric::decision::{
     CommitOutcome, DecisionError, DecisionEvent, DecisionFabric, DecisionParams, SourceClass,
     TokenKind,
 };
+
 use lattice::Lattice;
 use lm::interpolate::InterpolatedLm;
 use lm::normalize::BOS_TOKEN;
@@ -109,9 +118,7 @@ impl<'a> InterpolatedScorer<'a> {
 impl SequenceScorer for InterpolatedScorer<'_> {
     fn sequence_llr(&self, prev: Option<&str>, word: &str) -> f64 {
         let history = prev.unwrap_or(BOS_TOKEN);
-        (self.cond_prob(history, word).max(PROB_FLOOR)
-            / self.uni_prob(word).max(PROB_FLOOR))
-        .ln()
+        (self.cond_prob(history, word).max(PROB_FLOOR) / self.uni_prob(word).max(PROB_FLOOR)).ln()
     }
 }
 
@@ -215,7 +222,10 @@ pub fn decode_lattice(
     let mut incoming: BTreeMap<u64, Vec<u64>> = BTreeMap::new();
     for a in &lat.arcs {
         if !by_id.contains_key(&a.from) {
-            return Err(format!("bridge: arc from={} dangles (no such token)", a.from));
+            return Err(format!(
+                "bridge: arc from={} dangles (no such token)",
+                a.from
+            ));
         }
         if !by_id.contains_key(&a.to) {
             return Err(format!("bridge: arc to={} dangles (no such token)", a.to));
@@ -293,6 +303,10 @@ pub fn decode_lattice(
                 }
             }
         }
+        // Driver cadence (W3 handoff): budgets enforce after every intake
+        // step — arm B beam-prunes below-threshold tokens here; arm C only
+        // evicts past budget.
+        fabric.enforce_budgets();
     }
 
     // Commit (§10): greedy maximal tileable regions from the utterance
@@ -324,6 +338,7 @@ pub fn decode_lattice(
         }
         match region {
             Some((s, e)) => {
+                fabric.enforce_budgets();
                 let outcome = fabric.commit_region((s, e), utter_end);
                 let (winner, runner_up, margin, defeated, flushed) = match outcome {
                     CommitOutcome::Committed {
@@ -334,6 +349,7 @@ pub fn decode_lattice(
                     } => (winner, runner_up, margin, defeated, false),
                     CommitOutcome::MarginTooSmall { .. } | CommitOutcome::NotEligible => {
                         let flush_at = e.saturating_add(h_max);
+                        fabric.enforce_budgets();
                         match fabric.commit_region((s, e), flush_at) {
                             CommitOutcome::Committed {
                                 winner,
@@ -461,6 +477,14 @@ fn logged_event(
     refs: &BTreeMap<FactId, TokenRef>,
 ) -> Value {
     match ev {
+        DecisionEvent::Pruned { token, liveness } => json!({
+            "v": EVENT_LOG_VERSION,
+            "utterance": utterance,
+            "seq": seq,
+            "event": "pruned",
+            "token": token_json(*token, refs),
+            "liveness": liveness,
+        }),
         DecisionEvent::Revived { token, via, llr } => json!({
             "v": EVENT_LOG_VERSION,
             "utterance": utterance,

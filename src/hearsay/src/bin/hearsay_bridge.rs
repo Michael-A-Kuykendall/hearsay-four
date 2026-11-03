@@ -46,7 +46,9 @@ fn run(args: &[String]) -> Result<String, String> {
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
-            "--lattice" => lattice_path = Some(PathBuf::from(take_value(args, &mut i, "--lattice")?)),
+            "--lattice" => {
+                lattice_path = Some(PathBuf::from(take_value(args, &mut i, "--lattice")?))
+            }
             "--lm" => lm_path = Some(PathBuf::from(take_value(args, &mut i, "--lm")?)),
             "--out" => out_dir = Some(PathBuf::from(take_value(args, &mut i, "--out")?)),
             "--help" | "-h" => return Ok(usage().to_string()),
@@ -65,13 +67,15 @@ fn run(args: &[String]) -> Result<String, String> {
     let scorer = InterpolatedScorer::new(&lm);
     let outcome = decode_lattice(&lat, &scorer, DecisionParams::default())?;
 
-    std::fs::create_dir_all(&out_dir)
-        .map_err(|e| format!("create {}: {e}", out_dir.display()))?;
+    std::fs::create_dir_all(&out_dir).map_err(|e| format!("create {}: {e}", out_dir.display()))?;
     let stem = sanitize(&outcome.utterance);
     let transcript_path = out_dir.join(format!("{stem}.transcript.txt"));
     let events_path = out_dir.join(format!("{stem}.events.jsonl"));
-    std::fs::write(&transcript_path, format!("{}\n", outcome.transcript.join(" ")))
-        .map_err(|e| format!("write {}: {e}", transcript_path.display()))?;
+    std::fs::write(
+        &transcript_path,
+        format!("{}\n", outcome.transcript.join(" ")),
+    )
+    .map_err(|e| format!("write {}: {e}", transcript_path.display()))?;
     std::fs::write(&events_path, &outcome.events_jsonl)
         .map_err(|e| format!("write {}: {e}", events_path.display()))?;
     Ok(format!(
