@@ -464,6 +464,7 @@ dependencies = [
  "fabric",
  "hearsay",
  "lattice",
+ "lm",
  "output",
  "serde_json",
 ]
