@@ -134,14 +134,44 @@ Story in the sample: at budget 50 the cap binds and C cannot rescue (`cat` stays
 > decoder 1.09 (4–13× faster). Supersedes the pre-v1.4 J=3 sweep
 > (B/C 0.97–0.99, `sweep_real.tsv`, kept).
 
-## Run 2 — headline 3-theta sweep (pending)
+## Run 2 -- headline 3-theta sweep
 
-TEST-200 × A/B/C × budgets {50,100,250,500} at θ_live ∈ {-4.2967, 0.0,
+TEST-200 x A/B/C x budgets {50,100,250,500} at theta_live in {-4.2967, 0.0,
 750.6713} (post-fix DEV liveness p25/p50/p75, ws10 row of
-`recal_postfix.json`; B and C share θ per run; frozen v7fa w10/δ0,
+`recal_postfix.json`; B and C share theta per run; frozen v7fa w10/d0,
 J=100). Files `scripts/a6/out/headline_th{25,50,75}.tsv` + per-utt
-(15-col schema with dorm_oracle/rev_winner sums). Filling as theta
-rows complete; the doc uses complete rows only.
+(15-col schema with dorm_oracle/rev_winner sums). Theta order th50,
+th25, th75; doc uses complete rows only.
+
+### theta = 0.0 (p50) -- COMPLETE (1600/1600 cells, 0 FAIL)
+
+> | budget | arm | WER | S | D | I | RTF | peak live | peak dormant | late rescues | dWER + 95% CI | dorm_oracle | rev_winner |
+> |---|---|---|---|---|---|---|---|---|---|---|---|
+> | 50 | A | 0.6430 | 2306 | 291 | 316 | 1.0854 | n/a | n/a | NA | NA | n/a | n/a |
+> | 50 | B | 0.9455 | 1239 | 3043 | 1 | 0.5240 | 1476 | 0 | NA | NA | 0 | 0 |
+> | 50 | C | 0.9455 | 1239 | 3043 | 1 | 0.9464 | 1511 | 17 | 1 | 0.0000 [0.0000, 0.0000] | 0 | 0 |
+> | 100 | A | 0.6430 | 2306 | 291 | 316 | 1.0854 | n/a | n/a | NA | NA | 0 | 0 |
+> | 100 | B | 0.9371 | 1565 | 2679 | 1 | 0.4997 | 2756 | 0 | NA | NA | 0 | 0 |
+> | 100 | C | 0.9371 | 1565 | 2679 | 1 | 0.9849 | 2795 | 21 | 1 | 0.0000 [0.0000, 0.0000] | 0 | 0 |
+> | 250 | A | 0.6430 | 2306 | 291 | 316 | 1.0854 | n/a | n/a | NA | NA | 0 | 0 |
+> | 250 | B | 0.9102 | 2302 | 1816 | 5 | 0.5989 | 7220 | 0 | NA | NA | 0 | 0 |
+> | 250 | C | 0.9102 | 2302 | 1816 | 5 | 1.1496 | 7284 | 64 | 0 | 0.0000 [0.0000, 0.0000] | 0 | 0 |
+> | 500 | A | 0.6430 | 2306 | 291 | 316 | 1.0854 | n/a | n/a | NA | NA | 0 | 0 |
+> | 500 | B | 0.8550 | 3079 | 648 | 146 | 0.6308 | 16146 | 0 | NA | NA | 0 | 0 |
+> | 500 | C | 0.8550 | 3079 | 648 | 146 | 1.5336 | 16400 | 61 | 6 | 0.0000 [0.0000, 0.0000] | 0 | 0 |
+
+> Reading: exact replication of Run 1 (all WER/S/D/I identical; RTF
+> higher under load, 0.5-1.5 vs 0.08-0.26 -- machine contention, not
+> scoring). B and C transcripts identical at every budget (dWER 0,
+> degenerate CI). Diagnostics: rev_winner = 0 at all budgets -- no
+> revived token ever made a committed winner, so no revival changed any
+> tiling: that is the complete explanation of B-identical-C at theta 0.
+> dorm_oracle = 0 likewise (lower bound: quiet-dormant tokens leave no
+> event; C peak dormant reaches 17-64 but none of it is proven on the
+> oracle path). Late rescues 1/1/0/6 with dWER 0: counter events that
+> do not move transcripts (definition under review, post-deadline).
+
+### theta = -4.2967 (p25) -- RUNNING; theta = 750.6713 (p75) -- QUEUED
 
 ## Track B SANITY (unigram-cancel v1.5 lane): FAIL (2026-11-04)
 
