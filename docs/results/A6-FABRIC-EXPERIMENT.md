@@ -100,37 +100,39 @@ Sample synthetic budget table (from `A6-sample.tsv`, 11 ref words; RTF is one-ru
 
 Story in the sample: at budget 50 the cap binds and C cannot rescue (`cat` stays dormant); at >=100 C revives `cat` on `sat` right-context (+4.0) and holds the 1-err line while B stays at 2 errs.
 
-> REAL (TEST-200, `scripts/a6/out/sweep_real.tsv`, 12 rows; scored
-> once with the SWEEP scorer; per-utterance detail
-> `scripts/a6/out/sweep_real_perutt.tsv`):
+> INSURANCE (TEST-200, v1.4 main, frozen v7fa config w10/θ0-re-measured/δ0,
+> J=100; `scripts/a6/out/sweep_insurance.tsv`, 12 rows; scored once with
+> the SWEEP scorer; per-utterance detail
+> `scripts/a6/out/sweep_insurance_perutt.tsv`; 1600/1600 cells, 0 FAIL):
 
 > | budget | arm | WER | S | D | I | RTF | peak live | peak dormant | late rescues | delta-WER(C-B) + 95% CI |
 > |---|---|---|---|---|---|---|---|---|---|---|
 > | 50 | A | 0.6430 | 2306 | 291 | 316 | 1.0854 | n/a | n/a | NA | NA |
-> | 50 | B | 0.9887 | 300 | 4179 | 0 | 0.1192 | 50 | 0 | NA | NA |
-> | 50 | C | 0.9887 | 300 | 4179 | 0 | 0.1231 | 50 | 0 | 280 | 0.0000 [0.0000, 0.0000] |
+> | 50 | B | 0.9455 | 1239 | 3043 | 1 | 0.0771 | 1476 | 0 | NA | NA |
+> | 50 | C | 0.9455 | 1239 | 3043 | 1 | 0.1721 | 1511 | 17 | 1 | 0.0000 [0.0000, 0.0000] |
 > | 100 | A | 0.6430 | 2306 | 291 | 316 | 1.0854 | n/a | n/a | NA | NA |
-> | 100 | B | 0.9872 | 375 | 4097 | 0 | 0.1292 | 100 | 0 | NA | NA |
-> | 100 | C | 0.9872 | 375 | 4097 | 0 | 0.1220 | 100 | 0 | 330 | 0.0000 [0.0000, 0.0000] |
+> | 100 | B | 0.9371 | 1565 | 2679 | 1 | 0.0814 | 2756 | 0 | NA | NA |
+> | 100 | C | 0.9371 | 1565 | 2679 | 1 | 0.1841 | 2795 | 21 | 1 | 0.0000 [0.0000, 0.0000] |
 > | 250 | A | 0.6430 | 2306 | 291 | 316 | 1.0854 | n/a | n/a | NA | NA |
-> | 250 | B | 0.9790 | 540 | 3895 | 0 | 0.1651 | 250 | 0 | NA | NA |
-> | 250 | C | 0.9790 | 540 | 3895 | 0 | 0.1225 | 250 | 0 | 445 | 0.0000 [0.0000, 0.0000] |
+> | 250 | B | 0.9102 | 2302 | 1816 | 5 | 0.0945 | 7220 | 0 | NA | NA |
+> | 250 | C | 0.9102 | 2302 | 1816 | 5 | 0.2104 | 7284 | 64 | 0 | 0.0000 [0.0000, 0.0000] |
 > | 500 | A | 0.6430 | 2306 | 291 | 316 | 1.0854 | n/a | n/a | NA | NA |
-> | 500 | B | 0.9740 | 757 | 3655 | 0 | 0.2488 | 500 | 0 | NA | NA |
-> | 500 | C | 0.9740 | 757 | 3655 | 0 | 0.1222 | 500 | 0 | 568 | 0.0000 [0.0000, 0.0000] |
+> | 500 | B | 0.8550 | 3079 | 648 | 146 | 0.1059 | 16146 | 0 | NA | NA |
+> | 500 | C | 0.8550 | 3079 | 648 | 146 | 0.2587 | 16400 | 61 | 6 | 0.0000 [0.0000, 0.0000] |
 
-> Arm A reproduces the Preserved-record TEST-200 cell exactly (0.6430;
-> S/D/I 2306/291/316). DEV-200 arm B (tune cells, winner params):
-> 0.9930 / 0.9889 / 0.9834 / 0.9736 at budgets 50/100/250/500.
-> Reading: B and C emit byte-identical transcripts on all 800 TEST
-> rows, so every paired-bootstrap CI is the degenerate [0, 0] (10k
+> Config: contract v1.4 (arc tiling + interning), case fix, w10 / θ0
+> (re-measured p50 post-fix) / δ0, J=100 (measured binding: thousands
+> of evictions; J=3 never binds). Arm A reproduces the TEST-200 cell
+> exactly (0.6430; S/D/I 2306/291/316). Reading: B and C emit
+> byte-identical transcripts on all 800 TEST rows (verified cell by
+> cell), so every paired-bootstrap CI is the degenerate [0, 0] (10k
 > resamples, pinned seed — the CI machinery is exercised; the delta is
-> exactly 0). Both trail A by ~0.34 with zero insertions: the fabric
-> under-commits (deletion-heavy). C's dormant pool never fills
-> (peak_dormant 0 every budget) yet the rescue counter fires 280–568× —
-> an event-log overlap (C-committed ∩ B-pruned/evicted), not a
-> transcript difference: B committed those same words, so no rescue
-> changes any transcript.
+> exactly 0). WER falls with budget (0.95→0.86) as deletions convert
+> to substitutions (D 3043→648, S 1239→3079): room lets the fabric
+> commit. Peaks exceed caps because sealed tokens are budget-exempt
+> but counted in peaks (v1.3 semantics). Fabric RTF 0.08–0.26 vs
+> decoder 1.09 (4–13× faster). Supersedes the pre-v1.4 J=3 sweep
+> (B/C 0.97–0.99, `sweep_real.tsv`, kept).
 
 ## Per-budget chart (WER vs budget by arm)
 
@@ -142,11 +144,11 @@ Charts below are the REAL render from `sweep_real.tsv` (stdlib-only, no matplotl
 
 Regenerate: `python3 docs/results/A6-charts.py --sample` (writes both SVGs next to the TSV). Real TSVs with the same schema render via `--input real.tsv --outdir docs/results`.
 
-> REAL: both SVGs above are regenerated from `sweep_real.tsv`
-> (`python3 docs/results/A6-charts.py --input
-> scripts/a6/out/sweep_real.tsv --outdir docs/results`, same
-> filenames): WER 0.64 (A) vs 0.97–0.99 (B/C, overlapping lines);
-> RTF ~1.09 (A decoder) vs 0.12–0.25 (B/C fabric). C−B CIs are
+> INSURANCE: both SVGs above are regenerated from
+> `sweep_insurance.tsv` (`python3 docs/results/A6-charts.py --input
+> scripts/a6/out/sweep_insurance.tsv --outdir docs/results`, same
+> filenames): WER 0.64 (A) vs 0.86–0.95 (B/C, overlapping lines);
+> RTF ~1.09 (A decoder) vs 0.08–0.26 (B/C fabric). C−B CIs are
 > degenerate points at 0 (identical transcripts).
 
 ## Late-rescue analysis
@@ -157,16 +159,16 @@ Stub (sample definitions; real counts drop in below):
 - Sample: 1 rescue (`cat` in u1) at every budget >=100; 0 at budget 50 (cap binds); u2/u3 0 (no prune); u4 0 (absent — nothing to revive).
 - Per-utterance diff B vs C (sample): u1 B `the bat sat down` (1 sub) vs C `the cat sat down` (0); u2/u3 identical 0 errs; u4 both `red green yellow` (1 sub, generation miss).
 
-> REAL (TEST-200): late-rescue counts per budget: 280 / 330 / 445 /
-> 568 at budgets 50/100/250/500 (multiset count of C-committed words
-> found in B's pruned/evicted event logs). B-vs-C transcript diffs:
-> NONE — all 800 TEST rows byte-identical, so every rescue is a word
-> B pruned at intake but committed anyway (prune-then-commit), never a
-> true B/C divergence. Per-utterance detail (a/b/c errs, peaks, hyps):
-> `scripts/a6/out/sweep_real_perutt.tsv`. C's dormant pool occupancy
-> peaks at 0 every budget: nothing is ever held dormant, so no revival
-> can fire — the rescue counter and the occupancy tell different
-> stories (counter: event-log overlap; occupancy: pool max).
+> INSURANCE (TEST-200): late-rescue counts per budget: 1 / 1 / 0 / 6
+> at budgets 50/100/250/500 (fix4 counter: C-committed words B pruned
+> AND revived in C). B-vs-C transcript diffs: NONE — all 800 TEST rows
+> byte-identical (verified cell by cell), so the 8 rescue hits are
+> interned-dup event artifacts (B pruned dup id N, committed dup id M
+> of the same word) with zero transcript effect. Per-utterance detail:
+> `scripts/a6/out/sweep_insurance_perutt.tsv`. C dormant occupancy is
+> live now (peaks 17/21/64/61 — v1.4 + live sequence evidence); B
+> prunes hundreds per utterance. The lifecycle machinery runs; it just
+> never flips a winner at θ=0 (all pruned/dormant tokens were losers).
 
 ## Diagnosis
 

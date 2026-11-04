@@ -33,16 +33,16 @@
 <circle cx="238.0" cy="180.3" r="4.5" fill="#1f77b4" stroke="white" stroke-width="1.5"/>
 <circle cx="404.0" cy="180.3" r="4.5" fill="#1f77b4" stroke="white" stroke-width="1.5"/>
 <circle cx="570.0" cy="180.3" r="4.5" fill="#1f77b4" stroke="white" stroke-width="1.5"/>
-<polyline points="72.0,103.8 238.0,104.2 404.0,106.0 570.0,107.1" fill="none" stroke="#ff7f0e" stroke-width="2.5"/>
-<circle cx="72.0" cy="103.8" r="4.5" fill="#ff7f0e" stroke="white" stroke-width="1.5"/>
-<circle cx="238.0" cy="104.2" r="4.5" fill="#ff7f0e" stroke="white" stroke-width="1.5"/>
-<circle cx="404.0" cy="106.0" r="4.5" fill="#ff7f0e" stroke="white" stroke-width="1.5"/>
-<circle cx="570.0" cy="107.1" r="4.5" fill="#ff7f0e" stroke="white" stroke-width="1.5"/>
-<polyline points="72.0,103.8 238.0,104.2 404.0,106.0 570.0,107.1" fill="none" stroke="#2ca02c" stroke-width="2.5"/>
-<circle cx="72.0" cy="103.8" r="4.5" fill="#2ca02c" stroke="white" stroke-width="1.5"/>
-<circle cx="238.0" cy="104.2" r="4.5" fill="#2ca02c" stroke="white" stroke-width="1.5"/>
-<circle cx="404.0" cy="106.0" r="4.5" fill="#2ca02c" stroke="white" stroke-width="1.5"/>
-<circle cx="570.0" cy="107.1" r="4.5" fill="#2ca02c" stroke="white" stroke-width="1.5"/>
+<polyline points="72.0,113.4 238.0,115.3 404.0,121.2 570.0,133.4" fill="none" stroke="#ff7f0e" stroke-width="2.5"/>
+<circle cx="72.0" cy="113.4" r="4.5" fill="#ff7f0e" stroke="white" stroke-width="1.5"/>
+<circle cx="238.0" cy="115.3" r="4.5" fill="#ff7f0e" stroke="white" stroke-width="1.5"/>
+<circle cx="404.0" cy="121.2" r="4.5" fill="#ff7f0e" stroke="white" stroke-width="1.5"/>
+<circle cx="570.0" cy="133.4" r="4.5" fill="#ff7f0e" stroke="white" stroke-width="1.5"/>
+<polyline points="72.0,113.4 238.0,115.3 404.0,121.2 570.0,133.4" fill="none" stroke="#2ca02c" stroke-width="2.5"/>
+<circle cx="72.0" cy="113.4" r="4.5" fill="#2ca02c" stroke="white" stroke-width="1.5"/>
+<circle cx="238.0" cy="115.3" r="4.5" fill="#2ca02c" stroke="white" stroke-width="1.5"/>
+<circle cx="404.0" cy="121.2" r="4.5" fill="#2ca02c" stroke="white" stroke-width="1.5"/>
+<circle cx="570.0" cy="133.4" r="4.5" fill="#2ca02c" stroke="white" stroke-width="1.5"/>
 <text x="586" y="52" font-family="sans-serif" font-size="12" font-weight="bold">Arm</text>
 <line x1="586" y1="72" x2="614" y2="72" stroke="#1f77b4" stroke-width="3"/>
 <circle cx="600" cy="72" r="4" fill="#1f77b4"/>
@@ -53,5 +53,5 @@
 <line x1="586" y1="116" x2="614" y2="116" stroke="#2ca02c" stroke-width="3"/>
 <circle cx="600" cy="116" r="4" fill="#2ca02c"/>
 <text x="620" y="117" dominant-baseline="middle" font-family="sans-serif" font-size="12">Arm C (dormant)</text>
-<text x="72" y="414" font-family="sans-serif" font-size="10" fill="#555">Source: sweep_real.tsv</text>
+<text x="72" y="414" font-family="sans-serif" font-size="10" fill="#555">Source: sweep_insurance.tsv</text>
 </svg>
