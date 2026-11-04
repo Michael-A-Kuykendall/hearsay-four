@@ -380,6 +380,130 @@ verified across all four budgets. Suggested gate for the fix bead:
 the dev5 lattice decodes in <60 s release and the hearsay suite goes
 green on main with the shipped LM.
 
+## Scale calibration (DEV-200, v7fa, 2026-11-04)
+
+Recalibration on current main (fix1 frame-order intake, fix2 v1.3
+sealing, fix4 rescue counter, f6tp single-pass tiling, nlvs
+incremental budgets). The wave-2 BLOCKED note above is superseded for
+decode feasibility: full real-lattice decodes now complete (3k tokens
+0.08 s, 13.5k 0.9 s, 64.5k 11.7 s fabric elapsed, release). Lane:
+`bead/v7fa-fabric-scale-calibration`; bead
+`hearsay-four-v7fa--recalibrate-retune-resweep` carries the full
+tables. Data read from the main workspace (lane has no DEV audio);
+all runs 16 workers at nice 19 unless noted.
+
+### Calibration distributions (task 1)
+
+`scale_calibrate` (shard + merge) over DEV-200: 200 utts, 3,285,300
+tokens, 3,002,548 arc records. Static per-token liveness mirrors
+`refresh_liveness` exactly (boundary SEQUENCE terms excluded — they
+never enter `L(h)`; see `src/experiment/src/calibrate.rs`).
+
+| quantity | n | p5 | p25 | p50 | p75 | p95 |
+|---|---|---|---|---|---|---|
+| acoustic_llr | 3,285,300 | 0.0 | 0.0 | 0.0 | 751.90 | 1808.33 |
+| liveness (wseq 1/4/6/8/10) | 3,285,300 | 0.0 | 0.0 | 0.0 | 751.90 | 1808.33 |
+| SEQUENCE llr | 3,285,300 | -0.251 | 0.0 | 0.0 | 0.0 | 0.0 |
+
+Liveness is IDENTICAL at every w_sequence: it equals acoustic_llr
+exactly for all 3.28M tokens. Root cause (bead finding 1): lattice
+words are UPPERCASE, the LM vocab is lowercase, `map_word` has no
+case fold, so every word maps to UNK; UNK bigram history is empty, so
+every pair term is ln(1) = 0.0 and every boundary term the constant
+-0.251. The sequence channel carries zero information on real data;
+w_sequence can only act through the constant boundary term in commit
+scoring. Fix belongs to the hearsay/lm/decoder lanes. Acoustic
+distribution is bimodal: exactly 50% of tokens carry acoustic_llr ==
+0.0 (nonzero range -45.4 .. +8286.0).
+
+Owner grid from data: w_sequence {4, 6, 8, 10}; theta_live at DEV
+liveness {p25, p50, p75} = {0.0, 0.0, 751.8986152839452} — the p25/p50
+collapse (50% zero-mass) leaves two distinct thetas; delta at {0,
+m25} where m25 (25th pct of 3,279,793 DEV commit margins at arm C,
+infinite budgets, wseq 6, theta 0) is exactly 0.0 — all margins are
+0.0 (see below), leaving delta {0}. Final coarse grid: 2 x 4 x 1 =
+8 candidates (`TuningGrid::real_coarse`).
+
+Why margins are all zero (bead finding 2, `commit_probe`): real
+lattices carry doppelganger tokens — same word+span+acoustic under
+distinct ids (utt 1272-128104-0001: 9560 tokens, 5013 distinct
+spans, 63% of tokens in dup groups). The tiling DP dedups
+runner-ups by FactId, so a doppelganger-swapped tiling survives with
+a bitwise-identical score (measured: winner == runner 11818.3095,
+differing only in CAN#4771 vs CAN#4773). Fixture control gives
+margin 3.0; T2 control (arm B, theta 100, j 100: 156k prunes of
+~310k tokens, matching static prediction) proves fabric liveness
+sees acoustics. Transcripts are unaffected (doppelgangers are
+word-identical); only margins — and hence delta — die. Fix
+(lattice dedup or word+span DP dedup) belongs to decoder/fabric
+lanes.
+
+### J-horizon study (task 2)
+
+`j_horizon` on 30 DEV utts (20 densest + 10 stratified), arm B/C,
+budget 500, wseq 6, theta 0. Unsealed window from frame geometry
+(sealed iff frontier > end + j); evictions/prunes from bridge
+events; WER vs refs and divergence-WER vs arm A.
+
+| j | med window | max window | evicted_C | pruned_B | WER_B | WER_C | div_vs_A | B/C div |
+|---|---|---|---|---|---|---|---|---|---|
+| 3 | 18 | 80 | 0 | 123,570 | 1.0236 | 1.0236 | 0.8349 | 0/30 |
+| 20 | 193 | 420 | 0 | 230,019 | 1.0236 | 1.0236 | 0.8349 | 0/30 |
+| 100 | 1658 | 2020 | 830,348 | 218,693 | 0.8899 | 0.8906 | 0.8284 | 0/30 |
+
+Default j=3 seals almost immediately (median window 18): budgets
+cannot bind (0 evictions; dormancy shows evictions only at budget
+50). j=20 still never reaches cap 500 (max window 420, 0
+evictions) and yields bit-identical transcripts to j=3. j=100 binds
+hard (830k evictions) and moves transcripts (WER 1.02 -> 0.89;
+eviction removes garbage competitors). B/C transcripts identical at
+all j at theta 0 (pruned tokens are all non-competitors there).
+peak_total >= cap on all 30 utts at every j is confounded: peaks
+count sealed (exempt) tokens.
+
+RECOMMENDATION (not applied — the default is fabric-lane owned):
+run the experiment at j=100 so budgets bind across the full
+50–500 range with transcript sensitivity; j=20 is the minimal
+alternative (binds 3 of 4 budgets, weaker instrument). Caveat:
+j=100 x theta-hi is untested (C-hi perf pathology, below).
+
+### Gates (task 3, `scripts/a6/gates.sh`, production cell_decode path)
+
+| gate | result | numbers |
+|---|---|---|
+| SANITY (C inf, wseq 6 ~= arm A) | RED | C WER 1.0511 (4813/4579) vs A 0.6624 (3033/4579), |d|=0.39 > 0.10 bound; lattice-1best WER 0.6805 ~= A. Diagnosis: fabric tiling ignores arcs (any tileable acoustic-peak chain); 1-best follows arcs. With the LM dead, nothing restores arc discipline, so fabric diverges from both references. Not a miswiring: arm A ~= lattice-1best (|d|=0.02). |
+| SENSITIVITY theta (B250, 0 vs 751.9) | PASS | 200/200 transcripts differ |
+| SENSITIVITY wseq (B250, 4 vs 10) | weak | 4/200 differ — same as the uncalibrated w1-vs-w2 control (4/200): the wseq effect (boundary-term commit tilt) is at noise level |
+| delta control (B250, 0 vs 1000) | flat as predicted | 0/200 differ — confirms all-zero margins make delta vacuous |
+| DORMANCY (C peak_dormant>0, B prunes>0, all budgets) | PASS (caveated) | B complete 200/200 all budgets (prunes>0); C-lo complete 34/200 engage; C-hi partial 208/800, 100% engaged; evictions only at budget 50 (j=3) |
+
+C-hi perf pathology (bead finding 3): one 64.5k-token utt at arm C,
+budget 500, theta-hi: killed at 600 s without completing, 660 s
+CPU, 5.9 GB resident (same utt at theta 0: 11.7 s). Full-corpus
+arm-C high-theta sweeps need the fabric-lane perf fix; C-hi
+coverage stays partial for that reason.
+
+### Retune (task 4)
+
+8-candidate coarse grid x DEV-200 x budgets {50,100,250,500}, arm
+B (6400 tasks, 0 failures). Winner: cand 7 —
+w_acoustic 1.0, w_sequence 10.0, theta_live 751.8986152839452,
+delta 0.0, h 10, h_max 20 — dev_errors 16624/18316. Scoreboard:
+theta-hi {16752, 16700, 16648, 16624} over wseq {4,6,8,10}
+(monotone improving); theta-0 {19084, 19120, 19232, 19308}
+(monotone worsening) — opposite wseq slopes, ~1% effect either
+way. Frozen config: `scripts/a6/frozen_real.json`, sha256
+26e238370c7728a422be61ee816404258e3784d0717139c24e45bfba4dd5a4f3.
+DEV B-winner sweep: WER 0.9076 flat across all four budgets
+(4156/4579 each; x4 = 16624, matches tune). C leg uses identical
+params by construction (no C-specific tuning); a full C-winner DEV
+sweep is blocked by the C-hi perf pathology (above).
+
+Reproduce: `scale_calibrate` shard+merge; `j_horizon --theta 0
+--wseq 6 --budget 500 --js 3,20,100`; `scripts/a6/gates.sh` (with
+main-workspace `--lat-dir/--lm/--manifest/--cell` from a lane);
+`scripts/a6/run_all.sh --real --tune-only` (same overrides).
+
 ## Wave-1 fixture demo (kept, synthetic)
 
 Everything below this line is the wave-1 fixture demo, kept verbatim
