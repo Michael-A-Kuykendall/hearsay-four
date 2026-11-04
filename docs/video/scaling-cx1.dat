@@ -1,0 +1,50 @@
+# CX1 scaling data — every number traces to a logged line cited below.
+# Chart script scaling-cx1.py reads THIS file, fits k itself, and asserts
+# against the LOGGED_K lines. No k value is hardcoded in the script.
+#
+# SOURCES
+# BEFORE (bridge, k ~3.8):
+#   docs/results/A6-FABRIC-EXPERIMENT.md, section "Arms B/C and DEV tuning --
+#   BLOCKED (measured)": token-prefix truncation table from the
+#   src/hearsay/examples/bridge_scale.rs probe (release, 1 core, lattice
+#   data/lattices/dev5/1272-128104-0001.lat.jsonl, 9510 tokens / 7396 arcs,
+#   ZERO arcs kept, real 72 MB LM). Same numbers in bead
+#   hearsay-four-nlvs--fabric-performance-indexes NOTES "SCALE DATA from W4-real".
+#   The 9510-token full-lattice point is a TIMEOUT (>900 s), excluded from the fit.
+# AFTER (saturation rebuild, k ~1.07):
+#   bead hearsay-four-nlvs--fabric-performance-indexes, comment 2026-11-03 20:43
+#   "CX1 PER-PATH FINAL": RELEASE overall k=1.0727 (points 1k=0.086s, 10k=0.99s,
+#   100k=12.0s; per-path ingest 1.0887 / attach 1.0751 / commit 1.0623 gated,
+#   query+enforce VOID-immaterial); DEBUG overall k=1.0625 (points 0.66s / 8.25s /
+#   88.1s). Paper docs/writeup/WRITEUP.md (abstract + section 9) reports 1.07.
+#   Cloud cross-check (nlvs NOTES): k=1.11 release, 100k in 8.5 s (other machine).
+#
+# FORMAT: "<SERIES> <tokens> <wall_s>" data lines; "LOGGED_K <series> <k>"
+# carries the bead-logged k for verification (tolerance 0.01 unless a
+# LOGGED_TOL line widens it); "PAPER_K <k>" carries the paper's reported
+# value (must equal round(logged_release, 2)).
+# Series: BEFORE | AFTER_RELEASE | AFTER_DEBUG.
+# BEFORE's LOGGED_K 3.8 is the prose claim ("k approx 3.8" in the nlvs bead
+# DESCRIPTION, "about 3.8" in the paper abstract): no single fitted k was
+# ever logged for the bridge, so the tolerance is 0.05 (1 decimal).
+# CEIL lines are the CX1 gates (nlvs bead GATES + decision_cx1.rs ceiling).
+
+BEFORE 50 0.02
+BEFORE 100 0.27
+BEFORE 150 1.24
+BEFORE 200 4.00
+BEFORE 300 18.24
+BEFORE 500 137.08
+AFTER_RELEASE 1000 0.086
+AFTER_RELEASE 10000 0.99
+AFTER_RELEASE 100000 12.0
+AFTER_DEBUG 1000 0.66
+AFTER_DEBUG 10000 8.25
+AFTER_DEBUG 100000 88.1
+CEIL RELEASE 1.4
+CEIL DEBUG 1.5
+LOGGED_K BEFORE 3.8
+LOGGED_TOL BEFORE 0.05
+LOGGED_K AFTER_RELEASE 1.0727
+LOGGED_K AFTER_DEBUG 1.0625
+PAPER_K 1.07
