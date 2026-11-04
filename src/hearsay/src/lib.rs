@@ -251,6 +251,20 @@ pub fn decode_lattice(
     let mut fact_of: BTreeMap<u64, FactId> = BTreeMap::new();
     let mut refs: BTreeMap<FactId, TokenRef> = BTreeMap::new();
     let mut minted: Vec<TokenRef> = Vec::new();
+    // Single-pass intake, in frame order (7mge): each token mints, adds its
+    // unaries, runs the §9 context hook, attaches its SEQUENCE structure
+    // (boundary pair for arc-less tokens, one pair term per incoming arc,
+    // contract §4 exactly-once), enforces budgets, and records peak counts
+    // — all before the next token arrives. Budgets therefore only ever see
+    // frontier-near tokens: a weak-acoustic mid-chain word survives until
+    // its successor's strong bigram lands, instead of being evicted while
+    // far-future acoustic-only tokens compete (the two-phase failure mode).
+    // Arcs run forward in time, so every incoming arc's `from` fact is
+    // already minted; a backward arc fails loudly rather than attaching
+    // half a pair.
+    let mut peak_live = 0usize;
+    let mut peak_dormant = 0usize;
+    let mut peak_total = 0usize;
     for &i in &order {
         let t = &lat.tokens[i];
         let fact = fabric
@@ -279,35 +293,26 @@ pub fn decode_lattice(
         };
         refs.insert(fact, r.clone());
         minted.push(r);
-    }
-    // Phase 2, in frame order: SEQUENCE evidence attaches per successor
-    // as it arrives. The §9 context hook runs first so dormant neighbours
-    // within J frames revive with provenance; then the lattice's own
-    // structure attaches (boundary pair for arc-less tokens, one pair term
-    // per arc, contract §4 exactly-once).
-    let mut peak_live = 0usize;
-    let mut peak_dormant = 0usize;
-    let mut peak_total = 0usize;
-    for &i in &order {
-        let t = &lat.tokens[i];
-        let to = fact_of[&t.id];
-        fabric.attach_context_for_new_token(to, &|from_tok, to_tok| {
+        fabric.attach_context_for_new_token(fact, &|from_tok, to_tok| {
             scorer.sequence_llr(Some(from_tok.label.as_str()), to_tok.label.as_str())
         });
         match incoming.get(&t.id) {
             None => {
                 let llr = scorer.sequence_llr(None, &t.word);
-                fabric.add_boundary_sequence(to, llr).map_err(dec_err)?;
+                fabric.add_boundary_sequence(fact, llr).map_err(dec_err)?;
             }
             Some(froms) => {
                 for f in froms {
+                    let from_fact = *fact_of.get(f).ok_or_else(|| {
+                        format!("bridge: arc {f} -> {} runs backward in frame order", t.id)
+                    })?;
                     let from_word = &lat.tokens[by_id[f]].word;
                     let llr = scorer.sequence_llr(Some(from_word), &t.word);
                     let mut premises = BTreeSet::new();
-                    premises.insert(fact_of[f]);
-                    premises.insert(to);
+                    premises.insert(from_fact);
+                    premises.insert(fact);
                     fabric
-                        .add_sequence(fact_of[f], to, llr, premises)
+                        .add_sequence(from_fact, fact, llr, premises)
                         .map_err(dec_err)?;
                 }
             }
