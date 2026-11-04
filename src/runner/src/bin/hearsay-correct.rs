@@ -12,11 +12,16 @@
 //!   candidate and report FIXED / NOFLIP per utterance (utterance picker).
 //! - `demo`: the one-command gate: fixed demo utterances end to end (fix +
 //!   undo asserts) plus the 20-utterance collateral report.
+//! - `fabric-demo --utt ID --fabric-dir D --lattice P --index N --word W`:
+//!   submission demo on the fabric path (bead
+//!   `hearsay-four-sq9l--fabric-path-demo`): transcript + why panel from
+//!   bridge outputs, one disclosed simulated user correction, corrected-LM
+//!   rebuild, then undo with byte-identical ledger state.
 //!
 //! Paths resolve flag > `HEARSAY_*` env > compiled default. Gate config:
 //! CMVN 8-mix AM + interpolated R1-v2 LM, top_n 20000, lmw 6, wip 0.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -105,7 +110,7 @@ fn flag(args: &[String], name: &str) -> Option<String> {
 
 fn usage() -> ! {
     eprintln!(
-        "usage: hearsay-correct [--am P] [--lm P] [--tier1 P] [--tier2 P] [--wav-root D] [--trans-root D] [--workdir D] [--repeat N] <decode --utt ID | probe | demo>\n\
+        "usage: hearsay-correct [--am P] [--lm P] [--tier1 P] [--tier2 P] [--wav-root D] [--trans-root D] [--workdir D] [--repeat N] <decode --utt ID | probe | demo | fabric-demo --utt ID --fabric-dir D --lattice P --index N --word W>\n\
          \tdecode --utt ID --fabric-dir D --lattice P reads bridge outputs instead of audio (no AM)"
     );
     std::process::exit(2);
@@ -408,6 +413,137 @@ fn cmd_decode_fabric(paths: &Paths, utt: &str, fabric_dir: &Path, lattice_path: 
     );
 }
 
+/// Fabric-path correction demo (bead `hearsay-four-sq9l--fabric-path-demo`):
+/// transcript + why panel from bridge outputs, one disclosed simulated user
+/// correction (`--word` at `--index`: no test-clean refs ship in the
+/// checkout, so the corrected sentence is stated in the demo doc, not read
+/// from a `.trans.txt`), corrected-LM rebuild with the trigram probability
+/// jump, then undo with byte-identical ledger state. Writes
+/// `fabric-ledger-{utt}.before.bin` / `.after.bin` under the workdir for the
+/// gate's `cmp`. Shares the demo's apply path (not a parallel
+/// implementation); the only fabric-specific piece is the 1-best lattice
+/// built from committed winners (the correction ledger needs (word, span)
+/// pairs, and the fabric transcript is the hyp).
+fn cmd_fabric_demo(paths: &Paths, args: &[String]) {
+    let utt = flag(args, "--utt").unwrap_or_else(|| usage());
+    let fabric_dir = flag(args, "--fabric-dir").unwrap_or_else(|| usage());
+    let lattice_path = flag(args, "--lattice").unwrap_or_else(|| usage());
+    let index: usize = flag(args, "--index")
+        .unwrap_or_else(|| usage())
+        .parse()
+        .unwrap_or_else(|_| usage());
+    let word = flag(args, "--word")
+        .unwrap_or_else(|| usage())
+        .to_uppercase();
+    if word.is_empty() || word.split_whitespace().count() != 1 {
+        fail(format!("--word must be one non-empty word, got {word:?}"));
+    }
+    let lm_bytes =
+        std::fs::read(&paths.cfg.lm).unwrap_or_else(|e| fail(format!("read base LM: {e}")));
+    let base_lm = lm::persist::interpolated_from_bytes(&lm_bytes)
+        .unwrap_or_else(|e| fail(format!("base LM not interpolated: {e}")));
+    let lexicon = lexicon::load_tiered(&paths.cfg.tier1, &paths.cfg.tier2)
+        .unwrap_or_else(|e| fail(format!("load tiered lexicon: {e}")));
+    let enrichment = load_why_enrichment(&paths.cfg).unwrap_or_else(|e| fail(e));
+    let futt = load_fabric_utt(Path::new(&fabric_dir), Path::new(&lattice_path), &utt)
+        .unwrap_or_else(|e| fail(e));
+    let committed_ids = futt.events.committed_token_ids();
+    let by_id: BTreeMap<u64, &lattice::Token> =
+        futt.lattice.tokens.iter().map(|t| (t.id, t)).collect();
+    let mut one_best_tokens = Vec::with_capacity(committed_ids.len());
+    for id in &committed_ids {
+        match by_id.get(id) {
+            Some(t) => one_best_tokens.push((*t).clone()),
+            None => fail(format!("{utt}: committed token id {id} not in lattice")),
+        }
+    }
+    let lat = lattice::Lattice {
+        utterance: futt.utt_id.clone(),
+        frame_shift_ms: futt.lattice.frame_shift_ms,
+        producer: "fabric-demo-one-best".to_string(),
+        tokens: one_best_tokens,
+        arcs: vec![],
+    };
+    let hyp = hyp_words(&lat);
+    if hyp != futt.transcript_words {
+        fail(format!(
+            "{utt}: committed winners [{}] != bridge transcript [{}]",
+            hyp.join(" "),
+            futt.transcript_words.join(" ")
+        ));
+    }
+    if index >= hyp.len() {
+        fail(format!(
+            "{utt}: --index {index} out of range (transcript has {} words)",
+            hyp.len()
+        ));
+    }
+    println!("utt {utt}\nbefore: {}", hyp.join(" "));
+    let display = format!("fabric: {lattice_path} + {fabric_dir}");
+    let why = transcript_json_from_fabric(
+        &futt,
+        &display,
+        &|history, word| enrichment.lm_probability(history, word),
+        &|word| enrichment.lexicon_source(word),
+    )
+    .unwrap_or_else(|e| fail(e));
+    println!(
+        "why[{}] {}",
+        hyp[index],
+        serde_json::to_string(&why["words"][index]).unwrap_or_default()
+    );
+    let mut corrected = hyp.clone();
+    corrected[index] = word;
+    let mut corr = match apply_correction(
+        &lexicon,
+        &base_lm,
+        &lat,
+        index,
+        &corrected,
+        &paths.workdir,
+        &utt,
+        paths.repeat,
+    ) {
+        Ok(c) => c,
+        Err(e) => fail(format!("{utt}: apply: {e}")),
+    };
+    println!(
+        "applied event={} token={} variant={:?} tri[{}] {}->{} p {:.3e}->{:.3e}\ncorrected LM: {}",
+        corr.event,
+        corr.token,
+        corr.variant,
+        corr.tri_key,
+        corr.tri_before,
+        corr.tri_after,
+        corr.prob_before,
+        corr.prob_after,
+        corr.lm_path.display()
+    );
+    println!("after (user-corrected): {}", corrected.join(" "));
+    let event = fabric::FactId(corr.event);
+    if let Err(e) = corr.ledger.undo(&mut corr.fabric, event) {
+        fail(format!("{utt}: undo: {e}"));
+    }
+    let state_after = corr.ledger.state_bytes();
+    if state_after != corr.state_before {
+        fail(format!("{utt}: ledger state not bit-identical after undo"));
+    }
+    let totals = corr.ledger.lm_totals();
+    if !totals.unigram.is_empty() || !totals.bigram.is_empty() || !totals.trigram.is_empty() {
+        fail(format!("{utt}: lm totals nonempty after undo"));
+    }
+    let before_path = paths
+        .workdir
+        .join(format!("fabric-ledger-{utt}.before.bin"));
+    let after_path = paths.workdir.join(format!("fabric-ledger-{utt}.after.bin"));
+    std::fs::write(&before_path, &corr.state_before)
+        .unwrap_or_else(|e| fail(format!("write {}: {e}", before_path.display())));
+    std::fs::write(&after_path, &state_after)
+        .unwrap_or_else(|e| fail(format!("write {}: {e}", after_path.display())));
+    println!("undo verified: post-undo ledger state bit-identical to pre-apply");
+    println!("FABRIC-DEMO OK: {utt} correction + undo verified");
+}
+
 fn cmd_decode(paths: &Paths, args: &[String]) {
     let utt = flag(args, "--utt").unwrap_or_else(|| usage());
     if let (Some(fabric_dir), Some(lattice)) = (flag(args, "--fabric-dir"), flag(args, "--lattice"))
@@ -658,7 +794,7 @@ fn main() {
     }
     let sub = args
         .iter()
-        .find(|a| *a == "decode" || *a == "probe" || *a == "demo")
+        .find(|a| *a == "decode" || *a == "probe" || *a == "demo" || *a == "fabric-demo")
         .cloned()
         .unwrap_or_else(|| usage());
     let paths = resolve_paths(&args);
@@ -672,6 +808,7 @@ fn main() {
         "decode" => cmd_decode(&paths, &args),
         "probe" => cmd_probe(&paths),
         "demo" => cmd_demo(&paths),
+        "fabric-demo" => cmd_fabric_demo(&paths, &args),
         _ => usage(),
     }
 }
