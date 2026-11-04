@@ -171,7 +171,34 @@ th25, th75; doc uses complete rows only.
 > oracle path). Late rescues 1/1/0/6 with dWER 0: counter events that
 > do not move transcripts (definition under review, post-deadline).
 
-### theta = -4.2967 (p25) -- RUNNING; theta = 750.6713 (p75) -- QUEUED
+### theta = -4.2967 (p25) -- COMPLETE (1600/1600 cells, 0 FAIL)
+
+> | budget | arm | WER | S | D | I | RTF | peak live | peak dormant | late rescues | dWER + 95% CI | dorm_oracle | rev_winner |
+> |---|---|---|---|---|---|---|---|---|---|---|---|
+> | 50 | A | 0.6430 | 2306 | 291 | 316 | 1.0854 | n/a | n/a | NA | NA | n/a | n/a |
+> | 50 | B | 0.9455 | 1239 | 3043 | 1 | 0.2959 | 1476 | 0 | NA | NA | 0 | 0 |
+> | 50 | C | 0.9455 | 1239 | 3043 | 1 | 0.5441 | 1511 | 17 | 1 | 0.0000 [0.0000, 0.0000] | 0 | 0 |
+> | 100 | A | 0.6430 | 2306 | 291 | 316 | 1.0854 | n/a | n/a | NA | NA | 0 | 0 |
+> | 100 | B | 0.9371 | 1565 | 2679 | 1 | 0.2923 | 2763 | 0 | NA | NA | 0 | 0 |
+> | 100 | C | 0.9371 | 1565 | 2679 | 1 | 0.5932 | 2798 | 17 | 1 | 0.0000 [0.0000, 0.0000] | 0 | 0 |
+> | 250 | A | 0.6430 | 2306 | 291 | 316 | 1.0854 | n/a | n/a | NA | NA | 0 | 0 |
+> | 250 | B | 0.9102 | 2302 | 1816 | 5 | 0.3412 | 7242 | 0 | NA | NA | 0 | 0 |
+> | 250 | C | 0.9102 | 2302 | 1816 | 5 | 0.6569 | 7298 | 41 | 0 | 0.0000 [0.0000, 0.0000] | 0 | 0 |
+> | 500 | A | 0.6430 | 2306 | 291 | 316 | 1.0854 | n/a | n/a | NA | NA | 0 | 0 |
+> | 500 | B | 0.8550 | 3079 | 648 | 146 | 0.3957 | 16364 | 0 | NA | NA | 0 | 0 |
+> | 500 | C | 0.8547 | 3079 | 648 | 145 | 0.7857 | 16454 | 62 | 7 | -0.0002 [-0.0007, 0.0000] | 0 | 0 |
+
+> Reading: budgets 50/100/250 identical to theta 0 (B==C everywhere).
+> At budget 500 the first nonzero delta in the experiment: C 0.8547 vs
+> B 0.8550 (dWER -0.0002, one fewer insertion, 145 vs 146; paired
+> bootstrap CI [-0.0007, 0.0000] touches 0 -- not significant at 95%).
+> rev_winner = 0, so the one-error difference did NOT come from a
+> revival reaching a commit; it comes from B-prune vs C-dormant holding
+> different live sets under budget pressure (peak live 16364 vs 16454).
+> dorm_oracle = 0 throughout. Peak dormant slightly below theta 0
+> (17/17/41/62), the expected theta direction.
+
+### theta = 750.6713 (p75) -- RUNNING
 
 ## Track B SANITY (unigram-cancel v1.5 lane): FAIL (2026-11-04)
 
