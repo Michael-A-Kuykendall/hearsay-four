@@ -143,6 +143,80 @@ J=100). Files `scripts/a6/out/headline_th{25,50,75}.tsv` + per-utt
 (15-col schema with dorm_oracle/rev_winner sums). Filling as theta
 rows complete; the doc uses complete rows only.
 
+## Track B SANITY (unigram-cancel v1.5 lane): FAIL (2026-11-04)
+
+Gate: DEV-200 arm C infinite budgets w_sequence 6 -> WER 0.681 (+-0.005),
+>=95% byte-identical to the lattice acoustic 1-best (3116 errs / 0.6805).
+Run: lane worktree `bead/ufe4-unigram-cancel-lexical`, 200 shards
+(`id 1000000000 C 1.0 6.0 -1e15 0.0 10 20`), 16 workers, 200/200 cells,
+0 FAIL. Collect: `sweep_collect --mode sweep --budgets 1000000000`
+(B task files symlinked to C; B rows ignored).
+
+Measured: C WER **0.8469** (S/D/I 3176/201/501), byte-identical to
+acoustic 1-best **5/200 = 2.5%** (SIL-strip normalized: same 5).
+1-best dump tool cross-checked at exactly 3116 errs / 0.6805 / 200 utts,
+so the reference side is exact.
+
+Diagnosis, two layers (both measured):
+
+1. WIRING (the cancel never engaged in this run). `ClosureScorer`
+   (`src/experiment/src/arms.rs`) implements only `sequence_llr`, so
+   `lexical_llr` fell back to the trait default `None`; the bridge falls
+   back to lattice-carried `t.lexical_llr`; the decoder emits
+   `lexical_llr: None` at all 3 sites (`src/decoder/src/moore.rs`
+   715/775/811). Zero LEXICAL evidence attached -- hence 0.8469 exactly
+   equals the pre-cancel post-v1.4 number (zero errors moved). The
+   lane's unit tests passed because they drive `InterpolatedScorer`
+   directly; the experiment path goes through `ClosureScorer`.
+2. THEORY (the gate assumed LM-inertness). Cancel-active decode
+   (`term_diff`, `InterpolatedScorer` direct, same SANITY config) on
+   DEV utt 1272-128104-0001 commits a path that is NOT the acoustic
+   1-best, with higher fabric S(T) -- a legitimate bigram-driven
+   rerank. S(T) = acoustic + 6.bigram does not reproduce acoustic-best
+   in general, so the 0.681/95% gate was unreachable at w6 regardless
+   of layer 1. (One utt proves rerank exists; the full-200
+   cancel-active rate needs the ClosureScorer fix + rerun and was
+   deprioritized past the 13:00 science stop.)
+
+Term-by-term table, 1272-128104-0001 (acous + 6.seqmax + 6.lex per
+token; seqmax = max over incoming arcs and the boundary pair):
+
+| path | word | acous | 6.seqmax | 6.lex | wsum |
+|---|---|---|---|---|---|
+| FABRIC | NORRIS | 3112.567 | 4.565 | -69.127 | 3048.006 |
+| FABRIC | MISTER | 536.336 | 1.287 | -43.163 | 494.460 |
+| FABRIC | COOL | 537.884 | 0.751 | -56.549 | 482.085 |
+| FABRIC | COURAGE | 508.528 | 16.307 | -55.121 | 469.714 |
+| FABRIC | MANNERS | 1265.211 | -0.094 | -57.967 | 1207.150 |
+| FABRIC | LASTING | 989.918 | -2.077 | -65.726 | 922.115 |
+| FABRIC | TRUSTING | 1105.101 | 1.894 | -64.670 | 1042.325 |
+| FABRIC | THAN | 571.416 | 6.189 | -37.461 | 540.144 |
+| FABRIC | HIS | 763.587 | 6.826 | -31.069 | 739.344 |
+| FABRIC | MATTER | 1061.622 | -0.455 | -52.791 | 1008.376 |
+| FABRIC | CAN | 1317.879 | 3.681 | -43.636 | 1277.924 |
+| FABRIC | TOTAL | 11770.050 | 38.872 | -577.280 | S=11231.643 |
+| 1BEST | NOR | 2648.527 | -1.869 | -44.359 | 2602.299 |
+| 1BEST | IS | 468.524 | 5.207 | -32.736 | 440.995 |
+| 1BEST | MISTER | 536.336 | 1.287 | -43.163 | 494.460 |
+| 1BEST | CULTURES | 1018.103 | 0.000 | -73.388 | 944.714 |
+| 1BEST | MANNERS | 1265.211 | -0.094 | -57.967 | 1207.150 |
+| 1BEST | LESS | 597.996 | -1.103 | -48.566 | 548.327 |
+| 1BEST | INTERESTING | 1456.654 | 21.242 | -56.818 | 1421.078 |
+| 1BEST | THAN | 571.416 | 6.189 | -37.461 | 540.144 |
+| 1BEST | HIS | 763.587 | 6.826 | -31.069 | 739.344 |
+| 1BEST | MATTER | 1061.622 | -0.455 | -52.791 | 1008.376 |
+| 1BEST | CAN | 1317.879 | 3.681 | -43.636 | 1277.924 |
+| 1BEST | TOTAL | 11705.855 | 40.911 | -521.954 | S=11224.811 |
+
+Reading: the fabric's commit wins on acoustic (11770.1 vs 11705.9)
+while the 1-best wins the lexical term (-522.0 vs -577.3, commoner
+words); seqmax is near-tied (+38.9 vs +40.9). S_fabric > S_1best, so
+the commit is the argmax -- the DP is consistent; the gate theory was
+not. Lane worktree retained with `sanity.tsv`, `term_diff`,
+`dump_1best` evidence. Post-deadline: thread a lex closure through
+`run_fabric_arm` into `ClosureScorer`, re-SANITY against a corrected
+(decoder-score, not acoustic-score) gate.
+
 ## Per-budget chart (WER vs budget by arm)
 
 Charts below are the REAL render from `sweep_real.tsv` (stdlib-only, no matplotlib; `A6-sample.tsv` regenerates the sample pair via `--sample`):
