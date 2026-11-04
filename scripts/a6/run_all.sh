@@ -85,7 +85,7 @@ check_schema() {
     # every budget x arm exactly once.
     local tsv="$1" want="$2"; shift 2
     local expected
-    expected="$(printf 'budget\tarm\tWER\tS\tD\tI\tRTF\tpeak_live\tpeak_dormant\tlate_rescues\tdWER\tCI_lo\tCI_hi')"
+    expected="$(printf 'budget\tarm\tWER\tS\tD\tI\tRTF\tpeak_live\tpeak_dormant\tlate_rescues\tdWER\tCI_lo\tCI_hi\tdorm_oracle\trev_winner')"
     local header
     header="$(head -n 1 "$tsv")"
     if [ "$header" != "$expected" ]; then

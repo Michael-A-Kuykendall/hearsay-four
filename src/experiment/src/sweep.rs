@@ -654,6 +654,10 @@ pub struct SweepCell {
     /// `None` on B rows (rendered `NA`).
     pub rescues: Option<usize>,
     pub delta: Option<BootstrapCi>,
+    /// Commit-diagnostic sums over the cell runs (`None` on arm-A rows;
+    /// rendered `n/a`). B rows sum to 0 (nothing dormant, nothing revives).
+    pub dormant_oracle_touch: Option<usize>,
+    pub revivals_in_winner: Option<usize>,
 }
 
 /// Late-rescue counter: C-committed words that B had pruned or evicted AND
@@ -685,6 +689,8 @@ pub struct CellRun {
     pub revivals: Vec<String>,
     pub peak_live: usize,
     pub peak_dormant: usize,
+    pub dormant_oracle_touch: usize,
+    pub revivals_in_winner: usize,
     pub elapsed: f64,
     pub span: f64,
 }
@@ -736,6 +742,8 @@ pub fn sweep_test(
                 revivals: o.revivals,
                 peak_live: o.peak_live,
                 peak_dormant: o.peak_dormant,
+                dormant_oracle_touch: o.dormant_oracle_touch,
+                revivals_in_winner: o.revivals_in_winner,
                 elapsed: o.elapsed_sec,
                 span: o.span_sec,
             }),
@@ -806,6 +814,8 @@ pub fn assemble_cell(
         rtf: if span > 0.0 { elapsed / span } else { 0.0 },
         peak_live: Some(runs.iter().map(|r| r.peak_live).max().unwrap_or(0)),
         peak_dormant: Some(runs.iter().map(|r| r.peak_dormant).max().unwrap_or(0)),
+        dormant_oracle_touch: Some(runs.iter().map(|r| r.dormant_oracle_touch).sum()),
+        revivals_in_winner: Some(runs.iter().map(|r| r.revivals_in_winner).sum()),
         rescues,
         delta,
     }
@@ -833,14 +843,15 @@ pub fn assemble_arm_a_cell(
         rtf: if audio > 0.0 { decode / audio } else { 0.0 },
         peak_live: None,
         peak_dormant: None,
+        dormant_oracle_touch: None,
+        revivals_in_winner: None,
         rescues: None,
         delta: None,
     }
 }
 
 /// Fixed TSV schema (the run's falsification gate: any missing column fails).
-pub const SWEEP_TSV_HEADER: &str =
-    "budget\tarm\tWER\tS\tD\tI\tRTF\tpeak_live\tpeak_dormant\tlate_rescues\tdWER\tCI_lo\tCI_hi";
+pub const SWEEP_TSV_HEADER: &str = "budget\tarm\tWER\tS\tD\tI\tRTF\tpeak_live\tpeak_dormant\tlate_rescues\tdWER\tCI_lo\tCI_hi\tdorm_oracle\trev_winner";
 
 fn arm_name(arm: Arm) -> &'static str {
     match arm {
@@ -880,8 +891,16 @@ pub fn render_sweep_tsv(cells: &[SweepCell]) -> String {
             .peak_dormant
             .map(|p| p.to_string())
             .unwrap_or("n/a".to_string());
+        let dor = c
+            .dormant_oracle_touch
+            .map(|p| p.to_string())
+            .unwrap_or("n/a".to_string());
+        let rw = c
+            .revivals_in_winner
+            .map(|p| p.to_string())
+            .unwrap_or("n/a".to_string());
         s.push_str(&format!(
-            "{}\t{}\t{:.4}\t{}\t{}\t{}\t{:.4}\t{pl}\t{pd}\t{resc}\t{dw}\t{lo}\t{hi}\n",
+            "{}\t{}\t{:.4}\t{}\t{}\t{}\t{:.4}\t{pl}\t{pd}\t{resc}\t{dw}\t{lo}\t{hi}\t{dor}\t{rw}\n",
             c.budget,
             arm_name(c.arm),
             c.wer,
@@ -1005,7 +1024,7 @@ mod tests {
     fn tsv_header_is_exact() {
         assert_eq!(
             SWEEP_TSV_HEADER,
-            "budget\tarm\tWER\tS\tD\tI\tRTF\tpeak_live\tpeak_dormant\tlate_rescues\tdWER\tCI_lo\tCI_hi"
+            "budget\tarm\tWER\tS\tD\tI\tRTF\tpeak_live\tpeak_dormant\tlate_rescues\tdWER\tCI_lo\tCI_hi\tdorm_oracle\trev_winner"
         );
     }
 
@@ -1023,6 +1042,8 @@ mod tests {
             rtf: 0.01,
             peak_live: Some(12),
             peak_dormant: Some(0),
+            dormant_oracle_touch: Some(0),
+            revivals_in_winner: Some(0),
             rescues: None,
             delta: None,
         };
@@ -1037,6 +1058,8 @@ mod tests {
             rtf: 0.02,
             peak_live: Some(12),
             peak_dormant: Some(3),
+            dormant_oracle_touch: Some(2),
+            revivals_in_winner: Some(1),
             rescues: Some(1),
             delta: Some(ci),
         };
@@ -1045,7 +1068,7 @@ mod tests {
         assert_eq!(lines.len(), 3);
         assert_eq!(lines[0], SWEEP_TSV_HEADER);
         assert!(
-            lines[1].ends_with("\tNA\tNA\tNA\tNA"),
+            lines[1].ends_with("\tNA\tNA\tNA\tNA\t0\t0"),
             "B row: {}",
             lines[1]
         );

@@ -107,6 +107,14 @@ fn read_task(dir: &Path, utt: &str, budget: usize, arm: &str) -> Option<CellRun>
         revivals,
         peak_live: v["peak_live"].as_u64().unwrap() as usize,
         peak_dormant: v["peak_dormant"].as_u64().unwrap() as usize,
+        dormant_oracle_touch: v
+            .get("dormant_oracle_touch")
+            .and_then(|n| n.as_u64())
+            .unwrap_or(0) as usize,
+        revivals_in_winner: v
+            .get("revivals_in_winner")
+            .and_then(|n| n.as_u64())
+            .unwrap_or(0) as usize,
         elapsed: v["elapsed_sec"].as_f64().unwrap(),
         span: v["span_sec"].as_f64().unwrap(),
     })
@@ -225,7 +233,7 @@ fn run_sweep(
     let denoms: Vec<u32> = refs.iter().map(|r| r.len() as u32).collect();
     let mut cells = Vec::new();
     let mut detail = String::from(
-        "id\tbudget\tref_len\ta_errs\tb_errs\tc_errs\tb_peak_live\tb_peak_dorm\tc_peak_live\tc_peak_dorm\tb_hyp\tc_hyp\n",
+        "id\tbudget\tref_len\ta_errs\tb_errs\tc_errs\tb_peak_live\tb_peak_dorm\tc_peak_live\tc_peak_dorm\tc_dorm_oracle\tc_rev_winner\tb_hyp\tc_hyp\n",
     );
     for &budget in budgets {
         let mut b_runs = Vec::new();
@@ -265,7 +273,7 @@ fn run_sweep(
         );
         for (k, id) in ids.iter().enumerate() {
             detail.push_str(&format!(
-                "{id}\t{budget}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+                "{id}\t{budget}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
                 refs[k].len(),
                 a_errs[k],
                 b_errs[k],
@@ -274,6 +282,8 @@ fn run_sweep(
                 b_runs[k].peak_dormant,
                 c_runs[k].peak_live,
                 c_runs[k].peak_dormant,
+                c_runs[k].dormant_oracle_touch,
+                c_runs[k].revivals_in_winner,
                 b_runs[k].hyp.join(" "),
                 c_runs[k].hyp.join(" "),
             ));
