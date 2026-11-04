@@ -112,7 +112,9 @@ fn internal_prune_rescores_premise_dependents() {
         ..Default::default()
     };
     let mut d = DecisionFabric::new(p);
-    let weak = d.mint_token("weak", TokenKind::Word, 0, 5).unwrap();
+    // Shared end (§8 v1.3): both ends equal the frontier, so the
+    // below-threshold victim stays unsealed and prune engages.
+    let weak = d.mint_token("weak", TokenKind::Word, 0, 15).unwrap();
     d.add_unary(weak, SourceClass::Acoustic, 1.0, no_premises())
         .unwrap();
     let h = d.mint_token("reef", TokenKind::Word, 5, 15).unwrap();

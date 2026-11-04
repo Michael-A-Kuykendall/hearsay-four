@@ -263,7 +263,9 @@ fn deep_eviction_order_matches() {
     let mut o = old::DecisionFabric::new(po);
     let mut toks = Vec::new();
     for i in 0..150u64 {
-        let s = (i * 2) as u32;
+        // Shared span (§8 v1.3): all ends equal the frontier, so nothing
+        // seals and tiny budgets engage as before.
+        let s = 0u32;
         let label = format!("w{}", i % 7);
         let a = n
             .mint_token(label.clone(), new::TokenKind::Word, s, s + 5)
@@ -324,7 +326,9 @@ fn counts_open_set_and_stats_are_sane() {
     let mut d = new::DecisionFabric::new(p);
     let mut toks = Vec::new();
     for i in 0..20u64 {
-        let s = (i * 3) as u32;
+        // Shared span (§8 v1.3): all ends equal the frontier, so nothing
+        // seals and tiny budgets engage as before.
+        let s = 0u32;
         let t = d
             .mint_token(format!("w{i}"), new::TokenKind::Word, s, s + 6)
             .unwrap();

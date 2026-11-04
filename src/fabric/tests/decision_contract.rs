@@ -27,7 +27,7 @@ fn token(fact: u64, label: &str, start: u32, end: u32) -> Token {
 
 #[test]
 fn spec_version_is_cited() {
-    assert_eq!(SPEC_VERSION, "1.2");
+    assert_eq!(SPEC_VERSION, "1.3");
     // Every class names its declared null (§3 rule 1).
     for class in [
         SourceClass::Acoustic,
@@ -714,4 +714,122 @@ fn decision_arm_c_combined_budget_counts_live_plus_dormant() {
         )),
         "dormant eviction is attributed to the combined budget"
     );
+}
+#[test]
+fn sealed_token_never_evicted_from_live_budget() {
+    // §8 v1.3: sealed tokens stay for tiling but are exempt from budgets
+    // and eviction. New-sealed pattern (far first, then old with a small
+    // end) keeps the sealed entry in the victim heap so the eviction
+    // skip is load-bearing. Falsification: removing the sealed-skip in
+    // eviction victim selection must fail this test (old has lowest L).
+    let params = DecisionParams {
+        theta_live: 0.0,
+        live_budget: 1,
+        j: 3,
+        ..DecisionParams::default()
+    };
+    let mut d = DecisionFabric::new(params);
+    let far1 = d.mint_token("far1", TokenKind::Word, 20, 30).expect("t");
+    d.add_unary(far1, SourceClass::Acoustic, 2.0, no_premises())
+        .expect("a");
+    let far2 = d.mint_token("far2", TokenKind::Word, 20, 30).expect("t");
+    d.add_unary(far2, SourceClass::Acoustic, 3.0, no_premises())
+        .expect("a");
+    let old = d.mint_token("old", TokenKind::Word, 0, 10).expect("t");
+    d.add_unary(old, SourceClass::Acoustic, 1.0, no_premises())
+        .expect("a");
+    assert_eq!(d.intake_frontier(), 30);
+    assert!(d.is_sealed(old), "frontier 30 > 10 + 3");
+    assert!(!d.is_sealed(far1));
+    assert!(!d.is_sealed(far2));
+    assert!(d.is_live(old), "sealed stays live for tiling");
+    d.enforce_budgets();
+    assert!(
+        d.fabric().is_active(old),
+        "sealed with lowest L must survive"
+    );
+    assert!(!d.fabric().is_active(far1), "lowest unsealed evicted");
+    assert!(d.fabric().is_active(far2));
+    assert!(
+        d.events().iter().any(|e| matches!(
+            e,
+            DecisionEvent::Evicted {
+                token: t,
+                budget: BudgetKind::Live,
+                ..
+            } if *t == far1
+        )),
+        "unsealed eviction attributed to live budget"
+    );
+    assert!(
+        !d.events().iter().any(|e| matches!(
+            e,
+            DecisionEvent::Evicted { token: t, .. } if *t == old
+        )),
+        "sealed must never appear in eviction log"
+    );
+    // Sealed still tiles (§8 v1.3: tiling/commit unchanged).
+    let (winner, _) = d.best_tilings((0, 10));
+    let w = winner.expect("sealed live tiling wins");
+    assert!(w.tokens.contains(&old));
+}
+#[test]
+fn sealed_token_never_evicted_from_dormant_budget() {
+    // §8 v1.3: sealed dormant exempt from dormant/combined tallies.
+    // New-sealed pattern (far first) keeps the sealed entry in the
+    // victim heap so the dormant-loop skip is load-bearing.
+    let params = DecisionParams {
+        arm: Arm::C,
+        theta_live: 10.0,
+        dormant_budget: 1,
+        j: 3,
+        ..DecisionParams::default()
+    };
+    let mut d = DecisionFabric::new(params);
+    let far1 = d.mint_token("far1", TokenKind::Word, 20, 30).expect("t");
+    d.add_unary(far1, SourceClass::Acoustic, 2.0, no_premises())
+        .expect("a");
+    let far2 = d.mint_token("far2", TokenKind::Word, 20, 30).expect("t");
+    d.add_unary(far2, SourceClass::Acoustic, 3.0, no_premises())
+        .expect("a");
+    let old = d.mint_token("old", TokenKind::Word, 0, 10).expect("t");
+    d.add_unary(old, SourceClass::Acoustic, 1.0, no_premises())
+        .expect("a");
+    assert!(d.is_sealed(old));
+    assert!(d.is_dormant(old));
+    d.enforce_budgets();
+    assert!(d.fabric().is_active(old), "sealed dormant survives");
+    assert!(!d.fabric().is_active(far1));
+    assert!(d.fabric().is_active(far2));
+}
+#[test]
+fn sealed_token_exempt_from_arm_b_prune() {
+    // §8 v1.3: sealed below-threshold exempt from arm-B beam prune.
+    // New-sealed pattern (far first) for consistency with eviction tests.
+    let params = DecisionParams {
+        arm: Arm::B,
+        theta_live: 10.0,
+        j: 3,
+        ..DecisionParams::default()
+    };
+    let mut d = DecisionFabric::new(params);
+    let far = d.mint_token("far", TokenKind::Word, 20, 30).expect("t");
+    d.add_unary(far, SourceClass::Acoustic, 2.0, no_premises())
+        .expect("a");
+    let old = d.mint_token("old", TokenKind::Word, 0, 10).expect("t");
+    d.add_unary(old, SourceClass::Acoustic, 1.0, no_premises())
+        .expect("a");
+    assert!(d.is_sealed(old));
+    assert!(!d.is_sealed(far));
+    d.enforce_budgets();
+    assert!(d.fabric().is_active(old), "sealed survives prune");
+    assert!(!d.fabric().is_active(far), "unsealed pruned");
+    assert!(d.events().iter().any(|e| matches!(
+        e,
+        DecisionEvent::Pruned { token: t, .. } if *t == far
+    )));
+    assert!(!d.events().iter().any(|e| matches!(
+        e,
+        DecisionEvent::Pruned { token: t, .. } if *t == old
+    )));
 }

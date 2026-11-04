@@ -85,7 +85,14 @@ fn feed_scale_budget(n: u64, setting: &BudgetSetting) -> (f64, usize, [u64; 9], 
         (0.0, 0.0, 0.0, 0.0, 0.0);
     let t0 = Instant::now();
     for i in 0..n {
-        let s = i as u32;
+        // Batched spans (§8 v1.3): 600 tokens share each [E-5, E) with
+        // E stepping by 10, so the unsealed window (last batch, 600)
+        // exceeds every finite budget (50/120/500) and budgets engage.
+        // Step 10 leaves gaps (no tiling; commits report NoTiling) and
+        // empty J-windows (attach cheap); the budget path stays the
+        // measured load.
+        let batch = i / 600;
+        let s = (batch * 10) as u32;
         let p0 = Instant::now();
         let t = d
             .mint_token(format!("w{i}"), TokenKind::Word, s, s + 5)

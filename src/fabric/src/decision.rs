@@ -19,7 +19,7 @@ use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, VecDeque};
 
 /// The frozen spec version implemented by this module (§14).
-pub const SPEC_VERSION: &str = "1.2";
+pub const SPEC_VERSION: &str = "1.3";
 
 /// Label of the sentence-start pseudo-token `t0` (§4 boundary pair).
 pub const SENTENCE_START: &str = "<s>";
@@ -540,6 +540,10 @@ pub struct DecisionFabric {
     /// Persistent budget heaps (bead ts1o): maintained incrementally by
     /// the propagation drain, rebuilt on external dirt.
     budget: BudgetState,
+    /// Intake frontier (§8 v1.3): max `end_frame` over minted tokens.
+    /// Sealed(f) iff frontier > f.end + J; sealed stay for tiling but
+    /// are exempt from budgets, eviction, and prune.
+    intake_frontier: u32,
 }
 
 impl DecisionFabric {
@@ -570,6 +574,7 @@ impl DecisionFabric {
             cache: RefCell::new(LivenessCache::default()),
             external_dirty: Cell::new(false),
             budget: BudgetState::default(),
+            intake_frontier: 0,
         }
     }
 
@@ -596,7 +601,15 @@ impl DecisionFabric {
     pub fn events(&self) -> &[DecisionEvent] {
         &self.log
     }
-
+    pub fn intake_frontier(&self) -> u32 {
+        self.intake_frontier
+    }
+    pub fn is_sealed(&self, token: FactId) -> bool {
+        let Some(t) = self.tokens.get(&token) else {
+            return false;
+        };
+        self.intake_frontier > t.end_frame.saturating_add(self.params.j)
+    }
     /// Register a token fact (§2). Zero-length spans are rejected (§7).
     pub fn register_token(
         &mut self,
@@ -619,6 +632,9 @@ impl DecisionFabric {
         self.by_end.entry(end_frame).or_default().insert(fact);
         self.by_start.entry(start_frame).or_default().insert(fact);
         self.tokens.insert(fact, token);
+        // Intake frontier (§8 v1.3): max end over minted tokens.
+        let old_frontier = self.intake_frontier;
+        self.intake_frontier = self.intake_frontier.max(end_frame);
         let in_region = self
             .committed_regions
             .iter()
@@ -637,6 +653,31 @@ impl DecisionFabric {
         } else {
             self.open.remove(&fact);
             self.active_all.remove(&fact);
+        }
+        // Newly sealed (§8 v1.3): a frontier advance exempts tokens with
+        // end in [old_thr, new_thr) from budget counts. State entries are
+        // removed eagerly (heap entries go stale, skipped cheaply at pop)
+        // so heaps stay bounded by the unsealed window. Victim-selection
+        // skipping stays load-bearing for new-sealed tokens minted with
+        // old ends (sync pushes them; see sealed-never-evicted test).
+        if self.intake_frontier > old_frontier && !self.budget.dirty {
+            let old_thr = old_frontier.saturating_sub(self.params.j);
+            let new_thr = self.intake_frontier.saturating_sub(self.params.j);
+            if new_thr > old_thr {
+                let mut newly: Vec<FactId> = Vec::new();
+                for (_, facts) in self.by_end.range(old_thr..new_thr) {
+                    newly.extend(facts.iter().copied());
+                }
+                for t in newly {
+                    if let Some((liv, _)) = self.budget.state.remove(&t) {
+                        if liv >= self.params.theta_live {
+                            self.budget.live_count -= 1;
+                        } else if self.params.arm == Arm::C {
+                            self.budget.dormant_count -= 1;
+                        }
+                    }
+                }
+            }
         }
         // Sync the derived pools to the new membership (idempotent; also
         // refreshes a re-registered token's liveness).
@@ -913,11 +954,16 @@ impl DecisionFabric {
         self.sync_open();
         // Mutations iterate every active token (committed regions
         // included), exactly as the pre-index full scan did.
+        // Sealed (§8 v1.3) are exempt from prune.
         let victims: Vec<FactId> = self
             .active_all
             .iter()
             .copied()
-            .filter(|t| self.fabric.is_active(*t) && self.liveness(*t) < self.params.theta_live)
+            .filter(|t| {
+                self.fabric.is_active(*t)
+                    && self.liveness(*t) < self.params.theta_live
+                    && !self.is_sealed(*t)
+            })
             .collect();
         for victim in victims {
             let liveness = self.liveness(victim);
@@ -970,17 +1016,24 @@ impl DecisionFabric {
         }
         // R2 (spec docs/design/a4-budget-semantics.md): live cap first,
         // then dormant + combined. Victim order everywhere: lowest L(h),
-        // ties by §10 tie order. The persistent heaps hold exactly the
-        // budget members with current liveness (drain-synced), so popping
-        // reproduces the per-call sort's victim sequence with no sort.
-        // Evictions re-sync dependents through the propagation drain
-        // (`retract_internal`), which subsumes the old neighbor refresh.
+        // ties by §10 tie order. The persistent heaps hold the budget
+        // members plus sealed-exempt entries (§8 v1.3, drain-synced);
+        // popping reproduces the per-call sort's victim sequence with no
+        // sort, skipping sealed explicitly. Evictions re-sync dependents
+        // through the propagation drain (`retract_internal`), which
+        // subsumes the old neighbor refresh.
         while self.budget.live_count > self.params.live_budget {
             let Some(victim) =
                 Self::pop_fresh(&mut self.budget.live_heap, &self.budget.state, &self.stats)
             else {
                 break;
             };
+            // Sealed (§8 v1.3) are exempt from eviction; drop the state
+            // entry (no count change, already excluded) and skip.
+            if self.is_sealed(victim) {
+                self.budget_drop(victim);
+                continue;
+            }
             let liveness = self.liveness(victim);
             self.retract_internal(victim);
             self.open.remove(&victim);
@@ -1005,6 +1058,12 @@ impl DecisionFabric {
                     ) else {
                         break;
                     };
+                    // Sealed (§8 v1.3) are exempt from eviction; drop the
+                    // state entry (no count change, already excluded).
+                    if self.is_sealed(victim) {
+                        self.budget_drop(victim);
+                        continue;
+                    }
                     let liveness = self.liveness(victim);
                     self.retract_internal(victim);
                     self.open.remove(&victim);
@@ -1041,6 +1100,12 @@ impl DecisionFabric {
             ) else {
                 return;
             };
+            // Sealed (§8 v1.3) are exempt from eviction; drop the state
+            // entry (no count change, already excluded) and skip.
+            if self.is_sealed(victim) {
+                self.budget_drop(victim);
+                continue;
+            }
             let liveness = self.liveness(victim);
             self.retract_internal(victim);
             self.open.remove(&victim);
@@ -1916,6 +1981,10 @@ impl DecisionFabric {
             (false, None) => {}
             (false, Some((liv, _))) => {
                 self.budget.state.remove(&token);
+                // Sealed (§8 v1.3) were never counted; skip the decrement.
+                if self.is_sealed(token) {
+                    return;
+                }
                 if liv >= self.params.theta_live {
                     self.budget.live_count -= 1;
                 } else if self.params.arm == Arm::C {
@@ -1927,6 +1996,32 @@ impl DecisionFabric {
                 let theta = self.params.theta_live;
                 let arm_c = self.params.arm == Arm::C;
                 let is_live = liv >= theta;
+                // Sealed (§8 v1.3): counts exclude, but state/heap entries
+                // stay so eviction victim selection skips them explicitly
+                // (load-bearing for the sealed-never-evicted falsification).
+                if self.is_sealed(token) {
+                    let version = old.map_or(0, |(_, v)| v + 1);
+                    self.budget.state.insert(token, (liv, version));
+                    let (start_frame, label) = {
+                        let t = &self.tokens[&token];
+                        (t.start_frame, t.label.clone())
+                    };
+                    let entry = Reverse(BudgetEntry {
+                        liveness: liv,
+                        start_frame,
+                        label,
+                        version,
+                        token,
+                    });
+                    if is_live {
+                        self.budget.live_heap.push(entry);
+                        FabricStats::bump(&self.stats.heap_pushes);
+                    } else if arm_c {
+                        self.budget.dormant_heap.push(entry);
+                        FabricStats::bump(&self.stats.heap_pushes);
+                    }
+                    return;
+                }
                 match old {
                     None => {
                         if is_live {
@@ -1985,6 +2080,10 @@ impl DecisionFabric {
     /// entries for the token are skipped lazily at pop time.
     fn budget_drop(&mut self, token: FactId) {
         if let Some((liv, _)) = self.budget.state.remove(&token) {
+            // Sealed (§8 v1.3) were never counted; skip the decrement.
+            if self.is_sealed(token) {
+                return;
+            }
             if liv >= self.params.theta_live {
                 self.budget.live_count -= 1;
             } else if self.params.arm == Arm::C {
