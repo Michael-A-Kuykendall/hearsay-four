@@ -260,10 +260,8 @@ pub fn commit_diagnostics(events_jsonl: &str, oracle_ids: &[u64]) -> (usize, usi
                     .get("budget")
                     .and_then(|b| b.as_str())
                     .is_some_and(|b| b == "dormant");
-                if dormant {
-                    if let Some(id) = tid {
-                        dormant_evicted.insert(id);
-                    }
+                if let Some(id) = tid.filter(|_| dormant) {
+                    dormant_evicted.insert(id);
                 }
             }
             "committed" => {
