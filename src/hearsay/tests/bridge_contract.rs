@@ -515,7 +515,83 @@ fn fabric_transcript_on_5_dev5() {
         );
     }
 }
-
+#[test]
+fn dev5_one_pass_transcripts_pinned_with_direction() {
+    // 7mge: one-pass intake preserves the dev5 transcripts exactly under the
+    // fallback tiny LM (measured old==new on all 5 utterances — see bead
+    // comment for the full old-to-new record: default budgets never bind,
+    // so interleaving changes nothing here; the behavior change manifests
+    // under budget pressure, proven by
+    // one_pass_preserves_weak_midchain_word_with_strong_successor).
+    // Pins the transcripts word-for-word plus the never-worse direction
+    // bounds from the recorded two-phase baseline (134 words, 0 gaps).
+    // Skipped when dev5 lattices are absent; exact pins apply only under
+    // the fallback LM (the shipped LM would legitimately change output).
+    if dev5_paths().is_none() {
+        eprintln!("data/lattices/dev5 absent: skipping one-pass pin test");
+        return;
+    }
+    let shipped = workspace_dir().join("data/lm-text/r1v2-full/lm-r1v2-interpolated.json");
+    let fallback_lm = std::fs::metadata(&shipped).is_err();
+    let pop = gate_population();
+    assert_eq!(pop.len(), 5);
+    let lm = resolve_lm();
+    let outs = decode_all(&pop, &lm);
+    for out in &outs {
+        assert!(
+            !out.transcript.is_empty(),
+            "utterance {} never degenerates to empty",
+            out.utterance
+        );
+    }
+    if !fallback_lm {
+        eprintln!("shipped LM present: skipping exact transcript pins");
+        return;
+    }
+    let total_words: usize = outs.iter().map(|o| o.transcript.len()).sum();
+    let total_gaps: usize = outs.iter().map(|o| o.gaps.len()).sum();
+    assert_eq!(
+        total_words, 134,
+        "one-pass keeps all 134 two-phase dev5 words (never fewer)"
+    );
+    assert_eq!(
+        total_gaps, 0,
+        "one-pass adds no dev5 gaps over the two-phase baseline of 0"
+    );
+    let pinned: &[(&str, &str)] = &[
+        (
+            "1272-128104-0001",
+            "BUN AU AW OI OOZE MS TER COOL COURAGE MEN ER ER ZILLAH STING CHURCH KING'S AN WHOSE MATTER CONE",
+        ),
+        (
+            "1272-135031-0000",
+            "THEE COO INNS HUE RISK LEAK EEL IN CE OF OF CONK RING THA OO LOVE LIEU RUSE KIN SOUS FUZZ POOH COO FU GO WUZ VO KNOW MME PAUL THE CAP HAULED PAW ER SHAGGY CID CE ERROR BURR ER COOING OO DOE VAN",
+        ),
+        (
+            "1272-135031-0013",
+            "FUCK INK FOR MME SHEW DIG E UNS THAN IN A MAN ALL FORCED CUFF NONE",
+        ),
+        (
+            "1272-135031-0019",
+            "NUT AX FOR DICK PER MURK COO BEARD SOOTH FAWN TWEAK A NONE",
+        ),
+        (
+            "1272-135031-0023",
+            "THA COW OAR GOO O WHEN TO THE BEEN GONG A KEMP HOW NOON AH MC SHOES TWOS CE BURR GOOD OO E U SH TUG NUKE THA PUT MO WOOD HAS SHEWN DEUCE O MME ODD NCE A NONE",
+        ),
+    ];
+    for (utt, words) in pinned {
+        let out = outs
+            .iter()
+            .find(|o| o.utterance == *utt)
+            .unwrap_or_else(|| panic!("pinned utterance {utt} decodes"));
+        assert_eq!(
+            out.transcript.join(" "),
+            *words,
+            "one-pass transcript for {utt}"
+        );
+    }
+}
 #[test]
 fn non_empty_event_log() {
     let pop = gate_population();
@@ -562,4 +638,48 @@ fn render_unknown_fact_falls_back_to_fact_id() {
     );
     assert!(jsonl.contains("\"fact\":7"));
     assert!(jsonl.contains("\"fact\":9"));
+}
+#[test]
+fn one_pass_preserves_weak_midchain_word_with_strong_successor() {
+    // Falsification for frame-order single-pass intake (7mge): whiskey has
+    // weak acoustic support (+0.5, weakest live token) but a strong +10
+    // successor bigram (whiskey -> sierra). Under two-phase intake all six
+    // tokens are minted before any SEQUENCE attaches, so the first budget
+    // enforcement (live cap 3) evicts whiskey before sierra's +10 can land
+    // and the transcript loses it. Under one-pass intake only frontier-near
+    // tokens compete when whiskey arrives, so it survives until sierra's
+    // arrival boosts it to 10.5. A kept two-phase implementation FAILS this
+    // test (whiskey absent); one-pass PASSES (whiskey present).
+    let lat = read(&lat_text(
+        "midchain",
+        &[
+            (1, "alpha", 0, 10, 3.0),
+            (2, "bravo", 10, 20, 3.0),
+            (3, "whiskey", 20, 30, 0.5),
+            (4, "sierra", 30, 40, 3.0),
+            (5, "rival-one", 40, 50, 0.25),
+            (6, "rival-two", 50, 60, 0.25),
+        ],
+        &[(1, 2), (2, 3), (3, 4)],
+    ));
+    let scorer = map_scorer(0.0, &[("whiskey", "sierra", 10.0)], 0.0);
+    let out = decode_lattice(
+        &lat,
+        &scorer,
+        DecisionParams {
+            live_budget: 3,
+            ..Default::default()
+        },
+    )
+    .expect("decodes");
+    assert!(
+        out.transcript.contains(&"whiskey".to_string()),
+        "one-pass keeps the weak mid-chain word; transcript: {:?}",
+        out.transcript
+    );
+    assert!(
+        !out.uncommitted_ids.contains(&3),
+        "whiskey commits; uncommitted: {:?}",
+        out.uncommitted_ids
+    );
 }
