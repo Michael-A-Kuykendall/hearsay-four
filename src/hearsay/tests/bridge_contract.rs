@@ -270,15 +270,16 @@ fn empty_lattice_fails_loudly() {
 fn finite_budgets_bind_peaks_and_evict_in_both_arms() {
     // Six live tokens against tight caps: peaks stay within budget and
     // evictions are logged. Arm C keeps a dormant pool; arm B holds no
-    // dormant tokens at all (a4 R3).
+    // dormant tokens at all (a4 R3). v1.3: all six share one span so none
+    // seal (frontier never passes end+J) and budgets engage the window.
     use hearsay::Arm;
     let toks = [
         (1, "alpha", 0, 10, 2.0),
-        (2, "bravo", 10, 20, 2.0),
-        (3, "charlie", 20, 30, 2.0),
-        (4, "delta", 30, 40, 2.0),
-        (5, "echo", 40, 50, 2.0),
-        (6, "foxtrot", 50, 60, 2.0),
+        (2, "bravo", 0, 10, 2.0),
+        (3, "charlie", 0, 10, 2.0),
+        (4, "delta", 0, 10, 2.0),
+        (5, "echo", 0, 10, 2.0),
+        (6, "foxtrot", 0, 10, 2.0),
     ];
     let arcs = [(1, 2), (2, 3), (3, 4), (4, 5), (5, 6)];
     let scorer = map_scorer(0.0, &[], 0.0);
