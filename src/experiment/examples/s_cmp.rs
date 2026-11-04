@@ -62,9 +62,14 @@ fn main() {
         ..DecisionParams::default()
     };
     let out = hearsay::decode_lattice(&lattice, &scorer, params).expect("decode");
-    let s_fabric = out.commits[0].winner_score;
+    let s_fabric: f64 = out.commits.iter().map(|c| c.winner_score).sum();
     println!("oracle_ids={} S_oracle={s_oracle:.2}", oids.len());
-    println!("fabric_ntokens={} S_fabric={s_fabric:.2}", out.transcript.len());
+    println!(
+        "fabric_ntokens={} S_fabric={s_fabric:.2} n_commits={} gaps={:?}",
+        out.transcript.len(),
+        out.commits.len(),
+        out.gaps
+    );
     println!("delta_oracle_minus_fabric={:.2}", s_oracle - s_fabric);
     println!("oracle_words={}", owords.join(" "));
     println!("fabric_words={}", out.transcript.join(" "));

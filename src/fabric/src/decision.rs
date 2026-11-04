@@ -19,7 +19,7 @@ use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, VecDeque};
 
 /// The frozen spec version implemented by this module (§14).
-pub const SPEC_VERSION: &str = "1.3";
+pub const SPEC_VERSION: &str = "1.4";
 
 /// Label of the sentence-start pseudo-token `t0` (§4 boundary pair).
 pub const SENTENCE_START: &str = "<s>";
@@ -505,6 +505,12 @@ pub struct DecisionFabric {
     seq_by_to: HashMap<FactId, Vec<usize>>,
     /// Sequence index by `from` endpoint (boundary pairs never appear here).
     seq_by_from: HashMap<FactId, Vec<usize>>,
+    /// Lattice arc index (§7 v1.4): fact pairs the decoder joined by an
+    /// arc. Structure, not evidence: tilings extend only along these
+    /// (plus the utterance boundary). Fed by the bridge at intake, one
+    /// entry per lattice arc over interned facts; never removed (dead
+    /// endpoints leave the candidate set instead).
+    arcs: HashSet<(FactId, FactId)>,
     /// Premise index: premise fact -> evidence mentioning it. Powers both
     /// `dependents_of` (§9.4) and the budget-loop neighbor recompute.
     premise_refs: HashMap<FactId, Vec<EvidenceRef>>,
@@ -570,6 +576,7 @@ impl DecisionFabric {
             seq_pair_idx: HashMap::new(),
             seq_by_to: HashMap::new(),
             seq_by_from: HashMap::new(),
+            arcs: HashSet::new(),
             premise_refs: HashMap::new(),
             open: BTreeSet::new(),
             active_all: BTreeSet::new(),
@@ -856,6 +863,17 @@ impl DecisionFabric {
         self.intern.entry(key).or_default().push(idx);
         self.enqueue_row(PendingRow::Seq { idx });
         self.drain_pending();
+        Ok(())
+    }
+
+    /// Record one lattice arc `from -> to` (§7 v1.4): structural permission
+    /// for tilings to place `to` directly after `from`. Idempotent (dup
+    /// arcs over interned facts collapse). Not evidence: carries no `llr`,
+    /// never defeats, never enters `S(T)` — the DP checks membership only.
+    pub fn add_lattice_arc(&mut self, from: FactId, to: FactId) -> DecisionResult<()> {
+        self.known(from)?;
+        self.known(to)?;
+        self.arcs.insert((from, to));
         Ok(())
     }
 
@@ -1369,6 +1387,15 @@ impl DecisionFabric {
             for tok in by_frame.get(&frame).unwrap_or(&no_toks) {
                 for partial in &current {
                     let prev = partial.tokens.last().copied();
+                    // §7 v1.4: tilings extend only along lattice arcs (O(1)
+                    // membership). Utterance-start tokens (prev None) are
+                    // boundary-licensed. Non-arc abutting pairs — however
+                    // hot acoustically — can never join a tiling.
+                    if let Some(p) = prev {
+                        if !self.arcs.contains(&(p, tok.fact)) {
+                            continue;
+                        }
+                    }
                     let mut score = partial.score + usum[&tok.fact];
                     if let Some(llr) = self.active_sequence_max(prev, tok.fact) {
                         score += self.params.w_sequence * llr;
