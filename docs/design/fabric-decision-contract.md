@@ -1,6 +1,6 @@
 # Fabric Decision Contract — Specification
 
-Spec version: 1.2 (amends 1.1: section 10 unopposed margin; amends 1.0: section 8 tiling exclusion; see docs/design/a4-budget-semantics.md)
+Spec version: 1.3 (amends 1.2: section 8 sealing; amends 1.1: section 10 unopposed margin; amends 1.0: section 8 tiling exclusion; see docs/design/a4-budget-semantics.md)
 
 Author: Michael A. Kuykendall
 Status: Frozen-candidate v1.0 (bead hearsay-four-p7u / A4a)
@@ -8,7 +8,7 @@ Date: 2026-10-27
 Relates to: Master Plan v3 §6 A4 (parent bead hearsay-four-enu, closed by
 split); implemented by hearsay-four-dg8 (A4b); consumed by A5
 (hearsay-four-p3o), A6 (hearsay-four-cjj), P2 (hearsay-four-ofy).
-Spec version: **1.0** — A4b must cite this version string in its code and
+Spec version: **1.3** — A4b must cite this version string in its code and
 tests. Amendments happen on DEV only, bump the version, and re-freeze
 (§14).
 
@@ -177,6 +177,8 @@ L(h) = unary(h) + max_left  w_SEQ · llr_SEQ(p → h)
   removed, and §9 can raise `L(h)` again.
 
 Amendment 1.1 (section 8): dormant tokens are excluded from tilings; only live tokens join tilings.
+
+Amendment 1.3 (section 8): sealing. The fabric tracks the intake frontier as the max `end_frame` over minted tokens. A token `f` is sealed iff `frontier > f.end + J` (`J` in frames, §12). Sealed tokens stay for tiling and commit (§7, §10) but are exempt from budget live/dormant/combined tallies, from eviction victim selection, and from arm-B prune (§11). Sealing is monotonic (the frontier never decreases); once sealed, always sealed.
 
 - θ_live and both budgets are frozen parameters (§12). Budget exhaustion
   eviction order (which dormant token is dropped first) is: lowest

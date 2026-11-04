@@ -17,7 +17,7 @@ use fabric::{Fabric, FactId};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// The frozen spec version implemented by this module (§14).
-pub const SPEC_VERSION: &str = "1.2";
+pub const SPEC_VERSION: &str = "1.3";
 
 /// Label of the sentence-start pseudo-token `t0` (§4 boundary pair).
 pub const SENTENCE_START: &str = "<s>";
@@ -323,6 +323,10 @@ pub struct DecisionFabric {
     by_end: BTreeMap<u32, BTreeSet<FactId>>,
     committed_regions: Vec<(u32, u32)>,
     log: Vec<DecisionEvent>,
+    /// Intake frontier (§8 v1.3): max `end_frame` over minted tokens.
+    /// Sealed(f) iff frontier > f.end + J; sealed stay for tiling but
+    /// are exempt from budgets, eviction, and prune.
+    intake_frontier: u32,
 }
 
 impl DecisionFabric {
@@ -336,6 +340,7 @@ impl DecisionFabric {
             by_end: BTreeMap::new(),
             committed_regions: Vec::new(),
             log: Vec::new(),
+            intake_frontier: 0,
         }
     }
 
@@ -354,7 +359,15 @@ impl DecisionFabric {
     pub fn events(&self) -> &[DecisionEvent] {
         &self.log
     }
-
+    pub fn intake_frontier(&self) -> u32 {
+        self.intake_frontier
+    }
+    pub fn is_sealed(&self, token: FactId) -> bool {
+        let Some(t) = self.tokens.get(&token) else {
+            return false;
+        };
+        self.intake_frontier > t.end_frame.saturating_add(self.params.j)
+    }
     /// Register a token fact (§2). Zero-length spans are rejected (§7).
     pub fn register_token(
         &mut self,
@@ -376,6 +389,8 @@ impl DecisionFabric {
         };
         self.by_end.entry(end_frame).or_default().insert(fact);
         self.tokens.insert(fact, token);
+        // Intake frontier (§8 v1.3): max end over minted tokens.
+        self.intake_frontier = self.intake_frontier.max(end_frame);
         Ok(fact)
     }
 
@@ -587,11 +602,16 @@ impl DecisionFabric {
         if self.params.arm != Arm::B {
             return;
         }
+        // Sealed (§8 v1.3) are exempt from prune.
         let victims: Vec<FactId> = self
             .tokens
             .keys()
             .copied()
-            .filter(|t| self.fabric.is_active(*t) && self.liveness(*t) < self.params.theta_live)
+            .filter(|t| {
+                self.fabric.is_active(*t)
+                    && self.liveness(*t) < self.params.theta_live
+                    && !self.is_sealed(*t)
+            })
             .collect();
         for victim in victims {
             let liveness = self.liveness(victim);
@@ -620,13 +640,27 @@ impl DecisionFabric {
         self.prune_below_threshold();
         // R2 (spec docs/design/a4-budget-semantics.md): live cap first,
         // then dormant + combined. Victim order everywhere: lowest L(h),
-        // ties by §10 tie order.
-        while self.live_tokens().len() > self.params.live_budget {
-            let Some(victim) = self.live_tokens().iter().copied().min_by(|a, b| {
-                self.liveness(*a)
-                    .total_cmp(&self.liveness(*b))
-                    .then_with(|| self.token_tie_cmp(*a, *b))
-            }) else {
+        // ties by §10 tie order. Sealed (§8 v1.3) are exempt from all
+        // tallies and victim selection.
+        while self
+            .live_tokens()
+            .iter()
+            .copied()
+            .filter(|t| !self.is_sealed(*t))
+            .count()
+            > self.params.live_budget
+        {
+            let Some(victim) = self
+                .live_tokens()
+                .iter()
+                .copied()
+                .filter(|t| !self.is_sealed(*t))
+                .min_by(|a, b| {
+                    self.liveness(*a)
+                        .total_cmp(&self.liveness(*b))
+                        .then_with(|| self.token_tie_cmp(*a, *b))
+                })
+            else {
                 break;
             };
             let liveness = self.liveness(victim);
@@ -641,12 +675,25 @@ impl DecisionFabric {
         // (there is no dormant set), so over-total victims come from live.
         if self.params.arm == Arm::B {
             if let Some(total) = self.params.combined_budget {
-                while self.live_tokens().len() > total {
-                    let Some(victim) = self.live_tokens().iter().copied().min_by(|a, b| {
-                        self.liveness(*a)
-                            .total_cmp(&self.liveness(*b))
-                            .then_with(|| self.token_tie_cmp(*a, *b))
-                    }) else {
+                while self
+                    .live_tokens()
+                    .iter()
+                    .copied()
+                    .filter(|t| !self.is_sealed(*t))
+                    .count()
+                    > total
+                {
+                    let Some(victim) = self
+                        .live_tokens()
+                        .iter()
+                        .copied()
+                        .filter(|t| !self.is_sealed(*t))
+                        .min_by(|a, b| {
+                            self.liveness(*a)
+                                .total_cmp(&self.liveness(*b))
+                                .then_with(|| self.token_tie_cmp(*a, *b))
+                        })
+                    else {
                         break;
                     };
                     let liveness = self.liveness(victim);
@@ -661,12 +708,22 @@ impl DecisionFabric {
             return;
         }
         loop {
-            let dormant = self.dormant_tokens();
+            let dormant: Vec<FactId> = self
+                .dormant_tokens()
+                .into_iter()
+                .filter(|t| !self.is_sealed(*t))
+                .collect();
+            let live_unsealed = self
+                .live_tokens()
+                .iter()
+                .copied()
+                .filter(|t| !self.is_sealed(*t))
+                .count();
             let over_dormant = dormant.len() > self.params.dormant_budget;
             let over_combined = self
                 .params
                 .combined_budget
-                .is_some_and(|total| self.live_tokens().len() + dormant.len() > total);
+                .is_some_and(|total| live_unsealed + dormant.len() > total);
             if !over_dormant && !over_combined {
                 return;
             }
