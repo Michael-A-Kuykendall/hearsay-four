@@ -1,0 +1,213 @@
+{
+  "budgets": [
+    50,
+    100,
+    250,
+    500
+  ],
+  "candidates": 18,
+  "dev_errors": 18036,
+  "dev_ref_len": 18316,
+  "grid": "theta_live x w_sequence x delta coarse (w_acoustic pinned 1.0)",
+  "params": {
+    "budget": 0,
+    "delta": 0.0,
+    "h": 10,
+    "h_max": 20,
+    "theta_live": -1.0,
+    "w_acoustic": 1.0,
+    "w_sequence": 0.5
+  },
+  "scoreboard": [
+    {
+      "cand": 0,
+      "delta": 0.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": -1.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 0.5
+    },
+    {
+      "cand": 1,
+      "delta": 1.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": -1.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 0.5
+    },
+    {
+      "cand": 2,
+      "delta": 0.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": 0.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 0.5
+    },
+    {
+      "cand": 3,
+      "delta": 1.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": 0.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 0.5
+    },
+    {
+      "cand": 4,
+      "delta": 0.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": 1.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 0.5
+    },
+    {
+      "cand": 5,
+      "delta": 1.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": 1.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 0.5
+    },
+    {
+      "cand": 6,
+      "delta": 0.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": -1.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 1.0
+    },
+    {
+      "cand": 7,
+      "delta": 1.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": -1.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 1.0
+    },
+    {
+      "cand": 8,
+      "delta": 0.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": 0.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 1.0
+    },
+    {
+      "cand": 9,
+      "delta": 1.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": 0.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 1.0
+    },
+    {
+      "cand": 10,
+      "delta": 0.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": 1.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 1.0
+    },
+    {
+      "cand": 11,
+      "delta": 1.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": 1.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 1.0
+    },
+    {
+      "cand": 12,
+      "delta": 0.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": -1.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 2.0
+    },
+    {
+      "cand": 13,
+      "delta": 1.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": -1.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 2.0
+    },
+    {
+      "cand": 14,
+      "delta": 0.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": 0.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 2.0
+    },
+    {
+      "cand": 15,
+      "delta": 1.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": 0.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 2.0
+    },
+    {
+      "cand": 16,
+      "delta": 0.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": 1.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 2.0
+    },
+    {
+      "cand": 17,
+      "delta": 1.0,
+      "dev_errors": 18036,
+      "h": 10,
+      "h_max": 20,
+      "theta_live": 1.0,
+      "w_acoustic": 1.0,
+      "w_sequence": 2.0
+    }
+  ],
+  "winner_cand": 0,
+  "sha256": {
+    "data/wer71g/tune200s/strat200.manifest.tsv": "f9fc4fcba18a26c49cba814b0c7d0aa3e0ea344ffd592208b0aad400da1b79a2",
+    "data/wer71g/test200s/strat200.manifest.tsv": "1f4a36fcfc63521c6517d9c3609c8015ac135255edfdd20b70159ce01d3b845e",
+    "data/lm-text/r1v2-full/lm-r1v2-interpolated.json": "1b31acf661ea0b35b73796a78e803b5011add3c5b3f78614663757856471b6f6",
+    "data/wer71g/armA/dev200-cell.tsv": "df58b183f3af1565540bf880f6fdba61e59ee9b3a1a3b3a63603782ade394756",
+    "data/wer71g/armA/test200-cell.tsv": "ff6792b4c155d7ffce90454bac84e028be98266fa8f4ad21a2f1312349188c8b"
+  },
+  "frozen_at": "2026-11-04T01:54:54Z",
+  "freeze_cmd": "scripts/a6/run_all.sh --real --tune-budgets 50,100,250,500 --tune-manifest data/wer71g/tune200s/strat200.manifest.tsv --tune-cell data/wer71g/armA/dev200-cell.tsv --workers 16"
+}
