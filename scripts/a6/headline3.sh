@@ -90,7 +90,10 @@ EOF
     exit 0
 fi
 
-run_theta th25 "$TH25" "$TEST_MAN" "$TEST_CELL" "$BUDGETS" "$WORKERS"
+# Order: th50 first (theta=0 replicates the insurance run with diagnostics:
+# a guaranteed complete row), th25 second, th75 last (high-theta dormant
+# load is the runtime risk; partial rows are dropped from the doc).
 run_theta th50 "$TH50" "$TEST_MAN" "$TEST_CELL" "$BUDGETS" "$WORKERS"
+run_theta th25 "$TH25" "$TEST_MAN" "$TEST_CELL" "$BUDGETS" "$WORKERS"
 run_theta th75 "$TH75" "$TEST_MAN" "$TEST_CELL" "$BUDGETS" "$WORKERS"
 echo "HEADLINE DONE: $A6OUT/headline_th{25,50,75}.tsv + perutt"
