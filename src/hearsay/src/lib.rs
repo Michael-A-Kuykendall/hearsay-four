@@ -336,20 +336,13 @@ pub fn decode_lattice(
     let mut gaps: Vec<(u32, u32)> = Vec::new();
     let mut cursor = utter_start;
     loop {
-        let mut ends: Vec<u32> = lat
-            .tokens
-            .iter()
-            .map(|t| t.end)
-            .filter(|&e| e > cursor)
-            .collect();
-        ends.sort_unstable();
-        ends.dedup();
+        // Single-pass tileable ends (f6tp): one DP reveals every end
+        // tileable from cursor. The old largest-first loop ran a full DP
+        // per candidate end — O(ends) DPs per region, pathological once
+        // budget evictions fragment coverage (34+ CPU-min, killed).
         let mut region: Option<(u32, u32)> = None;
-        for e in ends.iter().rev() {
-            if fabric.best_tilings((cursor, *e)).0.is_some() {
-                region = Some((cursor, *e));
-                break;
-            }
+        if let Some(e) = fabric.tileable_ends(cursor, utter_end).into_iter().max() {
+            region = Some((cursor, e));
         }
         match region {
             Some((s, e)) => {
