@@ -100,7 +100,7 @@ Sample synthetic budget table (from `A6-sample.tsv`, 11 ref words; RTF is one-ru
 
 Story in the sample: at budget 50 the cap binds and C cannot rescue (`cat` stays dormant); at >=100 C revives `cat` on `sat` right-context (+4.0) and holds the 1-err line while B stays at 2 errs.
 
-> INSURANCE (TEST-200, v1.4 main, frozen v7fa config w10/θ0-re-measured/δ0,
+> Run 1 — INSURANCE (TEST-200, θ_live = 0.0 (post-fix p50), v1.4 main, frozen v7fa w10/δ0,
 > J=100; `scripts/a6/out/sweep_insurance.tsv`, 12 rows; scored once with
 > the SWEEP scorer; per-utterance detail
 > `scripts/a6/out/sweep_insurance_perutt.tsv`; 1600/1600 cells, 0 FAIL):
@@ -133,6 +133,15 @@ Story in the sample: at budget 50 the cap binds and C cannot rescue (`cat` stays
 > but counted in peaks (v1.3 semantics). Fabric RTF 0.08–0.26 vs
 > decoder 1.09 (4–13× faster). Supersedes the pre-v1.4 J=3 sweep
 > (B/C 0.97–0.99, `sweep_real.tsv`, kept).
+
+## Run 2 — headline 3-theta sweep (pending)
+
+TEST-200 × A/B/C × budgets {50,100,250,500} at θ_live ∈ {-4.2967, 0.0,
+750.6713} (post-fix DEV liveness p25/p50/p75, ws10 row of
+`recal_postfix.json`; B and C share θ per run; frozen v7fa w10/δ0,
+J=100). Files `scripts/a6/out/headline_th{25,50,75}.tsv` + per-utt
+(15-col schema with dorm_oracle/rev_winner sums). Filling as theta
+rows complete; the doc uses complete rows only.
 
 ## Per-budget chart (WER vs budget by arm)
 
