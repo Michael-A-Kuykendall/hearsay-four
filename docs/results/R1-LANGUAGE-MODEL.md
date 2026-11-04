@@ -10,7 +10,7 @@ Crate: `src/lm` (`lm`), on top of the R1a KN trigram core
 Measured run (this doc's numbers, one run):
 
 ```
-cargo run --release -p lm --bin lm-report -- . /home/michael/repos/better-voice /tmp/lm-r1b-out
+cargo run --release -p lm --bin lm-report -- . ../better-voice /tmp/lm-r1b-out
 ```
 
 > RELABEL 2026-10-31 (REFOCUS §3): valid, toy scale. NOTE: `sessions/oyez-pilot/transcript.json` and `sessions/oyez-bulk/10-218_2011/transcript.json` are the same Oyez argument (id 21627), counted twice in LM training — remove the alias.
@@ -19,7 +19,7 @@ cargo run --release -p lm --bin lm-report -- . /home/michael/repos/better-voice 
 
 DEV text is scored, never trained on. `load_dev_evaluation_lines`
 selects from `data/partitions/dev.json`: the DEV Oyez case
-`sessions/oyez-bulk/24-889_2025/transcript.json` (596 sentences) plus
+`data/oyez-bulk/24-889_2025/transcript.json` (596 sentences) plus
 the better-voice `quality_test` TSVs (10 single-word sentences);
 `data/session/session.tsv` is the same DEV case segmented and is not
 selected, so nothing is double-counted. The loader errors if a
@@ -92,7 +92,7 @@ interpolated `2b8c343199a2d0394eadb8512c100e37ecb6116031abd2e64c5f529936b512de`
 cargo test -p lm                                          # 15 passed, 0 failed (8 R1a golden + 7 R1b)
 cargo clippy -p lm --all-targets -- -D warnings           # clean
 cargo fmt -p lm -- --check                                # clean
-cargo run --release -p lm --bin lm-report -- . /home/michael/repos/better-voice /tmp/lm-r1b-out
+cargo run --release -p lm --bin lm-report -- . ../better-voice /tmp/lm-r1b-out
 # DEV perplexity per source mix in the table above; LM loads < 2s;
 # rebuild byte-identical; serialize/reload round-trip green
 ```

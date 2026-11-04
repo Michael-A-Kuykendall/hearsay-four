@@ -2,7 +2,7 @@
 //!
 //! Runs the C3 streaming pipeline ([`runner::run_streaming_pipeline`]'s
 //! incremental core, [`runner::StreamingPipeline`]) over single-speaker Oyez
-//! clips (`sessions/oyez-bulk/*/audio`, gitignored, staged into the lane)
+//! clips (`data/oyez-bulk/*/audio`, gitignored, staged into the lane)
 //! and reports wall-clock processing seconds per audio second (mean + p95
 //! across chunks, plus the audio-weighted overall factor).
 //!
@@ -24,7 +24,7 @@ const USAGE: &str = "\
 hearsay-rtf: real-time-factor harness (RTF-1, bead hearsay-four-fe3)\n\
 \n\
 usage: hearsay-rtf --input <audio.wav> [--max-secs N] [--chunk-secs N] [--json]\n\
-  --input <path>   Oyez clip (WAV; single-speaker, e.g. sessions/oyez-bulk/*/audio/run1.wav)\n\
+  --input <path>   Oyez clip (WAV; single-speaker, e.g. data/oyez-bulk/*/audio/run1.wav)\n\
   --max-secs N     cap on audio processed, seconds (default 60, 0 = no cap)\n\
   --chunk-secs N   audio seconds per timed chunk (default 2)\n\
   --json           emit the RTF report as JSON instead of text\n\

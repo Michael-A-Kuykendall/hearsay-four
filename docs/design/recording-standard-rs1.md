@@ -70,11 +70,11 @@ Fixed window per list:
 
 | List | File | Window | Notes |
 |---|---|---|---|
-| `words30` | `sessions/script-wave3.txt` (30) | 3.0 s | A1; same as run1 |
-| `phrases30` | `sessions/script-a2-phrases.txt` (104) | 5.0 s | A2/A5/A6 |
-| `harvard` | `sessions/script-harvard.txt` (720) | 6.0 s | enrollment/adaptation (R4). 5 s truncates long sentences |
-| `read` | `sessions/script-c0r-read.txt` (104) | 8.0 s | R7 eval |
-| `fly-dev`, `fly-ptest` | `sessions/script-p4-fly-*.txt` | 8.0 s | P4 |
+| `words30` | `prompts/script-wave3.txt` (30) | 3.0 s | A1; same as run1 |
+| `phrases30` | `prompts/script-a2-phrases.txt` (104) | 5.0 s | A2/A5/A6 |
+| `harvard` | `prompts/script-harvard.txt` (720) | 6.0 s | enrollment/adaptation (R4). 5 s truncates long sentences |
+| `read` | `prompts/script-c0r-read.txt` (104) | 8.0 s | R7 eval |
+| `fly-dev`, `fly-ptest` | `prompts/script-p4-fly-*.txt` | 8.0 s | P4 |
 | `spont` | none | continuous 300 s | R7 spontaneous rung |
 
 Only one word list exists for the 30-word vocabulary: generate
@@ -156,6 +156,8 @@ it. A grep test in CI fails on `hound::WavReader` outside `corpus` and
 `sessions/CATALOG.tsv`, one row per session ever recorded:
 `session_id | list | partition | chain | raw_sha | canon_version | canon_sha | status | consumed_by | notes`.
 Status ∈ VALID, INVALID, VOID, RETIRED, QUARANTINED.
+The catalog is owner-local working metadata (untracked in public git
+since the release scrub); owner checkouts keep it at this path.
 `consumed_by` lists result docs that scored it. A PHASE-TEST row with a
 non-empty `consumed_by` is REGRESSION from then on.
 

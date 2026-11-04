@@ -1,8 +1,8 @@
 //! Oyez ground-truth word-list extractor (bead hearsay-four-e24, lane A1).
 //!
 //! WER scoring needs reference word lists with timings. The timed segments
-//! already committed under `sessions/oyez-pilot/session.tsv` and
-//! `sessions/oyez-bulk/*/session.tsv` (columns `bucket, idx, start_sec,
+//! already committed under `data/oyez-pilot/session.tsv` and
+//! `data/oyez-bulk/*/session.tsv` (columns `bucket, idx, start_sec,
 //! stop_sec, speaker, drift_tags, text`, emitted by `scripts/oyez_ingest.py`)
 //! are the ONLY data source here.
 //!

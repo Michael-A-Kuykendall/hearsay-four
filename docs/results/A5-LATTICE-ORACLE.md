@@ -18,7 +18,7 @@ Sweep command (no decode; reads `/tmp/a2-dev-full/lattices/deva/`):
 ```
 cargo run --release -p a2 --bin a2_dev -- \
   --resweep /tmp/a2-dev-full/lattices/deva \
-  --phrase-list sessions/script-a2-phrases.txt \
+  --phrase-list prompts/script-a2-phrases.txt \
   --onebest-csv /tmp/a2-dev-full/per_phrase_deva.csv
 ```
 

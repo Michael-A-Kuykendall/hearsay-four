@@ -6,14 +6,14 @@ decided until the owner-decision list at the bottom is signed off.
 
 Method: `git ls-files` enumeration, `scripts/personal_guard.sh`,
 `scripts/check_tracked_artifacts.sh` allowlist review, secret-pattern grep
-(`sk-*/ghp_*/gho_*`, `COURTLISTENER_API_TOKEN=`), `/home/` grep over tracked
+(`sk-*/ghp_*/gho_*`, `COURTLISTENER_API_TOKEN=`), absolute-home-path grep over tracked
 sources, and `git log --all` history checks for personal/corpora paths.
 
 ## Per-item verdicts
 
 ### 1. Personal book text / LM — PROPOSE KEEP (manifest only)
 
-- `data/DATA-1-book-manifest.json` tracks counts, sha256, and strip rules
+- `data/DATA-1-text-manifest.json` tracks counts, sha256, and strip rules
   only; the PDF, extracted text, and derived LM live in
   `~/hearsay-personal/` outside the repo. No excerpts in any doc.
 - `sh scripts/personal_guard.sh` → `PERSONAL-GUARD-OK`; history check
@@ -47,9 +47,9 @@ sources, and `git log --all` history checks for personal/corpora paths.
 - Reason: these are the single blocking item. Strip the files (item 5) AND
   rotate both keys, since the values are already in git history.
 
-### 4. Absolute `/home/` paths — PROPOSE REWRITE (non-blocking)
+### 4. Absolute home-dir paths — PROPOSE REWRITE (non-blocking)
 
-- ~20 tracked files contain `/home/michael/...`: mostly docs (lane-dir links
+- ~20 tracked files contain absolute `$HOME/...` paths: mostly docs (lane-dir links
   in `D1-PARTITIONS.md`/`recording-protocol.md`, `Measured in lane …` lines,
   better-voice roots in `D0-DATA-INVENTORY.md`), plus hardcoded default
   constants in `src/runner/src/demo_transcribe.rs` (AM/LM/lexicon/wav-root).
@@ -113,7 +113,7 @@ sources, and `git log --all` history checks for personal/corpora paths.
       (both values are in git history even after stripping).
 - [ ] D3. Audit bulk: `git rm` the OpenState export + 4 transcripts and move
       them to a private archive (lane J proposes strip; owner executes).
-- [ ] D4. `/home/` paths: approve a follow-up bead to relativize doc links
+- [ ] D4. Home-dir paths: approve a follow-up bead to relativize doc links
       and parameterize `demo_transcribe.rs` defaults (outside lane J paths).
 - [ ] D5. Tier-1 lexicon: bless a public substitute for the better-voice
       tier-1 file (stock CMUdict-0.7b?) or document it as owner-local.
@@ -128,7 +128,7 @@ sources, and `git log --all` history checks for personal/corpora paths.
 
 Distilled from items 1–10 above. KEEP: `src/**`, `web/` demo pages,
 `docs/` prose + results + video script, `scripts/` guards, `Cargo.toml`
-files + lockfiles, `data/` manifests (`DATA-1-book-manifest.json`,
+files + lockfiles, `data/` manifests (`DATA-1-text-manifest.json`,
 `lexicon/manifest.json`, `SHA256SUMS.*`), the 4 allowlisted
 `data/demo/` fixtures, `models/si_base/model.json`, `dist/` proofs,
 root docs. STRIP: live secrets (item 3, blocking) + the audit JSON

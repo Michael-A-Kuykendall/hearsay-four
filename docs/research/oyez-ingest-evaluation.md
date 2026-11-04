@@ -101,7 +101,7 @@ manifest, same discipline as `data/corpus`).
   margins 94.72 / 38.72 / 40.86, monotone-B true. Carry-forward:
   Roberts/Sotomayor/Alito/Kagan persist 2011->2025, advocates
   rotate fully. Manifests+transcripts+MANIFEST.json committed under
-  `sessions/oyez-bulk/`; audio gitignored.
+  `data/oyez-bulk/`; audio gitignored.
 - `cv-eval` (`hearsay-four-jhn`, IN PROGRESS, blocked): Common
   Voice HF copies are README-only (removed Oct 2025 to Mozilla
   Data Collective, gated on signup + API key); S3 sample URL 403;

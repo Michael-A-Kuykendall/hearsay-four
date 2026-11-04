@@ -1,6 +1,6 @@
 # Hearsay-IV — Master Plan v3 Bead Decomposition (regenerated 2026-10-27)
 
-Source plan: `HEARSAY-IV-MASTER-PLAN (1).md` (repo root). Codebase audit:
+Source plan: `HEARSAY-IV-MASTER-PLAN.md` (repo root). Codebase audit:
 `MASTER-PLAN-AUDIT.md`. This file was regenerated after the auditor surgical
 pass so it contains ONE authoritative graph and the FULL current body of
 every open master-plan bead (generated from `bd show`, verbatim). Live DB
@@ -89,7 +89,7 @@ Created: 2026-10-27 · Updated: 2026-10-27
 DESCRIPTION
 
   Source: HEARSAY-IV-MASTER-PLAN v3 S12 (D0). For every better-voice set and  
-  accent_datasets/* (sibling repo /home/michael/repos/better-voice + repo     
+  accent_datasets/* (sibling repo ../better-voice + repo     
   data): record exists, file count, hours, sample rate, checksum, human-or-TTS
   determination (generation scripts/reports + listen to 10 clips per set),    
   speakers, licence, 30-word coverage, proposed data role (TRAIN/DEV per plan 

@@ -9,7 +9,7 @@
 //!   order.txt, sha256sum-compatible)
 //! - 30 WAV files (PCM16 mono 16 kHz, 2.5-3.5 s each)
 //!
-//! Vocabulary: `sessions/script-wave3.txt`, baked in via `include_str!`
+//! Vocabulary: `prompts/script-wave3.txt`, baked in via `include_str!`
 //! (single source of truth; `instrument_vocab_has_thirty_words` pins the
 //! shape). Full protocol: `docs/design/phase-test-instrument.md`.
 
@@ -18,8 +18,8 @@ use std::path::Path;
 
 use crate::dtw::DtwVariant;
 
-/// Expected vocabulary, single-sourced from sessions/script-wave3.txt.
-const VOCAB_TXT: &str = include_str!("../../../sessions/script-wave3.txt");
+/// Expected vocabulary, single-sourced from prompts/script-wave3.txt.
+const VOCAB_TXT: &str = include_str!("../../../prompts/script-wave3.txt");
 
 pub const EXPECTED_LABELS: usize = 30;
 pub const RATE_HZ: u32 = 16_000;

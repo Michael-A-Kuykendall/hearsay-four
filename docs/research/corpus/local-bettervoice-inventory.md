@@ -2,8 +2,8 @@
 ### Reference inventory of pre-existing audio/transcript data in `better-voice`
 
 Status: Requirements-gathering reference — CORPUS DATA IS NOT MOVED, only
-referenced. All paths below are relative to
-`/home/michael/repos/better-voice/`.
+referenced. All paths below are relative to the better-voice root
+(`$BETTER_VOICE_ROOT/`).
 
 Generated: 2026-08-15 (inventory spike). These are the pre-existing,
 free, already-on-disk assets that can seed the Hearsay-IV fail-fast

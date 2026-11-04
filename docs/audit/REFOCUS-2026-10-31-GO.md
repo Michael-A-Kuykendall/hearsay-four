@@ -10,8 +10,8 @@ from REFOCUS-2026-10-31.md or recording-standard-rs1.md, THIS MESSAGE WINS.
 2. LibriSpeech LM normalized text (openslr.org/11). Role: LM-TRAIN general.
    Use a 20–40M-word subset first. Text gitignored; manifest + sha committed.
 3. Owner writing = my book (written by me, not AI-generated):
-   Windows: C:\Users\micha\Dropbox\Destroyer of Worlds Final 12.6.13.pdf
-   WSL:     "/mnt/c/Users/micha/Dropbox/Destroyer of Worlds Final 12.6.13.pdf"
+   Windows: C:\Users\<you>\Dropbox\Destroyer of Worlds Final 12.6.13.pdf
+   WSL:     "/mnt/c/Users/<you>/Dropbox/Destroyer of Worlds Final 12.6.13.pdf"
    - Copy read-only to a folder OUTSIDE the repo (e.g. ~/hearsay-personal/),
      set HEARSAY_PERSONAL_TEXT to it. Never modify the Dropbox original.
    - Extract with pdftotext (poppler). No OCR. If there's no text layer,
@@ -88,7 +88,7 @@ named files.
    owned paths. L4 decoder starts now on models/si_base + the current LM
    and swaps models later by file. L2/L3 start downloads first; L3
    extracts the book while text downloads. L1 builds the Windows
-   recorder in the Windows clone (C:\Users\micha\repos\hearsay-four-win)
+   recorder in the Windows clone (C:\Users\<you>\repos\hearsay-four-win)
    from the same source as WSL.
 5. Freeze for submission Nov 4 at noon ET: demo video, writeup, submit
    by 9 PM ET. Demo tiers per REFOCUS §8; report the tier actually reached.

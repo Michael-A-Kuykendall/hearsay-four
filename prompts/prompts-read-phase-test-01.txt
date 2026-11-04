@@ -1,4 +1,4 @@
-# RS1-d GO cut read-PHASE-TEST-01: first 50 content lines from sessions/script-c0r-read.txt
+# RS1-d GO cut read-PHASE-TEST-01: first 50 content lines from prompts/script-c0r-read.txt
 # source_sha256=e079eb2102ad8f567d66116a3bc343ad54315d61f81530c8a4a26b7a4cd3891b content_lines=50
 the old mill hums beside the river
 fresh paint sealed the window frame

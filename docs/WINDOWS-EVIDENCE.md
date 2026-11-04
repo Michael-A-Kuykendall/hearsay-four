@@ -2,7 +2,7 @@
 
 Goal: prove the WSL session's Windows path (WASAPI/fifine) before the human
 fail-fast recording run. WSL checkout audited at
-`/home/michael/repos/hearsay-four`; uncommitted capture work ported byte-identical
+`~/repos/hearsay-four`; uncommitted capture work ported byte-identical
 (md5-verified) to this Windows clone: `src/capture/Cargo.toml` (+hound, +[[bin]]),
 `src/capture/Cargo.lock`, `src/capture/src/mic.rs` (`record_raw()`),
 `src/capture/src/bin/record-session.rs` (untracked on both sides).
@@ -38,7 +38,7 @@ The original list is preserved as `script-160.txt`.
 Continue in waves (own terminal, press Enter before each 3 s take):
 
 ```powershell
-cd C:\Users\micha\repos\hearsay-four-win
+cd C:\Users\<you>\repos\hearsay-four-win
 .\src\capture\target\debug\record-session.exe --out sessions\run1 --script script.txt --resume-at 64 --utterances 26
 # Later, Wave 3:
 .\src\capture\target\debug\record-session.exe --out sessions\run1 --script script.txt --resume-at 90 --utterances 30

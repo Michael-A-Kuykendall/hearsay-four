@@ -100,8 +100,12 @@ def _write_lines(path: Path, lines: list[str]) -> None:
 
 def main() -> None:
     root = Path(__file__).resolve().parent.parent
-    sessions_dir = root / "sessions"
-    recorded = read_recorded(sessions_dir / "run1" / "manifest.tsv")
+    prompts_dir = root / "prompts"
+    manifest = root / "sessions" / "run1" / "manifest.tsv"
+    if not manifest.is_file():
+        print(f"FAIL: no recorded manifest at {manifest} (owner-local run1, untracked)")
+        return
+    recorded = read_recorded(manifest)
     wave2, wave3 = plan_waves(recorded)
     full_script = recorded + wave2 + wave3
 
@@ -113,8 +117,8 @@ def main() -> None:
             _write_lines(backup_path, previous)
 
     _write_lines(script_path, full_script)
-    _write_lines(sessions_dir / "script-wave2.txt", wave2)
-    _write_lines(sessions_dir / "script-wave3.txt", wave3)
+    _write_lines(prompts_dir / "script-wave2.txt", wave2)
+    _write_lines(prompts_dir / "script-wave3.txt", wave3)
     print(
         f"recorded={len(recorded)} wave2={len(wave2)} wave3={len(wave3)} "
         f"total={len(full_script)} counts={sorted(set(Counter(full_script).values()))}"

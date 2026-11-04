@@ -18,10 +18,10 @@ import sys
 from pathlib import Path
 
 PROMPT_FILES = [
-    "sessions/script-c0r-read.txt",
-    "sessions/script-p4-fly-dev.txt",
-    "sessions/script-p4-fly-ptest.txt",
-    "sessions/script-harvard.txt",
+    "prompts/script-c0r-read.txt",
+    "prompts/script-p4-fly-dev.txt",
+    "prompts/script-p4-fly-ptest.txt",
+    "prompts/script-harvard.txt",
 ]
 
 

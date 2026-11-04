@@ -6,7 +6,7 @@ Central requirements-gathering record for speech audio + transcript corpora.
 Two complementary data pools:
 
 1. **Local pre-existing clips** (already on disk) — `better-voice`
-   (/home/michael/repos/better-voice). For calibration + closed-vocab +
+   (sibling checkout `../better-voice`). For calibration + closed-vocab +
    fail-fast vocabulary. **Referenced, not moved.**
    → see `local-bettervoice-inventory.md`
 

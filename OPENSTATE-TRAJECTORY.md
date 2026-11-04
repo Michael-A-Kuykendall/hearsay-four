@@ -9,9 +9,10 @@ Total absorbed this replay: 13349 records, 0 skipped, 0 refused.
 Live session `muse:01a18dc8` is included as read at assess time (171 records);
 its tail (this pipeline) postdates the replay.
 
-- Store: `/home/michael/repos/hearsay-four/.openstate/state.jsonl`
-  (symlink to `/home/michael/.openstate/hearsay-four/`, outside the repo)
-- Full export (committed alongside): `docs/audit/openstate-export-20261031T153751Z.json`
+- Store: `~/repos/hearsay-four/.openstate/state.jsonl`
+  (symlink to `~/.openstate/hearsay-four/`, outside the repo)
+- Full export (`docs/audit/openstate-export-20261031T153751Z.json`): moved to
+  the private audit archive at release; untracked, see `docs/RELEASE-KEEP-STRIP.md`
   (5.0 MB, 8186 records; secret-scanned, no key material)
 - Event-level per-session detail lives in the export, not inline here:
   full state text is 132 KB and full timeline 400 KB+. This doc carries the

@@ -1,6 +1,6 @@
 # Phase-Test Scoring for Enrollment Models (bead hearsay-four-pts--phase-test-scoring)
 
-Measured: 2026-10-28 in lane `/home/michael/repos/hearsay-four-lane-f3`
+Measured: 2026-10-28 in lane `hearsay-four-lane-f3`
 (branch `bead/pts-phase-test`). Follow-up to
 `hearsay-four-jem--owner-enrollment-adaptation` (closed), whose gate
 requires PHASE-TEST reported once.
@@ -98,8 +98,8 @@ cargo test --release -p hmm --test phase_test_scoring_tests -- --nocapture --tes
 # Expected: 1 passed, 0 failed; PHASE-TEST base PER=0.8135 adapted PER=0.8350 (n=3 segs, 1812 ref phones)
 ```
 
-Needs `/home/michael/repos/better-voice` and
-`/home/michael/repos/hearsay-four` present (or `HEARSAY_MAIN_ROOT`
+Needs the better-voice sibling checkout and
+the main checkout present (or `HEARSAY_MAIN_ROOT`
 set); audio is read read-only from the main workspace, transcripts
 from the lane checkout. Runtime 84 s release. The test is
 `#[ignore]`d so the default workspace suite stays fast (r3

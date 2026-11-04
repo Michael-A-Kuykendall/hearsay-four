@@ -482,6 +482,22 @@
    "sha256": "3110e0af5c732b2659f12c2cb6e406c1bc2b03294ef93e89ec0c9233504085aa"
   },
   {
+   "bytes": 91364,
+   "dataset": "case:24-889_2025",
+   "group": "case:24-889_2025",
+   "path": "data/oyez-bulk/24-889_2025/session.tsv",
+   "root": "repo",
+   "sha256": "3ee4a0d07e82103eec96650c31f10db827e1e974b1f3dcb70f187cdd8e06e8ea"
+  },
+  {
+   "bytes": 299384,
+   "dataset": "case:24-889_2025",
+   "group": "case:24-889_2025",
+   "path": "data/oyez-bulk/24-889_2025/transcript.json",
+   "root": "repo",
+   "sha256": "873507b023019ab42dd5225e69062238beefde722cf3eb7631f443121aa6e33c"
+  },
+  {
    "bytes": 227353,
    "dataset": "case:24-889_2025",
    "group": "case:24-889_2025",
@@ -496,22 +512,6 @@
    "path": "data/session/session.tsv",
    "root": "repo",
    "sha256": "6c719e970ea38957685a59ce61a0698780d5b4cd67b289b6f1cd7fc6ece37af9"
-  },
-  {
-   "bytes": 91364,
-   "dataset": "case:24-889_2025",
-   "group": "case:24-889_2025",
-   "path": "sessions/oyez-bulk/24-889_2025/session.tsv",
-   "root": "repo",
-   "sha256": "3ee4a0d07e82103eec96650c31f10db827e1e974b1f3dcb70f187cdd8e06e8ea"
-  },
-  {
-   "bytes": 299384,
-   "dataset": "case:24-889_2025",
-   "group": "case:24-889_2025",
-   "path": "sessions/oyez-bulk/24-889_2025/transcript.json",
-   "root": "repo",
-   "sha256": "873507b023019ab42dd5225e69062238beefde722cf3eb7631f443121aa6e33c"
   }
  ],
  "partition": "DEV",

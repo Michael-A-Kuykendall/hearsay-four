@@ -8,7 +8,7 @@ against a real microphone and real speakers.
 ## 0. Hermetic gate (reference)
 
 ```bash
-cd /home/michael/repos/hearsay-four-lane-mic1 && cargo test -p runner
+cd <lane-checkout> && cargo test -p runner
 ```
 
 Expected: `22 passed` (lib, incl. 4 `live::live_tests`) and `11 passed`
@@ -39,8 +39,7 @@ Negative probes (both exit 2, empty stdout, message on stderr):
 ## 2. Real microphone, end to end (owner runs once)
 
 Prereqs: system audio dev libraries for cpal (ALSA on Linux), a working
-default input device, a quiet room. All commands run from the lane root
-(`/home/michael/repos/hearsay-four-lane-mic1`).
+default input device, a quiet room. All commands run from the lane root.
 
 ```bash
 # 2a. Capture one enrollment + two scripted utterances with the real mic.

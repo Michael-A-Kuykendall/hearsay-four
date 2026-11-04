@@ -45,12 +45,12 @@ EOF
 # Session table: id-suffix | prompt file | takes | kind (go|optional).
 session_table() {
     cat <<'EOF'
-harvard-TRAIN-01|sessions/prompts-harvard-train-01.txt|50|go
-harvard-DEV-01|sessions/prompts-harvard-dev-01.txt|30|go
-fly-DEV-01|sessions/prompts-fly-dev-01.txt|15|go
-read-PHASE-TEST-01|sessions/prompts-read-phase-test-01.txt|50|go
-fly-PHASE-TEST-01|sessions/prompts-fly-phase-test-01.txt|15|go
-words30-PHASE-TEST-01|sessions/script-wave3.txt|30|optional
+harvard-TRAIN-01|prompts/prompts-harvard-train-01.txt|50|go
+harvard-DEV-01|prompts/prompts-harvard-dev-01.txt|30|go
+fly-DEV-01|prompts/prompts-fly-dev-01.txt|15|go
+read-PHASE-TEST-01|prompts/prompts-read-phase-test-01.txt|50|go
+fly-PHASE-TEST-01|prompts/prompts-fly-phase-test-01.txt|15|go
+words30-PHASE-TEST-01|prompts/script-wave3.txt|30|optional
 EOF
 }
 
@@ -127,7 +127,7 @@ run_check() {
     check_file "src/a2/src/bin/a2_dev.rs" "connected-word DEV runner"
     check_file "src/eval/src/lib.rs" "paired bootstrap CI (STAT-1)"
     echo "--- 2. runbook + gate docs exist ---"
-    check_file "docs/OWNER-RECORDING-RUNBOOK.md" "GO session order"
+    check_file "docs/OWNER-RECORDING-GUIDE.md" "GO session order"
     check_file "docs/RECORDING-READINESS-CHECKLIST.md" "GO readiness gates"
     check_file "docs/results/PHASE-TEST-SCORING.md" "phase-test method + once rule"
     check_file "docs/design/recording-protocol.md" "P4 target sentences section 3.3"
