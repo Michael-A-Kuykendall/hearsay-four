@@ -91,10 +91,20 @@ fn read_task(dir: &Path, utt: &str, budget: usize, arm: &str) -> Option<CellRun>
             .map(|s| s.as_str().unwrap().to_string())
             .collect::<Vec<_>>()
     };
+    let revivals = v
+        .get("revivals")
+        .and_then(|a| a.as_array())
+        .map(|a| {
+            a.iter()
+                .map(|s| s.as_str().unwrap().to_string())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
     Some(CellRun {
         hyp: str_list("hyp"),
         pruned: str_list("pruned"),
         evicted: str_list("evicted"),
+        revivals,
         peak_live: v["peak_live"].as_u64().unwrap() as usize,
         peak_dormant: v["peak_dormant"].as_u64().unwrap() as usize,
         elapsed: v["elapsed_sec"].as_f64().unwrap(),
@@ -245,7 +255,7 @@ fn run_sweep(
         let rescues: usize = c_runs
             .iter()
             .zip(b_runs.iter())
-            .map(|(c, b)| count_late_rescues(&c.hyp, &b.pruned, &b.evicted))
+            .map(|(c, b)| count_late_rescues(&c.hyp, &b.pruned, &b.evicted, &c.revivals))
             .sum();
         let ci = delta_ci(&b_errs, &c_errs, &denoms);
         eprintln!(

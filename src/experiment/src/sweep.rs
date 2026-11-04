@@ -651,13 +651,21 @@ pub struct SweepCell {
     pub delta: Option<BootstrapCi>,
 }
 
-/// Late-rescue counter: committed words the other arm had pruned or evicted.
-/// Multiset: a twice-committed rescued word counts twice — the same
-/// convention as [`crate::table::run_budget_table`].
-pub fn count_late_rescues(committed: &[String], pruned: &[String], evicted: &[String]) -> usize {
+/// Late-rescue counter: C-committed words that B had pruned or evicted AND
+/// that carry a Revived event in C (bead hearsay-four-wnl6--rescue-counter-fix).
+/// Word-join over token-ref labels from the v1 event log: `committed` is C's
+/// transcript, `pruned`/`evicted` are B's removal labels, `revived` is C's
+/// revival labels. Multiset: a twice-committed rescued word counts twice —
+/// the same convention as [`crate::table::run_budget_table`].
+pub fn count_late_rescues(
+    committed: &[String],
+    pruned: &[String],
+    evicted: &[String],
+    revived: &[String],
+) -> usize {
     committed
         .iter()
-        .filter(|w| pruned.contains(*w) || evicted.contains(*w))
+        .filter(|w| (pruned.contains(*w) || evicted.contains(*w)) && revived.contains(*w))
         .count()
 }
 
@@ -669,6 +677,7 @@ pub struct CellRun {
     pub hyp: Vec<String>,
     pub pruned: Vec<String>,
     pub evicted: Vec<String>,
+    pub revivals: Vec<String>,
     pub peak_live: usize,
     pub peak_dormant: usize,
     pub elapsed: f64,
@@ -719,6 +728,7 @@ pub fn sweep_test(
                 hyp: o.hypothesis,
                 pruned: o.pruned,
                 evicted: o.evicted,
+                revivals: o.revivals,
                 peak_live: o.peak_live,
                 peak_dormant: o.peak_dormant,
                 elapsed: o.elapsed_sec,
@@ -752,7 +762,7 @@ pub fn sweep_test(
         let rescues: usize = c_runs
             .iter()
             .zip(b_runs.iter())
-            .map(|(c, b)| count_late_rescues(&c.hyp, &b.pruned, &b.evicted))
+            .map(|(c, b)| count_late_rescues(&c.hyp, &b.pruned, &b.evicted, &c.revivals))
             .sum();
         let ci = delta_ci(&b_errs, &c_errs, &denoms);
         out.push(assemble_cell(budget, Arm::B, &b_tot, b_runs, None, None));
@@ -1055,9 +1065,33 @@ mod tests {
     fn late_rescues_count_multiset_matches_table_convention() {
         let committed = w(&["cat", "cat", "sat"]);
         let pruned = w(&["cat"]);
-        assert_eq!(count_late_rescues(&committed, &pruned, &[]), 2);
-        assert_eq!(count_late_rescues(&committed, &[], &w(&["sat"])), 1);
-        assert_eq!(count_late_rescues(&committed, &[], &[]), 0);
+        let revived = w(&["cat", "sat"]);
+        assert_eq!(count_late_rescues(&committed, &pruned, &[], &revived), 2);
+        assert_eq!(
+            count_late_rescues(&committed, &[], &w(&["sat"]), &revived),
+            1
+        );
+        assert_eq!(count_late_rescues(&committed, &[], &[], &revived), 0);
+        // No Revived in C -> no rescue even when B pruned the word.
+        assert_eq!(count_late_rescues(&committed, &pruned, &[], &[]), 0);
+    }
+
+    #[test]
+    fn late_rescues_require_pruned_and_revived_fixture() {
+        // 1 counted: committed by C, pruned by B, revived in C.
+        // 2 excluded: pruned-but-not-revived, revived-but-not-pruned.
+        let committed = w(&["reef", "keel", "mast"]);
+        let pruned = w(&["reef", "keel"]);
+        let revived = w(&["reef", "mast"]);
+        assert_eq!(count_late_rescues(&committed, &pruned, &[], &revived), 1);
+        // Evicted joins the same way as pruned: B-side removal + C revive.
+        assert_eq!(
+            count_late_rescues(&committed, &[], &w(&["reef"]), &revived),
+            1
+        );
+        // Old word-only counter would return 2 here (reef + keel); the
+        // Revived conjunct excludes keel.
+        assert_eq!(count_late_rescues(&committed, &pruned, &[], &[]), 0);
     }
 
     #[test]

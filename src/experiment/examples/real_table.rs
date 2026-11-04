@@ -207,7 +207,9 @@ fn main() {
             ce += co.elapsed_sec;
             cs += co.span_sec;
             for w in &co.hypothesis {
-                if bo.pruned.iter().any(|e| e == w) || bo.evicted.iter().any(|e| e == w) {
+                let b_removed =
+                    bo.pruned.iter().any(|e| e == w) || bo.evicted.iter().any(|e| e == w);
+                if b_removed && co.revivals.iter().any(|e| e == w) {
                     rescues += 1;
                 }
             }
