@@ -120,6 +120,10 @@ pub struct ArmOutcome {
     pub pruned: Vec<String>,
     /// Labels evicted under budget exhaustion, in event order.
     pub evicted: Vec<String>,
+    /// Proven-dormant ids (revived or dormant-evicted) on the oracle path.
+    pub dormant_oracle_touch: usize,
+    /// Revived ids that made a committed winner.
+    pub revivals_in_winner: usize,
     pub elapsed_sec: f64,
     /// Lattice span in seconds (frames x `frame_shift_ms`).
     pub span_sec: f64,
@@ -170,6 +174,8 @@ pub fn run_fabric_arm(
             revivals: Vec::new(),
             pruned: Vec::new(),
             evicted: Vec::new(),
+            dormant_oracle_touch: 0,
+            revivals_in_winner: 0,
             elapsed_sec: 0.0,
             span_sec,
         });
@@ -200,6 +206,9 @@ pub fn run_fabric_arm(
     }
     revivals.sort();
     revivals.dedup();
+    let oracle_ids = a2::oracle::acoustic_best_path_ids(lat);
+    let (dormant_oracle_touch, revivals_in_winner) =
+        commit_diagnostics(&out.events_jsonl, &oracle_ids);
     Ok(ArmOutcome {
         hypothesis: out.transcript,
         committed: !out.commits.is_empty(),
@@ -209,9 +218,72 @@ pub fn run_fabric_arm(
         revivals,
         pruned,
         evicted,
+        dormant_oracle_touch,
+        revivals_in_winner,
         elapsed_sec,
         span_sec,
     })
+}
+/// Headline-sweep diagnostics from one decode event log.
+///
+/// Returns `(dormant_oracle_touch, revivals_in_winner)`. The first counts
+/// proven-dormant token ids (revived at some point, or evicted from the
+/// dormant budget) lying on the oracle (acoustic-best) path; it is a LOWER
+/// bound on dormant-at-commit oracle tokens because quiet-dormant tokens
+/// (never revived/evicted) leave no event. The second counts revived ids
+/// that made a committed winner. Malformed lines are skipped. Both are 0
+/// for arm B.
+pub fn commit_diagnostics(events_jsonl: &str, oracle_ids: &[u64]) -> (usize, usize) {
+    use std::collections::BTreeSet;
+    let oracle: BTreeSet<u64> = oracle_ids.iter().copied().collect();
+    let mut revived: BTreeSet<u64> = BTreeSet::new();
+    let mut dormant_evicted: BTreeSet<u64> = BTreeSet::new();
+    let mut winners: BTreeSet<u64> = BTreeSet::new();
+    for line in events_jsonl.lines() {
+        let v: serde_json::Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let kind = v.get("event").and_then(|k| k.as_str()).unwrap_or("");
+        let tid = v
+            .get("token")
+            .and_then(|t| t.get("id"))
+            .and_then(|i| i.as_u64());
+        match kind {
+            "revived" => {
+                if let Some(id) = tid {
+                    revived.insert(id);
+                }
+            }
+            "evicted" => {
+                let dormant = v
+                    .get("budget")
+                    .and_then(|b| b.as_str())
+                    .is_some_and(|b| b == "dormant");
+                if dormant {
+                    if let Some(id) = tid {
+                        dormant_evicted.insert(id);
+                    }
+                }
+            }
+            "committed" => {
+                if let Some(ws) = v.get("winner").and_then(|w| w.as_array()) {
+                    for w in ws {
+                        if let Some(id) = w.get("id").and_then(|i| i.as_u64()) {
+                            winners.insert(id);
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    let touch = revived
+        .union(&dormant_evicted)
+        .filter(|id| oracle.contains(id))
+        .count();
+    let changed = revived.intersection(&winners).count();
+    (touch, changed)
 }
 
 /// Demo driver (bead `hearsay-four-4lsp--fabric-path-demo`): arm-C decode

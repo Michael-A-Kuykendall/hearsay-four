@@ -5,7 +5,7 @@
 //! oracle K=3 2 errs, oracle K>=5 1 err. Every WER is below 1.0.
 
 use corpus::manifest::LibriRow;
-use experiment::arms::{Arm, ArmParams, run_fabric_arm};
+use experiment::arms::{Arm, ArmParams, commit_diagnostics, run_fabric_arm};
 use experiment::fixtures::{
     all_fixtures, fixture_bigram, lattice_text, u1_revival, u2_clean, u3_bulk, u4_absent,
 };
@@ -281,4 +281,20 @@ fn arm_params_carries_sealing_horizon() {
     let mut p = ArmParams::fixture_defaults(500);
     p.j = 100;
     assert_eq!(p.j, 100);
+}
+#[test]
+fn commit_diagnostics_counts_proven_dormant_on_oracle() {
+    let events = concat!(
+        "{\"event\":\"revived\",\"token\":{\"id\":7,\"label\":\"THE\",\"start\":0,\"end\":5}}\n",
+        "{\"event\":\"revived\",\"token\":{\"id\":9,\"label\":\"CAT\",\"start\":5,\"end\":9}}\n",
+        "{\"event\":\"evicted\",\"budget\":\"dormant\",\"token\":{\"id\":11,\"label\":\"SAT\",\"start\":9,\"end\":14}}\n",
+        "{\"event\":\"evicted\",\"budget\":\"live\",\"token\":{\"id\":13,\"label\":\"MAT\",\"start\":14,\"end\":18}}\n",
+        "{\"event\":\"committed\",\"winner\":[{\"id\":7,\"label\":\"THE\"},{\"id\":20,\"label\":\"DOG\"}]}\n",
+        "not json at all\n",
+    );
+    // 7 revived+winner; 9 revived, on oracle, never committed; 11
+    // dormant-evicted on oracle; 13 live-evicted (not dormant).
+    let (touch, changed) = commit_diagnostics(events, &[9, 11, 13, 42]);
+    assert_eq!(touch, 2, "revived 9 + dormant-evicted 11 on oracle");
+    assert_eq!(changed, 1, "only revived 7 made the winner");
 }

@@ -128,6 +128,8 @@ fn main() {
             "revivals": o.revivals,
             "pruned": o.pruned,
             "evicted": o.evicted,
+            "dormant_oracle_touch": o.dormant_oracle_touch,
+            "revivals_in_winner": o.revivals_in_winner,
             "elapsed_sec": o.elapsed_sec,
             "span_sec": o.span_sec,
         });
