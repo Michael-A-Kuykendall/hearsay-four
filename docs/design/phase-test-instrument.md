@@ -23,7 +23,7 @@ A formal phase-test session directory contains exactly:
 
 ## Vocabulary source
 
-`sessions/script-wave3.txt` (30 lines) is the SINGLE source of truth. The
+`prompts/script-wave3.txt` (30 lines) is the SINGLE source of truth. The
 recorder reads it (fails unless exactly 30 lines); the validator bakes it
 in via `include_str!` (`instrument_vocab_has_thirty_words` pins the shape).
 No second list exists anywhere.

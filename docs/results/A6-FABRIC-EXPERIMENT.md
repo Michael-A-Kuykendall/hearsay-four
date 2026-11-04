@@ -822,7 +822,7 @@ sample-manifest $MAIN/data/librispeech/wav/test-clean.manifest.tsv \
 cargo build --release -p decoder --example lattices_manifest
 lattices_manifest --am $MAIN/data/models/r3v2-full93-cmvn/ckpt-8mix-iter2.json \
   --lm $MAIN/data/lm-text/r1v2-full/lm-r1v2-interpolated.json \
-  --tier1 /home/michael/repos/better-voice/data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt \
+  --tier1 $BETTER_VOICE_ROOT/data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt \
   --tier2 $MAIN/data/lexicon/librispeech-lexicon.txt \
   --wav-root $MAIN/data/librispeech/wav \
   --manifest $MAIN/data/wer71g/tune200s/strat200.manifest.tsv \

@@ -637,9 +637,14 @@ fn canon_loader_grep_no_raw_wav_readers() {
 
 // --- RS1-d: GO prompt cuts (machine-exact generator + forever verifier) ---
 
-fn sessions_dir() -> PathBuf {
+fn sessions_dir() -> Option<PathBuf> {
     std::fs::canonicalize(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../sessions"))
-        .expect("sessions dir")
+        .ok()
+}
+
+fn prompts_dir() -> PathBuf {
+    std::fs::canonicalize(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../prompts"))
+        .expect("prompts dir")
 }
 
 /// Content lines: non-blank, not `#` comments (recorder `script_lines`
@@ -660,7 +665,7 @@ fn cut_bytes(
 ) -> Vec<u8> {
     let sha = canonical::sha256_hex(source_text.as_bytes());
     let mut out = format!(
-        "# RS1-d GO cut {cut_id}: {rule} from sessions/{source_name}\n# source_sha256={sha} content_lines={}\n",
+        "# RS1-d GO cut {cut_id}: {rule} from prompts/{source_name}\n# source_sha256={sha} content_lines={}\n",
         lines.len()
     );
     for l in lines {
@@ -691,7 +696,7 @@ fn check_or_write_cut(path: &Path, expected: &[u8]) {
 
 #[test]
 fn rs1d_go_prompt_cuts() {
-    let sessions = sessions_dir();
+    let prompts = prompts_dir();
     // Fly cuts: first 10 fly + first 5 family content lines, source order.
     for (source, cut, cut_id) in [
         (
@@ -705,7 +710,7 @@ fn rs1d_go_prompt_cuts() {
             "fly-PHASE-TEST-01",
         ),
     ] {
-        let text = std::fs::read_to_string(sessions.join(source)).expect("read fly source");
+        let text = std::fs::read_to_string(prompts.join(source)).expect("read fly source");
         let content = content_lines(&text);
         assert_eq!(content.len(), 30, "{source}: want 30 content lines");
         let mut kept: Vec<&str> = Vec::new();
@@ -734,11 +739,11 @@ fn rs1d_go_prompt_cuts() {
             &text,
             &kept,
         );
-        check_or_write_cut(&sessions.join(cut), &expected);
+        check_or_write_cut(&prompts.join(cut), &expected);
     }
     // Read cut: first 50 content lines of script-c0r-read.txt.
     let source = "script-c0r-read.txt";
-    let text = std::fs::read_to_string(sessions.join(source)).expect("read c0r source");
+    let text = std::fs::read_to_string(prompts.join(source)).expect("read c0r source");
     let content = content_lines(&text);
     assert_eq!(content.len(), 104, "{source}: want 104 content lines");
     let kept = &content[..50];
@@ -750,7 +755,7 @@ fn rs1d_go_prompt_cuts() {
         &text,
         kept,
     );
-    check_or_write_cut(&sessions.join("prompts-read-phase-test-01.txt"), &expected);
+    check_or_write_cut(&prompts.join("prompts-read-phase-test-01.txt"), &expected);
 }
 
 #[test]
@@ -759,8 +764,21 @@ fn rs1d_catalog_coverage() {
     // RS1-d gate, both directions: every sessions/<dir> has exactly one
     // CATALOG.tsv row, and every row names an existing dir. Run on main:
     // cargo test -p corpus --lib rs1d_catalog_coverage -- --ignored
-    let sessions = sessions_dir();
-    let text = std::fs::read_to_string(sessions.join("CATALOG.tsv")).expect("read CATALOG.tsv");
+    let Some(sessions) = sessions_dir() else {
+        eprintln!(
+            "SKIP rs1d_catalog_coverage: sessions/ absent (owner recordings, untracked in public clones)"
+        );
+        return;
+    };
+    let catalog = sessions.join("CATALOG.tsv");
+    if !catalog.is_file() {
+        eprintln!(
+            "SKIP rs1d_catalog_coverage: {} absent (owner session catalog, untracked in public clones)",
+            catalog.display()
+        );
+        return;
+    }
+    let text = std::fs::read_to_string(&catalog).expect("read CATALOG.tsv");
     let mut lines = text.lines();
     let header = lines.next().unwrap_or("");
     assert_eq!(

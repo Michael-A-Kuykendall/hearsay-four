@@ -30,14 +30,14 @@ token-passing decoder (Ney family) over the frozen A1 front end.
 ## DEV data (pinned in bead notes before implementation)
 
 - DEV-A (primary, 30-vocab, human, cross-take): templates
-  `/home/michael/repos/hearsay-four/sessions/run1-16k` takes 1–3
-  (90 clips, 30 words, 16 kHz, read-only from main — lane has 0 WAVs);
+  `$MAIN/sessions/run1-16k` takes 1–3 (`$MAIN` = main workspace;
+  90 clips, 30 words, 16 kHz, read-only from main — lane has 0 WAVs);
   phrases = 104 synthetic connected phrases (422 tokens, 3–7 words) built
-  in-memory from take-0 clips per `sessions/script-a2-phrases.txt`
+  in-memory from take-0 clips per `prompts/script-a2-phrases.txt`
   (sha256 `c3d03d55…b5cc`), 150 ms real-silence gaps, 200 ms lead/trail.
   Training size 90 clips; test population 104 phrases / 422 tokens.
   Caveat: 30 distinct acoustic realizations reused across contexts.
-- DEV-B (TTS machinery, parent-ordered): `/home/michael/repos/better-voice/data/bulk_tts_1k`
+- DEV-B (TTS machinery, parent-ordered): `$BETTER_VOICE_ROOT/data/bulk_tts_1k`
   (1000 WAV, 22050 Hz, D0-verified; measured 0/30 closed-vocab coverage):
   10-word sub-vocab, 20 round-robin 3–5-word same-clip phrases, 79 tokens.
 - Excluded: `phrase_training` (3500 16 kHz phrases, 30/30 vocab, ideal shape)
@@ -59,8 +59,8 @@ Command (from worktree root, release):
 
 ```
 cargo run --release -p a2 --bin a2_dev -- \
-  --template-dir /home/michael/repos/hearsay-four/sessions/run1-16k \
-  --phrase-list sessions/script-a2-phrases.txt \
+  --template-dir $MAIN/sessions/run1-16k \
+  --phrase-list prompts/script-a2-phrases.txt \
   --out-dir /tmp/a2-dev-full --wip 5 --max-live 8000 --beam 800
 ```
 
@@ -81,7 +81,7 @@ DEV-B TTS machinery (same-clip, 10 words):
 
 ```
 cargo run --release -p a2 --bin a2_dev -- \
-  --bulk-dir /home/michael/repos/better-voice/data/bulk_tts_1k \
+  --bulk-dir $BETTER_VOICE_ROOT/data/bulk_tts_1k \
   --bulk-words 10 --bulk-phrases 20 --out-dir /tmp/a2-dev-bull2 \
   --wip 5 --max-live 8000 --beam 800
 ```
@@ -114,8 +114,8 @@ pinned resampler + RS-1 endpointer; replaces retired run1-16k numbers above):
 
 ```
 cargo run --release -p a2 --bin a2_dev -- \
-  --template-dir /home/michael/repos/hearsay-four/sessions/canon/run1 \
-  --phrase-list sessions/script-a2-phrases.txt \
+  --template-dir $MAIN/sessions/canon/run1 \
+  --phrase-list prompts/script-a2-phrases.txt \
   --out-dir /tmp/a2-dev-canon --wip 5 --max-live 8000 --beam 800
 ```
 

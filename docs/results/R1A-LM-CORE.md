@@ -18,9 +18,9 @@ recorded there). LM text contains TRAIN-partition transcripts only;
 | better-voice `data/medical_tts/training_manifest.tsv` | 50 | TTS (espeak), VERIFIED |
 | better-voice `data/phonetics_audio/phonetics_training_manifest.tsv` | 20 | TTS, VERIFIED |
 | better-voice `data/quality_checked_1k/train.tsv` + `val.tsv` | 900 + 100 | TTS, VERIFIED |
-| repo `sessions/oyez-bulk/10-218_2011/transcript.json` | 643 | Oyez CC BY-NC + attribution, VERIFIED |
-| repo `sessions/oyez-bulk/70-112_1971/transcript.json` | 444 | Oyez CC BY-NC + attribution, VERIFIED |
-| repo `sessions/oyez-pilot/transcript.json` | 643 | same case as 10-218 (TRAIN alias) |
+| repo `data/oyez-bulk/10-218_2011/transcript.json` | 643 | Oyez CC BY-NC + attribution, VERIFIED |
+| repo `data/oyez-bulk/70-112_1971/transcript.json` | 444 | Oyez CC BY-NC + attribution, VERIFIED |
+| repo `data/oyez-pilot/transcript.json` | 643 | same case as 10-218 (TRAIN alias) |
 
 Measured run (`train-lm`): 3914 sentences, vocab 4218, 37056 tokens,
 trigram discounts (0.370, 1.968, 1.5), bigram discounts

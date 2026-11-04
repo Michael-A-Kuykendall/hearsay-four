@@ -5,11 +5,11 @@
 # Flag --drop-label WORD builds the consistent-but-incomplete variant (word
 # omitted from WAVs + manifest; order.txt keeps all 30; hashes recomputed).
 # Usage: scripts/fixtures/make_good_session.sh [--drop-label WORD]
-# Must run from the repo root (reads sessions/script-wave3.txt).
+# Must run from the repo root (reads prompts/script-wave3.txt).
 set -u
 
-[ -f sessions/script-wave3.txt ] || { echo "FAIL: run from the repo root" >&2; exit 1; }
-[ "$(wc -l < sessions/script-wave3.txt)" -eq 30 ] || { echo "FAIL: script-wave3.txt must have exactly 30 lines" >&2; exit 1; }
+[ -f prompts/script-wave3.txt ] || { echo "FAIL: run from the repo root" >&2; exit 1; }
+[ "$(wc -l < prompts/script-wave3.txt)" -eq 30 ] || { echo "FAIL: script-wave3.txt must have exactly 30 lines" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "FAIL: python3 not found" >&2; exit 1; }
 command -v sha256sum >/dev/null || { echo "FAIL: sha256sum not found" >&2; exit 1; }
 
@@ -26,7 +26,7 @@ mkdir -p "$OUT"
 python3 - "$DROP" <<'PYEOF'
 import math, random, struct, sys, wave
 drop = sys.argv[1] or None
-vocab = [l.strip() for l in open('sessions/script-wave3.txt') if l.strip()]
+vocab = [l.strip() for l in open('prompts/script-wave3.txt') if l.strip()]
 assert len(vocab) == 30, len(vocab)
 if drop is not None:
     assert drop in vocab, f"drop word {drop} not in vocab"

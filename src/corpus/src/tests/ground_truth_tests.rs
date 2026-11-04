@@ -3,7 +3,7 @@
 //! Offline, synthetic fixtures shaped like `session.tsv` manifest rows
 //! (`start_sec` / `stop_sec` / `text`); no network, no new data. The
 //! number-word text in `ground_truth_number_word_passthrough` mirrors the
-//! committed `sessions/oyez-pilot/session.tsv` row 0
+//! committed `data/oyez-pilot/session.tsv` row 0
 //! ("We will hear argument next today in Case 10-218, PPL Montana v.
 //! Montana.").
 
@@ -66,7 +66,7 @@ fn ground_truth_case_punctuation_normalization() {
 
 #[test]
 fn ground_truth_number_word_passthrough() {
-    // Text mirrors committed sessions/oyez-pilot/session.tsv row 0.
+    // Text mirrors committed data/oyez-pilot/session.tsv row 0.
     let rows = vec![TimedSegment::new(
         0.0,
         5.95,

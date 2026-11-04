@@ -1518,7 +1518,7 @@ mod stream_tests {
     //!
     //! Model-free, Oyez sessions + synthetic only, offline: counting and
     //! table lookup only — no network. The Oyez parity test decodes staged
-    //! bulk audio (`sessions/oyez-bulk/*/audio/run1.wav`, gitignored) and
+    //! bulk audio (`data/oyez-bulk/*/audio/run1.wav`, gitignored) and
     //! the committed `session.tsv` for that case; it skips when the audio is
     //! absent so CI without the staging still passes.
     use super::*;
@@ -1778,7 +1778,7 @@ mod stream_tests {
     /// staging still passes).
     #[test]
     fn streaming_wer_parity_with_batch_on_oyez_fixture() {
-        let case_dir = PathBuf::from("../../sessions/oyez-bulk/10-218_2011");
+        let case_dir = PathBuf::from("../../data/oyez-bulk/10-218_2011");
         let wav = case_dir.join("audio/run1.wav");
         let tsv = case_dir.join("session.tsv");
         if !wav.exists() || !tsv.exists() {

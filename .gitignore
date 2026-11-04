@@ -22,8 +22,11 @@ data/session/audio/
 # Feature cache (bead hearsay-four-smpp): re-derived by build_featcache.
 data/cache/
 # RS1 canonical sessions (bead hearsay-four-c0q--rs1-d-catalog-cuts): canon
-# output is re-derived by canon-session; only CATALOG.tsv + prompt cuts commit.
-sessions/canon/
+# output is re-derived by canon-session.
+# Release scrub (bead hearsay-four-waay): sessions/ holds ONLY owner-local
+# runtime outputs (recordings, CATALOG.tsv, run1 manifests) — all untracked.
+# Prompt lists live in prompts/, Oyez eval text in data/oyez-*, all tracked.
+sessions/
 
 # --- Agent / IDE internal tooling (not for public) ---
 .opencode/

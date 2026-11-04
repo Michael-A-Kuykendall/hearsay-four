@@ -55,7 +55,7 @@ failure; default exit 0 means every *executed* step passed.
 | phasetest | PENDING | Owner read-PHASE-TEST-01 scored ONCE at level A (word-timestamped), milestone claims use it. Guard is live: `docs/results/owner-<date>-read-PHASE-TEST-01.SCORED` refuses re-score; removal is auditable, coordinator-only. Note `phase_test_scoring_tests` scores the D1 SCOTUS partition (level B), not owner sessions. |
 | p4 | PENDING | Fly benchmark binary (bead b6y, after P3b). Spec: fly DEV + PHASE-TEST n=15/15, descriptive with bootstrap CI, no significance claim. Inputs: canon fly-DEV-01 + fly-PHASE-TEST-01. |
 
-Session IDs follow `docs/OWNER-RECORDING-RUNBOOK.md`
+Session IDs follow `docs/OWNER-RECORDING-GUIDE.md`
 (`owner-<date>-harvard-TRAIN-01`, `-harvard-DEV-01`, `-fly-DEV-01`,
 `-read-PHASE-TEST-01`, `-fly-PHASE-TEST-01`, optional
 `-words30-PHASE-TEST-01`); `--date` defaults to `20261101`.

@@ -33,16 +33,16 @@ BETTER_VOICE_DEV = ["quality_test", "libri_mini_spaced"]
 # (group, chronological key, [(root, path), ...])
 CASES = [
     ("case:70-112_1971", "1971", "TRAIN",
-     [("repo", "sessions/oyez-bulk/70-112_1971/session.tsv"),
-      ("repo", "sessions/oyez-bulk/70-112_1971/transcript.json")]),
+     [("repo", "data/oyez-bulk/70-112_1971/session.tsv"),
+      ("repo", "data/oyez-bulk/70-112_1971/transcript.json")]),
     ("case:10-218_2011", "2011", "TRAIN",
-     [("repo", "sessions/oyez-bulk/10-218_2011/session.tsv"),
-      ("repo", "sessions/oyez-bulk/10-218_2011/transcript.json"),
-      ("repo", "sessions/oyez-pilot/session.tsv"),
-      ("repo", "sessions/oyez-pilot/transcript.json")]),
+     [("repo", "data/oyez-bulk/10-218_2011/session.tsv"),
+      ("repo", "data/oyez-bulk/10-218_2011/transcript.json"),
+      ("repo", "data/oyez-pilot/session.tsv"),
+      ("repo", "data/oyez-pilot/transcript.json")]),
     ("case:24-889_2025", "2025", "DEV",
-     [("repo", "sessions/oyez-bulk/24-889_2025/session.tsv"),
-      ("repo", "sessions/oyez-bulk/24-889_2025/transcript.json"),
+     [("repo", "data/oyez-bulk/24-889_2025/session.tsv"),
+      ("repo", "data/oyez-bulk/24-889_2025/transcript.json"),
       ("repo", "data/session/session.tsv"),
       ("repo", "data/session/oyez_media_25951.json")]),
     ("case:106765_25-170", "2026-10-05", "PHASE-TEST",
@@ -75,9 +75,9 @@ LM_FILES = [
     ("better-voice", "data/quality_checked_1k/val.tsv"),
     ("better-voice", "data/medical_tts/training_manifest.tsv"),
     ("better-voice", "data/phonetics_audio/phonetics_training_manifest.tsv"),
-    ("repo", "sessions/oyez-bulk/70-112_1971/transcript.json"),
-    ("repo", "sessions/oyez-bulk/10-218_2011/transcript.json"),
-    ("repo", "sessions/oyez-pilot/transcript.json"),
+    ("repo", "data/oyez-bulk/70-112_1971/transcript.json"),
+    ("repo", "data/oyez-bulk/10-218_2011/transcript.json"),
+    ("repo", "data/oyez-pilot/transcript.json"),
 ]
 
 # D0 sets that may not enter any partition (visible exclusions).

@@ -1,7 +1,7 @@
 # Recording readiness checklist (lane E, bead hearsay-four-9ud8--adaptation-plumbing-runbook)
 
 Each item is GREEN or a named blocker, with the exact verification command.
-Recording (docs/OWNER-RECORDING-RUNBOOK.md) starts only when all four are
+Recording (docs/OWNER-RECORDING-GUIDE.md) starts only when all four are
 GREEN and the coordinator has said "cleared to record" after the smoke test.
 
 ## 1. Windows recorder built (unified + sealed redo + native rate) — GREEN
@@ -49,16 +49,16 @@ smoke session, then the six GO sessions, before scoring anything.
 
 | Session | File | Lines | State |
 |---|---|---|---|
-| harvard-TRAIN-01 | `sessions/prompts-harvard-train-01.txt` | 50 | NEW this bead, byte-exact cut of `script-harvard.txt` lines 1–50 (lists 1–5) |
-| harvard-DEV-01 | `sessions/prompts-harvard-dev-01.txt` | 30 | NEW this bead, byte-exact cut of lines 51–80 (lists 6–8) |
-| fly-DEV-01 | `sessions/prompts-fly-dev-01.txt` | 15 | committed (RS1-d GO cut) |
-| read-PHASE-TEST-01 | `sessions/prompts-read-phase-test-01.txt` | 50 | committed (RS1-d GO cut) |
-| fly-PHASE-TEST-01 | `sessions/prompts-fly-phase-test-01.txt` | 15 | committed (RS1-d GO cut) |
-| words30-PHASE-TEST-01 | `sessions/script-wave3.txt` | 30 | committed |
-| smoke-SEALED-01 | `sessions/prompts-smoke-sealed-01.txt` | 3 | 3-line sealed smoke (2026-11-02) |
+| harvard-TRAIN-01 | `prompts/prompts-harvard-train-01.txt` | 50 | NEW this bead, byte-exact cut of `script-harvard.txt` lines 1–50 (lists 1–5) |
+| harvard-DEV-01 | `prompts/prompts-harvard-dev-01.txt` | 30 | NEW this bead, byte-exact cut of lines 51–80 (lists 6–8) |
+| fly-DEV-01 | `prompts/prompts-fly-dev-01.txt` | 15 | committed (RS1-d GO cut) |
+| read-PHASE-TEST-01 | `prompts/prompts-read-phase-test-01.txt` | 50 | committed (RS1-d GO cut) |
+| fly-PHASE-TEST-01 | `prompts/prompts-fly-phase-test-01.txt` | 15 | committed (RS1-d GO cut) |
+| words30-PHASE-TEST-01 | `prompts/script-wave3.txt` | 30 | committed |
+| smoke-SEALED-01 | `prompts/prompts-smoke-sealed-01.txt` | 3 | 3-line sealed smoke (2026-11-02) |
 
 The owner records in the Windows clone, so all seven files are copied to
-`C:\Users\micha\repos\hearsay-four-win\sessions\` (copy step, not a git
+`C:\Users\<you>\repos\hearsay-four-win\prompts\` (copy step, not a git
 operation — the win clone is a build/record tree). Re-copy after any
 prompt change.
 
@@ -72,7 +72,7 @@ merge — that commit is the remaining step, not new work.
 Verify:
 
 ```bash
-bash -c 'cd sessions && head -50 script-harvard.txt | cmp - <(tail -n +3 prompts-harvard-train-01.txt) && sed -n "51,80p" script-harvard.txt | cmp - <(tail -n +3 prompts-harvard-dev-01.txt)'
+bash -c 'cd prompts && head -50 script-harvard.txt | cmp - <(tail -n +3 prompts-harvard-train-01.txt) && sed -n "51,80p" script-harvard.txt | cmp - <(tail -n +3 prompts-harvard-dev-01.txt)'
 # TRAIN-BYTES-OK + DEV-BYTES-OK (observed 2026-11-01)
 ```
 

@@ -1,6 +1,6 @@
 # Master Plan v3 — Codebase Audit (2026-10-27)
 
-Audited `HEARSAY-IV-MASTER-PLAN (1).md` (Claude + GPT converged) against
+Audited `HEARSAY-IV-MASTER-PLAN.md` (Claude + GPT converged) against
 code at HEAD 7213203 + this session's reads. Method: OpenState symbolic
 search/read of every cited symbol; text scans of src/ (148 files).
 

@@ -22,11 +22,12 @@ jobs:
         run: bash scripts/check_tracked_artifacts.sh
       - name: No host-absolute paths in code
         run: |
-          if grep -rn '/home/' src scripts --include='*.rs' --include='*.py' --include='*.sh'; then
+          HOMEDIR=/home
+          if grep -rn "$HOMEDIR/" src scripts --include='*.rs' --include='*.py' --include='*.sh'; then
             echo "GUARD-RED: host-absolute path in code (use repo fixtures + env overrides)"
             exit 1
           fi
-          echo "HOST-PATH GUARD GREEN: no /home/ literals in src or scripts."
+          echo "HOST-PATH GUARD GREEN: no absolute home-dir literals in src or scripts."
       - name: D1 partition seal
         run: python3 scripts/test_d1_partitions.py
       - name: Test suite (clean env, no host data)

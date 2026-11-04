@@ -6,7 +6,7 @@ CLOSED_VOCABULARY, and every phrase must be 3-7 words. The embedded
 list is cross-checked against src/fse/src/lib.rs (drift = fail).
 
 Usage (from repo root):
-    python3 scripts/check_vocab_closure.py sessions/script-a2-phrases.txt
+    python3 scripts/check_vocab_closure.py prompts/script-a2-phrases.txt
 """
 import re
 import sys

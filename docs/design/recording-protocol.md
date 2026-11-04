@@ -1,7 +1,7 @@
 # Recording Protocol — owner audio + LOCKBOX sealing (bead hearsay-four-7ms, D1)
 
 Binding for every owner recording session from D1 onward. Partitions
-are defined in [D1-PARTITIONS.md](/home/michael/repos/hearsay-four-lane-d1/docs/results/D1-PARTITIONS.md);
+are defined in [D1-PARTITIONS.md](../results/D1-PARTITIONS.md);
 split manifests live in `data/partitions/`.
 
 ## 1. Technical standard (no exceptions)
@@ -58,7 +58,7 @@ predestine, byzantium, genetic, constitution, interpersonal,
 enchantment, perfume, submissions, overboard, knockdown, sleepwalking,
 unrealized, panhandling, horribly, salivating, rhubarb, staked).
 Prompts are connected 3–7-word phrases over this vocabulary only
-(generated lists: `sessions/script-wave2.txt`, `script-wave3.txt`
+(generated lists: `prompts/script-wave2.txt`, `prompts/script-wave3.txt`
 pattern). Example prompts: "survival process intense reflection",
 "knockdown ripple overboard staked", "horribly congealed rhubarb".
 DEV phrases may be TTS (D0 sets); PHASE-TEST phrases are owner human
@@ -94,4 +94,4 @@ the two session ids are registered in the D1 results doc before scoring.
 4. `scripts/test_d1_partitions.py` fails if any ordinary evaluation
    config references a LOCKBOX file outside the seal machinery.
 
-Current LOCKBOX contents and seal values: [D1-PARTITIONS.md](/home/michael/repos/hearsay-four-lane-d1/docs/results/D1-PARTITIONS.md).
+Current LOCKBOX contents and seal values: [D1-PARTITIONS.md](../results/D1-PARTITIONS.md).

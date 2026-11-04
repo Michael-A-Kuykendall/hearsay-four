@@ -2,9 +2,9 @@
 //!
 //! Setup mirrors `src/decoder/examples/wer_devclean.rs`: 8-mix CMVN acoustic
 //! model, interpolated R1 LM (top 20k + book words), tiered lexicon. Input
-//! data resolves to `<workspace>/data`, else `$HEARSAY_FOUR_ROOT/data`, else
-//! the main checkout (lane read-only fallback); lattice files are always
-//! written to `<workspace>/data/lattices/dev5/`.
+//! data resolves to `<workspace>/data`, else `$HEARSAY_FOUR_ROOT/data`;
+//! tests SKIP loudly when inputs are absent (no hard-coded home paths).
+//! Lattice files are always written to `<workspace>/data/lattices/dev5/`.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -19,27 +19,29 @@ fn am_relpath() -> &'static str {
     "models/r3v2-full93-cmvn/ckpt-8mix-iter2.json"
 }
 
-/// Input data dir: workspace first, then `$HEARSAY_FOUR_ROOT`, then the main
-/// checkout (lanes mount no external audio of their own).
-fn data_root() -> PathBuf {
+fn better_voice_root() -> PathBuf {
+    for env in ["BETTER_VOICE_ROOT", "HEARSAY_BETTER_VOICE_ROOT"] {
+        if let Ok(v) = std::env::var(env) {
+            return PathBuf::from(v);
+        }
+    }
+    workspace_root().join("../better-voice")
+}
+
+/// Input data dir: workspace first, then `$HEARSAY_FOUR_ROOT`; `None`
+/// when neither holds the acoustic model (callers SKIP loudly).
+fn data_root() -> Option<PathBuf> {
     let ws = workspace_root().join("data");
     if ws.join(am_relpath()).exists() {
-        return ws;
+        return Some(ws);
     }
     if let Ok(root) = std::env::var("HEARSAY_FOUR_ROOT") {
         let p = PathBuf::from(root).join("data");
         if p.join(am_relpath()).exists() {
-            return p;
+            return Some(p);
         }
     }
-    let main = PathBuf::from("/home/michael/repos/hearsay-four/data");
-    if main.join(am_relpath()).exists() {
-        return main;
-    }
-    panic!(
-        "kbest inputs missing: {} not found under workspace data/, $HEARSAY_FOUR_ROOT/data, or /home/michael/repos/hearsay-four/data",
-        am_relpath()
-    );
+    None
 }
 
 struct KbestInputs {
@@ -48,16 +50,26 @@ struct KbestInputs {
     entries: Vec<decoder::PronEntry>,
 }
 
-fn kbest_inputs() -> KbestInputs {
-    let data = data_root();
+fn kbest_inputs() -> Option<KbestInputs> {
+    let Some(data) = data_root() else {
+        eprintln!(
+            "SKIP kbest_dev5_lattices: acoustic model absent (workspace data/ or $HEARSAY_FOUR_ROOT/data)"
+        );
+        return None;
+    };
     let am = data.join(am_relpath());
     let lm = data.join("lm-text/r1v2-full/lm-r1v2-interpolated.json");
-    let tier1 = PathBuf::from(
-        "/home/michael/repos/better-voice/data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt",
-    );
+    let tier1 =
+        better_voice_root().join("data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt");
     let tier2 = data.join("lexicon/librispeech-lexicon.txt");
     for p in [&am, &lm, &tier1, &tier2] {
-        assert!(p.exists(), "kbest input missing: {}", p.display());
+        if !p.exists() {
+            eprintln!(
+                "SKIP kbest_dev5_lattices: kbest input missing: {} (workspace data/, $HEARSAY_FOUR_ROOT/data, or $BETTER_VOICE_ROOT sibling)",
+                p.display()
+            );
+            return None;
+        }
     }
     // Premise pin: the ACOUSTIC null needs the SIL phone in the AM.
     let am_set = hmm::HmmSet::load_text(&am).expect("load am for SIL check");
@@ -78,14 +90,15 @@ fn kbest_inputs() -> KbestInputs {
         report.oov_lm,
         report.oov_book_only
     );
-    KbestInputs { am, lm, entries }
+    Some(KbestInputs { am, lm, entries })
 }
 
 /// First 5 rows, in order, of the strat200 manifest: (utt id, wav relpath).
-fn dev5_rows() -> Vec<(String, PathBuf)> {
-    let text = std::fs::read_to_string(data_root().join("wer71g/tune200s/strat200.manifest.tsv"))
-        .expect("read strat200 manifest");
-    text.lines()
+fn dev5_rows() -> Option<Vec<(String, PathBuf)>> {
+    let data = data_root()?;
+    let text = std::fs::read_to_string(data.join("wer71g/tune200s/strat200.manifest.tsv")).ok()?;
+    let rows: Vec<(String, PathBuf)> = text
+        .lines()
         .filter(|l| !l.trim().is_empty())
         .take(5)
         .enumerate()
@@ -96,7 +109,8 @@ fn dev5_rows() -> Vec<(String, PathBuf)> {
                 _ => panic!("strat200 line {} malformed", i + 1),
             }
         })
-        .collect()
+        .collect();
+    Some(rows)
 }
 
 fn load_pcm(wav_path: &Path) -> Vec<i16> {
@@ -246,7 +260,9 @@ fn kbest_demo_wav_contains_one_best_and_alternatives() {
 
 #[test]
 fn kbest_dev5_lattices() {
-    let inputs = kbest_inputs();
+    let Some(inputs) = kbest_inputs() else {
+        return;
+    };
     let decoder = MooreDecoder::load_with_vocab(
         &inputs.am,
         Some(&inputs.lm),
@@ -259,10 +275,15 @@ fn kbest_dev5_lattices() {
         decoder.vocab_size(),
         decoder.skipped_words().len()
     );
-    let data = data_root();
+    let Some(data) = data_root() else {
+        return;
+    };
     let out_dir = workspace_root().join("data/lattices/dev5");
     std::fs::create_dir_all(&out_dir).expect("create dev5 dir");
-    let rows = dev5_rows();
+    let Some(rows) = dev5_rows() else {
+        eprintln!("SKIP kbest_dev5_lattices: strat200 manifest absent under data/");
+        return;
+    };
     assert_eq!(rows.len(), 5, "strat200 must yield 5 rows");
     for (utt, rel) in &rows {
         let started = std::time::Instant::now();

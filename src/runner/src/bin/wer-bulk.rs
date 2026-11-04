@@ -1,7 +1,7 @@
 //! wer-bulk: absolute WER driver on the Oyez bulk sessions
 //! (bead hearsay-four-4b7, WER-1).
 //!
-//! Transcribes `sessions/oyez-bulk/*/audio/run1.wav` end to end through the
+//! Transcribes `data/oyez-bulk/*/audio/run1.wav` end to end through the
 //! same classical pipeline `hearsay-serve` uses
 //! ([`runner::run_streaming_pipeline`]: windowed MFCC, phone scoring,
 //! hash-consed arena, commit window, edit-distance lexicon lookup, counted
@@ -13,7 +13,7 @@
 //! Writes per-case and overall WER (S/D/I breakdown) to
 //! `<root>/WER-REPORT.md`. `--root` resolves relative to the process CWD,
 //! exactly like `failfast_run --root` (run from `src/runner` with
-//! `--root ../../sessions/oyez-bulk`).
+//! `--root ../../data/oyez-bulk`).
 //!
 //! Two modes: full-file (default, `--span-secs 0`) transcribes each case end
 //! to end and scores against the full-file reference (kept for overnight
@@ -41,7 +41,7 @@ const CASES: &[&str] = &["70-112_1971", "10-218_2011", "24-889_2025"];
 const USAGE: &str = "\
 wer-bulk: absolute WER on Oyez bulk sessions (WER-1, bead hearsay-four-4b7)\n\
 \n\
-usage: wer-bulk --root <sessions/oyez-bulk> [--chunk-secs N] [--max-secs N]\n\
+usage: wer-bulk --root <data/oyez-bulk> [--chunk-secs N] [--max-secs N]\n\
   [--span-secs S --num-spans K | --span-starts a,b,c]\n\
   --root <dir>   bulk session dir holding <case>/session.tsv +\n\
                  <case>/audio/run1.wav (resolves relative to CWD)\n\
@@ -221,7 +221,7 @@ fn parse_args(args: &[String]) -> Result<Action, Failure> {
             span_starts,
         })),
         None => Err(Failure::usage(
-            "--root <sessions/oyez-bulk> is required".to_string(),
+            "--root <data/oyez-bulk> is required".to_string(),
         )),
     }
 }
@@ -595,7 +595,7 @@ fn render_span_report(spans: &[SpanScore], req: &Request) -> String {
     );
     out.push_str(&format!(
         "Reproduce (from `src/runner`):\n\
-         `cargo run --release --bin wer-bulk -- --root ../../sessions/oyez-bulk --span-secs {} --num-spans {}`\n\
+         `cargo run --release --bin wer-bulk -- --root ../../data/oyez-bulk --span-secs {} --num-spans {}`\n\
          \n\
          Pipeline: chunk_secs={} (one committed word per chunk), generic\n\
          reference baseline, SPAN-SLICED: {}s spans per case, {}.\n\
@@ -666,7 +666,7 @@ fn render_report(cases: &[CaseScore], req: &Request) -> String {
          Model-free, Oyez audio + synthetic fixtures only, fully offline.\n\
          \n\
          Reproduce (from `src/runner`):\n\
-         `cargo run --release --bin wer-bulk -- --root ../../sessions/oyez-bulk`\n\
+         `cargo run --release --bin wer-bulk -- --root ../../data/oyez-bulk`\n\
          \n",
     );
     if req.max_secs > 0.0 {
@@ -969,7 +969,7 @@ bucket\tidx\tstart_sec\tstop_sec\tspeaker\tdrift_tags\ttext\n\
     #[test]
     fn report_carries_every_case_row_plus_overall() {
         let req = Request {
-            root: PathBuf::from("sessions/oyez-bulk"),
+            root: PathBuf::from("data/oyez-bulk"),
             chunk_secs: 2.0,
             max_secs: 0.0,
             span_secs: 0.0,
@@ -1026,7 +1026,7 @@ bucket\tidx\tstart_sec\tstop_sec\tspeaker\tdrift_tags\ttext\n\
     #[test]
     fn capped_report_says_capped() {
         let full = Request {
-            root: PathBuf::from("sessions/oyez-bulk"),
+            root: PathBuf::from("data/oyez-bulk"),
             chunk_secs: 2.0,
             max_secs: 0.0,
             span_secs: 0.0,
@@ -1034,7 +1034,7 @@ bucket\tidx\tstart_sec\tstop_sec\tspeaker\tdrift_tags\ttext\n\
             span_starts: Vec::new(),
         };
         let capped = Request {
-            root: PathBuf::from("sessions/oyez-bulk"),
+            root: PathBuf::from("data/oyez-bulk"),
             chunk_secs: full.chunk_secs,
             max_secs: 60.0,
             span_secs: 0.0,
@@ -1133,7 +1133,7 @@ bucket\tidx\tstart_sec\tstop_sec\tspeaker\tdrift_tags\ttext\n\
     #[test]
     fn span_report_says_span_sliced_with_every_row() {
         let req = Request {
-            root: PathBuf::from("sessions/oyez-bulk"),
+            root: PathBuf::from("data/oyez-bulk"),
             chunk_secs: 2.0,
             max_secs: 0.0,
             span_secs: 30.0,

@@ -53,7 +53,7 @@
    "bytes": 329832,
    "dataset": "lm-train-text",
    "group": "lm-train",
-   "path": "sessions/oyez-bulk/10-218_2011/transcript.json",
+   "path": "data/oyez-bulk/10-218_2011/transcript.json",
    "root": "repo",
    "sha256": "3ae4ce359464a5e472b2cc5d7f7a1f409af8711808e2287a23e9c7e341a08f79"
   },
@@ -61,7 +61,7 @@
    "bytes": 274257,
    "dataset": "lm-train-text",
    "group": "lm-train",
-   "path": "sessions/oyez-bulk/70-112_1971/transcript.json",
+   "path": "data/oyez-bulk/70-112_1971/transcript.json",
    "root": "repo",
    "sha256": "1e22147ebd09de162221abb6b6d11be8c40ea847792696648fa1fe6cd357038e"
   },
@@ -69,7 +69,7 @@
    "bytes": 240129,
    "dataset": "lm-train-text",
    "group": "lm-train",
-   "path": "sessions/oyez-pilot/transcript.json",
+   "path": "data/oyez-pilot/transcript.json",
    "root": "repo",
    "sha256": "c50b1a506f7f04a91df97302d8b7e5993b5e5dbe1482103d2cbf57f6603771df"
   }

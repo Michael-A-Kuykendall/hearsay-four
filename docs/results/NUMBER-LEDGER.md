@@ -3,7 +3,7 @@
 One row per headline number. Each row carries: command, data, size,
 plausibility check, CI status. Fields with no recorded evidence say TBD.
 
-Read 2026-11-01 from the main checkout (`/home/michael/repos/hearsay-four`).
+Read 2026-11-01 from the main checkout.
 `data/` is gitignored; paths below are main-checkout locations. This ledger
 lives in `docs/results/` so the numbers are citable from the repo.
 

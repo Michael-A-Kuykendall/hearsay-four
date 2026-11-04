@@ -69,7 +69,7 @@ fn better_voice_root() -> PathBuf {
     lane_root().join("../better-voice")
 }
 
-/// Root providing gitignored audio (`sessions/oyez-bulk/*/audio/run1.wav`).
+/// Root providing gitignored audio (`data/oyez-bulk/*/audio/run1.wav`).
 /// Defaults to this checkout; lanes without project audio override with
 /// `HEARSAY_MAIN_ROOT`.
 fn main_root() -> PathBuf {
@@ -405,7 +405,7 @@ fn load_oyez_cases(cases: &[&str], lex: &Lexicon, cap: Option<usize>) -> OyezLoa
     let mut skipped: BTreeMap<&'static str, usize> = BTreeMap::new();
     let mut session_paths = Vec::new();
     for case in cases {
-        let rel_session = format!("sessions/oyez-bulk/{case}/session.tsv");
+        let rel_session = format!("data/oyez-bulk/{case}/session.tsv");
         let session_path = if lane.join(&rel_session).is_file() {
             lane.join(&rel_session)
         } else {
@@ -417,7 +417,7 @@ fn load_oyez_cases(cases: &[&str], lex: &Lexicon, cap: Option<usize>) -> OyezLoa
             session_path.display()
         );
         session_paths.push((format!("case:{case}"), rel_session));
-        let rel_audio = format!("sessions/oyez-bulk/{case}/audio/run1.wav");
+        let rel_audio = format!("data/oyez-bulk/{case}/audio/run1.wav");
         let audio_path = if main.join(&rel_audio).is_file() {
             main.join(&rel_audio)
         } else {

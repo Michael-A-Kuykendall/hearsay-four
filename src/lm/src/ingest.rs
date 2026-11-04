@@ -146,8 +146,9 @@ pub fn load_dev_evaluation_lines(
 }
 
 /// Load every LM-train text source allowed by D1.
-/// `repo_root` holds `data/partitions/` and `sessions/`; `better_voice_root`
-/// holds `data/...` for `root == "better-voice"` entries.
+/// `repo_root` holds `data/partitions/` plus the committed `repo`-rooted
+/// inputs (`data/oyez-*`, `data/demo`, `data/corpus`, `data/session`);
+/// `better_voice_root` holds `data/...` for `root == "better-voice"` entries.
 pub fn load_lm_train_sources(
     repo_root: &Path,
     better_voice_root: &Path,

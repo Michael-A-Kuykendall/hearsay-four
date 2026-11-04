@@ -1,6 +1,6 @@
 # R3 — Speaker-Independent Base Acoustic Model (bead `hearsay-four-30y--speaker-independent-model`)
 
-Measured: 2026-10-28 in lane `/home/michael/repos/hearsay-four-lane-r3`
+Measured: 2026-10-28 in lane `hearsay-four-lane-r3`
 (branch `bead/30y-speaker-independent`).
 Status: GREEN — `test result: ok. 1 passed; 0 failed; finished in 507.35s`
 (release, explicit run; the test is `#[ignore]`d by default).
@@ -28,7 +28,7 @@ SI TRAIN (human, multi-speaker, D1 TRAIN): Oyez `10-218_2011` (642
 segments, 11 speakers) + `70-112_1971` (444 segments, 8 speakers).
 `session.tsv` transcripts from the lane checkout (committed text);
 `audio/run1.wav` (mono 16 kHz, gitignored) read-only from the main
-workspace `/home/michael/repos/hearsay-four` (`HEARSAY_MAIN_ROOT`
+workspace (`HEARSAY_MAIN_ROOT`
 override). Segments sliced by `[start_sec, stop_sec)`; lexicon-OOV
 segments (case cites, numbers, `--`) skipped for TRAIN.
 
@@ -154,7 +154,7 @@ ckpt iter=4 mix=2 train_ll=-573314.58 dev_per=0.8490 SELECTED
 cargo test --release -p hmm --test r3_si_base_tests -- --nocapture --test-threads=1 --include-ignored
 ```
 
-Requires `/home/michael/repos/better-voice` (libri audio, transcripts,
-phonetics table) and `/home/michael/repos/hearsay-four` (Oyez
+Requires the better-voice checkout (libri audio, transcripts,
+phonetics table) and the main checkout (Oyez
 `audio/run1.wav`, read-only) or `HEARSAY_MAIN_ROOT` set. Deterministic:
 same inputs give bit-identical models and scores.

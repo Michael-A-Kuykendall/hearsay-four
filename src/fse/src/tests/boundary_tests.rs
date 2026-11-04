@@ -113,7 +113,7 @@ fn courtroom_sample_boundary_count_is_speech_plausible() {
 /// boundary rate for the bead note; asserts only time ordering.
 #[test]
 fn oyez_bulk_clip_boundary_rate_diagnostic() {
-    let path = std::path::Path::new("../../sessions/oyez-bulk/10-218_2011/audio/run1.wav");
+    let path = std::path::Path::new("../../data/oyez-bulk/10-218_2011/audio/run1.wav");
     if !path.exists() {
         eprintln!("SEG-1 diagnostic: Oyez staging clip absent, skipping");
         return;
