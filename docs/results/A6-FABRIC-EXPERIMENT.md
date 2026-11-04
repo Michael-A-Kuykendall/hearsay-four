@@ -187,6 +187,9 @@ th25, th75; doc uses complete rows only.
 > | 500 | A | 0.6430 | 2306 | 291 | 316 | 1.0854 | n/a | n/a | NA | NA | 0 | 0 |
 > | 500 | B | 0.8550 | 3079 | 648 | 146 | 0.3957 | 16364 | 0 | NA | NA | 0 | 0 |
 > | 500 | C | 0.8547 | 3079 | 648 | 145 | 0.7857 | 16454 | 62 | 7 | -0.0002 [-0.0007, 0.0000] | 0 | 0 |
+>
+> String check: th50 800/800 per-utt b_hyp==c_hyp; th25 799/800, sole
+differing row 7021-79730-0004 @ budget 500 (the -0.0002 cell).
 
 > Reading: budgets 50/100/250 identical to theta 0 (B==C everywhere).
 > At budget 500 the first nonzero delta in the experiment: C 0.8547 vs
