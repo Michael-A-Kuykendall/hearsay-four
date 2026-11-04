@@ -64,3 +64,36 @@ python3 docs/results/validate_d0_inventory.py --self-test # must print SELF-TEST
 ```
 
 Data rule honoured: inventory only — no scoring, no new sources, no audio copied into this repo.
+
+## Amendment 2026-11-04 (disk trim, pre-submission)
+
+Freed ~280 GB (disk 223G → 500G free; `data/` 50G → 14G). Deleted items are
+listed with their recovery path; nothing irreplaceable was removed:
+
+- `train-clean-100.tar.gz` (6.0G) + `wav/train-clean-100/` (11G) +
+  `LibriSpeech/train-clean-100/` (6.3G): training audio unneeded after the
+  acoustic-model freeze (no retraining before submission; no code path reads
+  train audio — docs-only references). Re-downloadable from SLR12 (md5 above).
+- `LibriSpeech/{dev-clean,test-clean}/` extracted (0.7G): redundant with
+  `wav/` pipeline form + kept tarballs. Re-extractable from the kept archives.
+- `data/cache/feat/` (11G): feature cache, rebuildable in ~51 s for dev-clean
+  via `src/hmm/examples/build_featcache.rs` (see `build-devclean.log`).
+- `data/models/r3v2-full93-cmvn/model.json` (747M): byte-duplicate of the
+  frozen `ckpt-8mix-iter2.json`; zero references.
+- `data/models/r3v2-sub20/` (844M): superseded subset-tuning line; ledger-only
+  references.
+- `data/models/tri1h-remeasure/{tri-final.json,tying.json}` (653M): killed
+  direction (no leak-free number); logs + TSVs kept.
+- `$HOME/.cargo/target-shared` (241G → rebuilt 293M): shared build cache.
+  NOTE for ops: `cargo-tidy.timer` fired 3× on Nov 3 but never cleaned —
+  its `pgrep cargo` guard exits while any build runs, so under continuous
+  load it never acts. Manual trim done with zero builds active; the guard
+  needs a rethink (other session owns `~/bin/cargo-tidy`).
+
+Kept: dev/test audio in `wav/` + tarballs, all lattices (873M), frozen AM
+(`cmvn/ckpt-8mix-iter2.json`) + training lineage, demo AM
+(`r3v2-full93/ckpt-8mix-iter4.json`), LM + text, `wer71g` cells/manifests,
+`scripts/a6/out` evidence (1.7G), v7fa evidence summaries
+(`scripts/a6/out/v7fa/`, 100K; bulk cell JSONs dropped as reproducible from
+merged drivers). Removed 3 merged lane worktrees (573M → 50M); the unmerged
+BRIDGE streaming worktree is preserved.
