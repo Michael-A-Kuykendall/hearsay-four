@@ -15,20 +15,20 @@ rev_winner 0 — no demonstrated difference; 29/29 cross-channel
 (`src/fabric/tests/decision_cx1.rs`); fabric RTF 0.08-0.26
 (`scripts/a6/out/sweep_insurance.tsv`).
 
-## Short (233 chars)
+## Short (342 chars — exceeds the 280 post limit, trim before posting)
 
 Hearsay-IV: transcription you can argue with. Fully mechanistic,
-model-free, offline — and every word carries its why panel: acoustic
+non-neural: no neural nets, embeddings, or pretrained models; classical HMM-GMM and n-gram models trained in plain view, offline — and every word carries its why panel: acoustic
 score, losing alternatives, LM probability. An error with an address.
 Built with Muse Code. [video]
 
 ## With numbers
 
-Hearsay-IV: transcription you can argue with. Model-free, offline,
-zero learned weights — every word ships with provenance. LibriSpeech:
+Hearsay-IV: transcription you can argue with. Non-neural (no neural nets, embeddings, or pretrained models; classical HMM-GMM and n-gram models trained in plain view), offline — every word ships with provenance. LibriSpeech:
 decoder 64.3% TEST-200 / 67.6% dev-clean, Fabric 85.5%, null result
 1599/1600 identical (rev_winner 0), 29/29 cross-channel. Built with
 Muse Code. [video]
+non-neural · inspectable · offline.
 
 ## Alt text for the clip (accessibility)
 

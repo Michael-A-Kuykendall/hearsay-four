@@ -11,122 +11,92 @@ number traces to `../writeup/WRITEUP.md`, `../results/A6-FABRIC-EXPERIMENT.md`,
 `scaling-cx1.dat` — no TBDs. Record screens at 1920×1080, terminal
 font ≥ 18 pt, browser zoom 125%.
 
-## Timing map
+> Source: owner RECORDING-PLAN.md Parts 2-3, pasted verbatim 2026-11-04 (replaces the lane draft voiceover, shot list, and timing map).
 
-| # | Segment | Time | Dur | Screen |
-|---|---------|------|-----|--------|
-| a | Hook: fly becomes family, no reason | 0:00–0:18 | 18 s | A. Wrong word, no reason |
-| b | Hearsay-II blackboard problem | 0:18–0:48 | 30 s | B. Blackboard diagram card |
-| c | Fabric decides every word, why panel | 0:48–1:18 | 30 s | C. `web/demo.sh` + click-a-word |
-| d | Scaling chart | 1:18–1:38 | 20 s | D. `scaling-cx1.png` full-screen |
-| e | A6: 1599/1600 identical | 1:38–2:05 | 27 s | E. A6 headline block |
-| f | Correction + undo, 29/29 check | 2:05–2:28 | 23 s | F. `hearsay-correct demo` + ledger row 5 |
-| g | Build story: Muse Code lanes | 2:28–3:00 | 32 s | G. Timeline graphic + end card |
+---
 
-## Full voiceover text (read verbatim)
+## Part 2 — Final voiceover (read verbatim, ~430 words, ~3:00)
 
-**[a — 0:00–0:18, 40 words]**
-"Every dictation system fails the same way. You say fly. It writes
-family. Every time. And nothing in the system can say why. No cause
-to inspect. No fix that sticks. Just a wrong word, again, with no
-reason attached."
+**[a — 0:00–0:18]**
+"My dictation tool fails the same way, every time. I say fly. It writes
+family. And nothing in it can tell me why. No cause to inspect. No fix
+that sticks. Just a wrong word, again, with no reason attached."
 
-**[b — 0:18–0:48, 69 words]**
-"Fifty years ago, Hearsay-Two named the shape of the answer: a
-blackboard where independent experts post competing hypotheses about
-the speech. But the blackboard had a cost problem. Ratings were
-unreliable, so the scheduler had to drop hypotheses it could not
-afford to keep — and the one it dropped was often the right one.
-Once dropped, gone forever. Its rival HARPY won by searching faster
-and pruning later."
+**[b — 0:18–0:46]**
+"Fifty years ago, Hearsay-Two sketched the answer: a blackboard where
+independent experts post competing hypotheses about the speech. But it
+had a cost problem. Ratings were unreliable, so the scheduler had to
+drop hypotheses it couldn't afford to keep, and sometimes the one it
+dropped was the right one. Gone for good. Its rival, HARPY, won by
+searching faster and pruning later."
 
-**[c — 0:48–1:18, 79 words]**
-"Hearsay-Four keeps the blackboard and changes what sits under it: a
-Saturation Fabric that decides every word. Each hypothesis keeps all
-of its evidence. Lose one support, the rest hold. Fall below
-threshold, it goes dormant — kept, not deleted — and revives when
-late evidence arrives. Watch: every word of this transcript is
-clickable. Click one, and the why panel shows its score, the rivals
-it beat, the margin, and the fabric record. An error with an
-address."
+**[c — 0:46–1:16]**
+"Hearsay-Four keeps the blackboard and changes what's underneath: a
+Saturation Fabric that decides every word. Each hypothesis keeps all its
+evidence. Lose one support and the others hold. Fall below threshold and
+it goes dormant, kept, not deleted, so late evidence can revive it. Here
+it's deciding a real test sentence. The transcript is rough, but click
+any word and the why panel shows its score, the two hundred rivals it
+beat, the margin, and the Fabric's record. An error with an address."
 
-**[d — 1:18–1:38, 49 words]**
-"And the Fabric scales. Rebuilt as a true saturation loop, its
-growth exponent fell from three-point-eight to one-point-oh-seven —
-near-linear — and it adjudicates sixty-seven thousand competing
-hypotheses per utterance at a fraction of real time. The red bar is
-the old bridge. The green bar is the Fabric."
+**[d — 1:16–1:36]**
+"And the Fabric scales. Rebuilt as a true saturation loop, its growth
+exponent fell from three-point-eight to one-point-oh-seven, near-linear.
+It judges up to sixty-seven thousand competing hypotheses per sentence,
+faster than real time. Red is the old decision layer. Green and blue are
+the rebuilt Fabric."
 
-**[e — 1:38–2:05, 60 words — 1599/1600]**
-"Then the experiment: dormancy against pruning, identical evidence,
-identical budgets. Fifteen-ninety-nine of sixteen hundred paired
-runs produced identical transcripts. No revived hypothesis ever
-entered a committed answer. The logs say why: the correct words were
-never the dormant ones. So dormancy did not beat pruning. We report
-the null result — and the measured reason — instead of a win."
+**[e — 1:36–2:06]**
+"Then the experiment we pre-registered: dormancy against pruning,
+identical evidence, identical budgets, two hundred held-out sentences.
+Fifteen-ninety-nine of sixteen hundred paired runs gave identical
+transcripts. No revived hypothesis ever won. At commit time, the correct
+words weren't among the dormant ones. So dormancy did not beat pruning,
+and we're reporting that null result with its reason. It's honest about
+accuracy too: the classical decoder gets sixty-four percent of words
+wrong on this set, and the Fabric eighty-five. Scoring equivalence is the
+next fix."
 
-**[f — 2:05–2:28, 54 words — 29/29]**
-"Corrections are facts, not overrides. Fix family back to fly, and
-the Fabric records the correction — re-decode obeys it, and undo
-restores the original byte-identical. Verified by the binary itself,
-not by promise. And the pipeline measures cleanly first: thirty
-isolated words, twenty-nine scored, twenty-nine right, zero
-confusions. A characterization, not a headline."
+**[f — 2:06–2:28]**
+"Corrections are facts, not overrides. One correction, trifle odds to
+trifle odd, flips the decode. One correction fixed seven of sixteen
+single-word errors, and undo restores the exact original state, checked
+byte for byte. And on my own thirty-word vocabulary, recorded on a
+different setup: twenty-nine of twenty-nine right."
 
-**[g — 2:28–3:00, 73 words — BUILD STORY]**
+**[g — 2:28–3:00]**
 "How was it built? With Muse Code, in parallel lanes. The work was
-planned as verifiable tasks, and agents built them simultaneously:
-acoustics, the Fabric experiment, the demo, the number ledger this
-video quotes. Gates verified everything; only green work merged. A
-reviewer seat caught what agents missed: bad training runs
-discarded, a leaky evaluation fixed instead of quoted, every count
-double-checked. Humans owned microphone, verdicts, and submission.
-The machine owned the parallelism."
+planned as verifiable tasks, and agents built them at the same time:
+acoustics, the Fabric, the experiment, the demo. Gates verified
+everything; only green work merged. A reviewer seat caught what agents
+missed: a leaky evaluation voided instead of quoted, a scaling bug found
+and fixed, every number double-checked. Humans owned the voice, the
+verdicts and the submission. The machine owned the parallelism."
 
-## Shot list + screens to record
+---
 
-- **A (0:00–0:18).** Screen recording: a plain text editor with one
-  dictated sentence where "fly" came out as "family", cursor
-  blinking on the wrong word, no explanation anywhere. Slow zoom on
-  the wrong word. (Staged — any editor; no repo dependency.)
-- **B (0:18–0:48).** Title card: "HEARSAY-II (1970s): THE BLACKBOARD"
-  with three bullets — "experts post competing hypotheses" /
-  "ratings unreliable: scheduler must drop" / "dropped = gone;
-  HARPY won by searching faster". Hold full segment; crossfade at
-  "HARPY" to the paper's Section 2 heading on screen.
-- **C (0:48–1:18).** Terminal: `bash web/demo.sh` → "DEMO GREEN"
-  line plus the per-utterance `fabric_summary` count lines. Then
-  browser: `python3 -m http.server 8000`, open
-  `http://localhost:8000/web/transcribe.html`; scroll the 4 fixture
-  transcripts; click 2 words to open why panels showing ACOUSTIC /
-  LOSING ALTERNATIVES / LM / LEXICON / EVIDENCE / FABRIC rows.
-  Pre-record once; reuse the take (deterministic output).
-- **D (1:18–1:38).** Full-screen `scaling-cx1.png` (this directory,
-  generated from CX1 log data by `scaling-cx1.py`): hold ≥ 8 s.
-  Slow zoom onto the green bar as the VO names it. Lower-third:
-  "growth exponent 3.84 → 1.07 (CX1 logs)".
-- **E (1:38–2:05).** Terminal, large font, `docs/writeup/WRITEUP.md`
-  Section 8 + `docs/results/A6-FABRIC-EXPERIMENT.md` "A6 headline
-  (13:00 freeze)": 1599/1600 identical paired runs; the single
-  th25-budget-500 cell differing by one insertion (CI touches 0,
-  not significant); `rev_winner = 0` in all 24 C cells. Freeze the
-  headline block ≥ 5 s. Lower-third: "dormancy did not beat
-  pruning — measured".
-- **F (2:05–2:28).** Terminal (owner checkout with externals):
-  `cargo run --release -q -p runner --bin hearsay-correct -- demo`
-  → `undo verified: post-undo decode byte-identical to original`.
-  Hold the undo line ≥ 4 s. Then `docs/results/NUMBER-LEDGER.md`
-  row 5 (`top-1 1.0000, 29/29 scored … zero confusions`).
-  Lower-third: "characterization, not a headline".
-- **G (2:28–3:00).** Full-screen `timeline.svg` (this directory,
-  generated from bead/lane data by `timeline.py`): slow pan
-  left→right across Oct 26 → Nov 4 lanes as the VO names them.
-  Overlay lower-third with live bead counts at record time. Final
-  5 s: end card "HEARSAY-IV — Transcription you can argue with ·
-  Meta Global AI Developer Hackathon 2026" + "Data: LibriSpeech
-  (SLR12) · CC BY 4.0 · openslr.org" + "mechanistic · model-free ·
-  offline".
+## Part 3 — Shot list with exact commands
 
+Record each shot SILENT first (screen only), then record the voiceover
+once over the edit. Terminal font ≥ 18 pt; browser zoom 125%; 1920×1080.
+
+**Prep (once, in WSL, repo root):**
+```bash
+cd ~/repos/hearsay-four
+CARGO_TARGET_DIR=$HOME/.cargo/target-demo bash docs/demo/verify.sh   # must end GATE GREEN
+bash web/demo.sh                                                      # DEMO GREEN
+python3 -m http.server 8000                                           # leave running
+```
+
+| Shot | Seconds | What to record |
+|---|---|---|
+| A | 18 | Notepad with one sentence where "fly" came out as "family". Cursor on the wrong word. Slow zoom. |
+| B | 28 | Title card (make in Clipchamp): "HEARSAY-II (1970s): THE BLACKBOARD" · "experts post competing hypotheses" · "unreliable ratings → scheduler must drop" · "dropped = gone; HARPY searched faster". |
+| C | 30 | Terminal: the `verify.sh` lines for `61-70968-0060` (12 words, 4 revived, 0 late rescues). Then browser `http://localhost:8000/web/transcribe.html`, open the showcase utterance, click `WHOA` (202 beaten alternatives, margin 4.64), then one more word. Lower-third: "Real TEST-200 sentence · Fabric arm C, budget 500". If the page only shows fixtures, record the fabric-path JSON panel from `target/fabric-demo/` in the terminal instead, and label it. |
+| D | 20 | `docs/video/scaling-cx1.png` full screen, slow zoom on the green bar. Lower-third: "growth exponent 3.84 → 1.07 (CX1 logs)". |
+| E | 30 | `docs/results/A6-FABRIC-EXPERIMENT.md`, headline block (1599/1600, rev_winner 0, ΔWER −0.02 [−0.07, 0.00]). Hold ≥ 5 s. Lower-third: "Dormancy did not beat pruning — measured". |
+| F | 22 | Terminal: `bash docs/demo/correction-demo.sh`, hold on the TRIFLE ODDS → TRIFLE ODD line and the `undo verified … byte-identical` line ≥ 4 s each. Then `docs/results/NUMBER-LEDGER.md` row 5 (29/29). |
+| G | 32 | `docs/video/timeline.svg` in the browser, slow pan left → right. Last 5 s end card: "HEARSAY-IV — Transcription you can argue with" · "Meta Global AI Developer Hackathon 2026" · "Data: LibriSpeech (OpenSLR 12), CC BY 4.0" · "non-neural · inspectable · offline". |
 ## Recording notes
 
 - No TBDs: every number is landed in-checkout (writeup §8–9, A6

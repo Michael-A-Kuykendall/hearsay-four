@@ -9,7 +9,7 @@ Hearsay-IV: Transcription You Can Argue With
 
 ## Tagline
 
-A fully mechanistic, model-free, offline speech transcriber — every
+A fully mechanistic, non-neural: no neural nets, embeddings, or pretrained models; classical HMM-GMM and n-gram models trained in plain view, offline speech transcriber — every
 word carries its provenance, so every error has an address.
 
 ## Problem fit (Build for Your World track)
@@ -22,23 +22,22 @@ failing at its one job. Hearsay-IV is built for that world: a
 transcription device where every word ships with its reason (acoustic
 score, losing alternatives, language-model probability, lexicon
 source), so an error points at the component that caused it and the
-fix has an aim. It runs fully offline with zero learned weights, so
+fix has an aim. It runs fully offline with non-neural: no neural nets, embeddings, or pretrained models; classical HMM-GMM and n-gram models trained in plain view, so
 it works where the cloud doesn't reach and keeps speech on-device.
 [Confirm track name "Build for Your World" against the submission
 portal — owner.]
 
 ## Description
 
-Hearsay-IV re-implements Hearsay-III (1983) with the blackboard
-swapped for our patent-pending saturation fabric: a fully
-mechanistic, model-free, offline speech transcription device. No
-neural nets, no embeddings, no learned weights — enforced by a guard
+Hearsay-IV rebuilds the Hearsay-II speech architecture, with Hearsay-III's retain-the-alternatives idea, on the owner's saturation fabric: a fully
+mechanistic, non-neural: no neural nets, embeddings, or pretrained models; classical HMM-GMM and n-gram models trained in plain view, offline speech transcription device. No
+neural nets, no embeddings, non-neural: no neural nets, embeddings, or pretrained models; classical HMM-GMM and n-gram models trained in plain view — enforced by a guard
 in the repo (`scripts/no_model_guard.sh`) that fails the build if
 any appear. Classical speech science throughout: HMM-GMM acoustic
 models, Kneser-Ney n-gram language model, pronunciation lexicons,
 DTW baselines.
 
-What we built during the event (Oct 26 – Nov 2): the top of the
+What we built during the event (Oct 26 – Nov 4): the top of the
 stack on a pre-existing fabric core — 9 new crates (20 workspace
 members total), the lexer→LM→output chain, the dev-clean WER
 harness, the full93 acoustic model (26,727 utterances / 93.9 h /

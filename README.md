@@ -1,6 +1,6 @@
 # Hearsay-IV
 
-An offline, model-free speech transcription research prototype. Hearsay-IV
+An offline, non-neural speech transcription research prototype (no neural nets, embeddings, or pretrained models; classical HMM-GMM and n-gram models trained in plain view). Hearsay-IV
 transcribes speech using directly encoded phonetic/phonological rules, bounded
 local competition, and provenance-tracked justification sets — no trained
 neural models, no black box. Fully offline, inspectable transcription targeted
@@ -30,7 +30,7 @@ Zero-config: `data/demo/sample.wav` is a committed public-domain fixture (8 s
 of U.S. Supreme Court oral argument; see `data/demo/README.md`). Expect exit 0
 with a 4-word transcript (`PANHANDLING HORRIBLY HORRIBLY UNCORROBORATED`) and
 provenance chains terminating at frame-level acoustic evidence. Verify the
-model-free claim with `bash scripts/no_model_guard.sh`.
+non-neural claim (no neural nets, embeddings, or pretrained models; classical HMM-GMM and n-gram models trained in plain view) with `bash scripts/no_model_guard.sh`.
 
 ## Results
 
@@ -128,7 +128,7 @@ docs/
 
 ```sh
 cargo build --release --bin hearsay-demo   # or: bash scripts/release.sh --target host
-bash scripts/no_model_guard.sh             # model-free proof (must print GREEN)
+bash scripts/no_model_guard.sh             # non-neural proof: no neural nets, embeddings, or pretrained models; classical HMM-GMM and n-gram models trained in plain view (must print GREEN)
 sh scripts/personal_guard.sh               # privacy proof (must print OK)
 ```
 
