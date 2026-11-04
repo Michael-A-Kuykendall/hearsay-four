@@ -45,8 +45,8 @@ COLLECT="$CARGO_TARGET_DIR/release/examples/sweep_collect"
 CELL_BIN="$CARGO_TARGET_DIR/release/examples/cell_decode"
 
 run_theta() {
-    # run_theta <tag> <theta> <manifest> <budgets_csv> <workers>
-    local tag="$1" theta="$2" man="$3" budgets_csv="$4" workers="$5"
+    # run_theta <tag> <theta> <manifest> <cell> <budgets_csv> <workers>
+    local tag="$1" theta="$2" man="$3" cell="$4" budgets_csv="$5" workers="$6"
     local cells="$A6OUT/headline_cells_$tag"
     local shards="$A6OUT/headline_shards_$tag"
     mkdir -p "$cells" "$shards"
@@ -65,7 +65,7 @@ run_theta() {
     bash scripts/a6/queue.sh --shard-list "$A6OUT/headline_shard_list_$tag.txt" \
         --lm "$LM" --lat-dir "$TEST_LAT" --workers "$workers"
     local out="$A6OUT/headline_$tag.tsv"
-    "$COLLECT" --mode sweep --manifest "$man" --cell "$TEST_CELL" \
+    "$COLLECT" --mode sweep --manifest "$man" --cell "$cell" \
         --task-dir "$cells" --budgets "$budgets_csv" --out-tsv "$out" \
         --per-utt "$A6OUT/headline_${tag}_perutt.tsv"
     echo "WROTE $out"
@@ -74,7 +74,9 @@ run_theta() {
 
 if [ "$SMOKE" = 1 ]; then
     head -n 2 "$TEST_MAN" > "$A6OUT/headline_smoke_manifest.tsv"
-    run_theta smoke "$TH50" "$A6OUT/headline_smoke_manifest.tsv" "100" 4
+    cut -f1 "$A6OUT/headline_smoke_manifest.tsv" > "$A6OUT/headline_smoke_ids.txt"
+    { head -n 1 "$TEST_CELL"; awk 'NR==FNR {id[$1]; next} $1 in id' "$A6OUT/headline_smoke_ids.txt" "$TEST_CELL"; } > "$A6OUT/headline_smoke_cell.tsv"
+    run_theta smoke "$TH50" "$A6OUT/headline_smoke_manifest.tsv" "$A6OUT/headline_smoke_cell.tsv" "100" 4
     python3 - "$A6OUT/headline_cells_smoke" <<'EOF'
 import json, glob, sys
 files = glob.glob(sys.argv[1] + "/*.json")
@@ -88,7 +90,7 @@ EOF
     exit 0
 fi
 
-run_theta th25 "$TH25" "$TEST_MAN" "$BUDGETS" "$WORKERS"
-run_theta th50 "$TH50" "$TEST_MAN" "$BUDGETS" "$WORKERS"
-run_theta th75 "$TH75" "$TEST_MAN" "$BUDGETS" "$WORKERS"
+run_theta th25 "$TH25" "$TEST_MAN" "$TEST_CELL" "$BUDGETS" "$WORKERS"
+run_theta th50 "$TH50" "$TEST_MAN" "$TEST_CELL" "$BUDGETS" "$WORKERS"
+run_theta th75 "$TH75" "$TEST_MAN" "$TEST_CELL" "$BUDGETS" "$WORKERS"
 echo "HEADLINE DONE: $A6OUT/headline_th{25,50,75}.tsv + perutt"
