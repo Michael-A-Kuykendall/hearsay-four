@@ -53,5 +53,5 @@
 <line x1="586" y1="116" x2="614" y2="116" stroke="#2ca02c" stroke-width="3"/>
 <circle cx="600" cy="116" r="4" fill="#2ca02c"/>
 <text x="620" y="117" dominant-baseline="middle" font-family="sans-serif" font-size="12">Arm C (dormant)</text>
-<text x="72" y="414" font-family="sans-serif" font-size="10" fill="#555">Source: sweep_insurance.tsv</text>
+<text x="72" y="414" font-family="sans-serif" font-size="10" fill="#555">Source: headline_th50.tsv</text>
 </svg>

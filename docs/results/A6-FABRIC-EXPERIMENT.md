@@ -198,7 +198,46 @@ th25, th75; doc uses complete rows only.
 > dorm_oracle = 0 throughout. Peak dormant slightly below theta 0
 > (17/17/41/62), the expected theta direction.
 
-### theta = 750.6713 (p75) -- RUNNING
+### theta = 750.6713 (p75) -- KILLED (dormant pathology, incomplete row dropped)
+
+> 80/1600 cells in 12 min, then killed by coordinator at 12:07 CST.
+> Stall measurements: 15/16 workers stuck 9+ min on their first shard
+> (same-age etimes, CPU-bound in dormant-heavy commit); newest cell
+> timestamps frozen; worker RSS 21 GB and climbing toward the known
+> >600 s / 6 GB-per-utt theta-hi pathology (62 GB box). Projected
+> completion far past the 13:00 science stop. Per owner order the
+> incomplete row is dropped: the doc uses complete rows only (th50,
+> th25). The 80 partial cells are kept on disk, excluded. Scientific
+> note: at theta 750.67 arm B prunes nearly every token (liveness
+> below threshold), so the B-vs-C comparison degenerates there
+> regardless -- the informative thetas were p25/p50. Post-deadline:
+> the C-hi perf subtask (bound dormant-set commit cost).
+
+## A6 headline (13:00 freeze)
+
+> Complete rows: Run 1 (theta 0, insurance) + Run 2 th50 (theta 0,
+> exact replication) + Run 2 th25 (theta -4.2967). th75 killed
+> (pathology stall, row dropped).
+>
+> Verdict: at every measured theta x budget, arms B and C emit
+> identical transcripts (dWER exactly 0.0000, degenerate CI), except
+> one cell -- th25 budget 500, C 0.8547 vs B 0.8550 (dWER -0.0002, one
+> insertion, CI [-0.0007, 0.0000] touches 0, not significant).
+> rev_winner = 0 in all 24 C cells: no revived token ever entered a
+> committed tiling, so the dormancy/revival machinery, though active
+> (peak dormant 17-64, revivals logged), never changed a transcript.
+> dorm_oracle = 0 throughout (lower bound). The one-error th25-500 gap
+> comes from prune-vs-hold live-set differences under budget pressure,
+> not revival. WER falls with budget identically for B and C
+> (0.95 -> 0.86) while both trail the decoder 1-best (A 0.6430): the
+> budget effect is real, the lifecycle effect is not measured. The
+> Fabric decides every transcript (all commits from fabric tilings),
+> but dormancy vs pruning does not move them at these thetas.
+>
+> Honest headline WER: B/C 0.8547-0.8550 (best, budget 500) vs
+> decoder 0.6430. The experiment ran clean (4800-run design, 3200
+> complete, 0 FAIL) and disproves a Fabric lifecycle effect on
+> TEST-200 at p25/p50 thetas.
 
 ## Track B SANITY (unigram-cancel v1.5 lane): FAIL (2026-11-04)
 

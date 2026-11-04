@@ -5,15 +5,15 @@
 <line x1="72" y1="46" x2="72" y2="378" stroke="black" stroke-width="1.5"/>
 <line x1="72" y1="378" x2="570" y2="378" stroke="black" stroke-width="1.5"/>
 <line x1="72" y1="378.0" x2="570" y2="378.0" stroke="#ddd" stroke-width="1"/>
-<text x="64" y="379.0" text-anchor="end" dominant-baseline="middle" font-family="sans-serif" font-size="11">-0.5</text>
+<text x="64" y="379.0" text-anchor="end" dominant-baseline="middle" font-family="sans-serif" font-size="11">0</text>
 <line x1="72" y1="295.0" x2="570" y2="295.0" stroke="#ddd" stroke-width="1"/>
-<text x="64" y="296.0" text-anchor="end" dominant-baseline="middle" font-family="sans-serif" font-size="11">0</text>
+<text x="64" y="296.0" text-anchor="end" dominant-baseline="middle" font-family="sans-serif" font-size="11">0.5</text>
 <line x1="72" y1="212.0" x2="570" y2="212.0" stroke="#ddd" stroke-width="1"/>
-<text x="64" y="213.0" text-anchor="end" dominant-baseline="middle" font-family="sans-serif" font-size="11">0.5</text>
+<text x="64" y="213.0" text-anchor="end" dominant-baseline="middle" font-family="sans-serif" font-size="11">1</text>
 <line x1="72" y1="129.0" x2="570" y2="129.0" stroke="#ddd" stroke-width="1"/>
-<text x="64" y="130.0" text-anchor="end" dominant-baseline="middle" font-family="sans-serif" font-size="11">1</text>
+<text x="64" y="130.0" text-anchor="end" dominant-baseline="middle" font-family="sans-serif" font-size="11">1.5</text>
 <line x1="72" y1="46.0" x2="570" y2="46.0" stroke="#ddd" stroke-width="1"/>
-<text x="64" y="47.0" text-anchor="end" dominant-baseline="middle" font-family="sans-serif" font-size="11">1.5</text>
+<text x="64" y="47.0" text-anchor="end" dominant-baseline="middle" font-family="sans-serif" font-size="11">2</text>
 <line x1="72.0" y1="46" x2="72.0" y2="378" stroke="#ddd" stroke-width="1"/>
 <text x="72.0" y="400" text-anchor="middle" font-family="sans-serif" font-size="12">50</text>
 <line x1="238.0" y1="46" x2="238.0" y2="378" stroke="#ddd" stroke-width="1"/>
@@ -24,21 +24,21 @@
 <text x="570.0" y="400" text-anchor="middle" font-family="sans-serif" font-size="12">500</text>
 <text x="321" y="432" text-anchor="middle" font-family="sans-serif" font-size="12">Budget</text>
 <text x="16" y="212" text-anchor="middle" font-family="sans-serif" font-size="12" transform="rotate(-90 16 212)">RTF</text>
-<polyline points="72.0,114.8 238.0,114.8 404.0,114.8 570.0,114.8" fill="none" stroke="#1f77b4" stroke-width="2.5"/>
-<circle cx="72.0" cy="114.8" r="4.5" fill="#1f77b4" stroke="white" stroke-width="1.5"/>
-<circle cx="238.0" cy="114.8" r="4.5" fill="#1f77b4" stroke="white" stroke-width="1.5"/>
-<circle cx="404.0" cy="114.8" r="4.5" fill="#1f77b4" stroke="white" stroke-width="1.5"/>
-<circle cx="570.0" cy="114.8" r="4.5" fill="#1f77b4" stroke="white" stroke-width="1.5"/>
-<polyline points="72.0,282.2 238.0,281.5 404.0,279.3 570.0,277.4" fill="none" stroke="#ff7f0e" stroke-width="2.5"/>
-<circle cx="72.0" cy="282.2" r="4.5" fill="#ff7f0e" stroke="white" stroke-width="1.5"/>
-<circle cx="238.0" cy="281.5" r="4.5" fill="#ff7f0e" stroke="white" stroke-width="1.5"/>
-<circle cx="404.0" cy="279.3" r="4.5" fill="#ff7f0e" stroke="white" stroke-width="1.5"/>
-<circle cx="570.0" cy="277.4" r="4.5" fill="#ff7f0e" stroke="white" stroke-width="1.5"/>
-<polyline points="72.0,266.4 238.0,264.4 404.0,260.1 570.0,252.1" fill="none" stroke="#2ca02c" stroke-width="2.5"/>
-<circle cx="72.0" cy="266.4" r="4.5" fill="#2ca02c" stroke="white" stroke-width="1.5"/>
-<circle cx="238.0" cy="264.4" r="4.5" fill="#2ca02c" stroke="white" stroke-width="1.5"/>
-<circle cx="404.0" cy="260.1" r="4.5" fill="#2ca02c" stroke="white" stroke-width="1.5"/>
-<circle cx="570.0" cy="252.1" r="4.5" fill="#2ca02c" stroke="white" stroke-width="1.5"/>
+<polyline points="72.0,197.8 238.0,197.8 404.0,197.8 570.0,197.8" fill="none" stroke="#1f77b4" stroke-width="2.5"/>
+<circle cx="72.0" cy="197.8" r="4.5" fill="#1f77b4" stroke="white" stroke-width="1.5"/>
+<circle cx="238.0" cy="197.8" r="4.5" fill="#1f77b4" stroke="white" stroke-width="1.5"/>
+<circle cx="404.0" cy="197.8" r="4.5" fill="#1f77b4" stroke="white" stroke-width="1.5"/>
+<circle cx="570.0" cy="197.8" r="4.5" fill="#1f77b4" stroke="white" stroke-width="1.5"/>
+<polyline points="72.0,291.0 238.0,295.0 404.0,278.6 570.0,273.3" fill="none" stroke="#ff7f0e" stroke-width="2.5"/>
+<circle cx="72.0" cy="291.0" r="4.5" fill="#ff7f0e" stroke="white" stroke-width="1.5"/>
+<circle cx="238.0" cy="295.0" r="4.5" fill="#ff7f0e" stroke="white" stroke-width="1.5"/>
+<circle cx="404.0" cy="278.6" r="4.5" fill="#ff7f0e" stroke="white" stroke-width="1.5"/>
+<circle cx="570.0" cy="273.3" r="4.5" fill="#ff7f0e" stroke="white" stroke-width="1.5"/>
+<polyline points="72.0,220.9 238.0,214.5 404.0,187.2 570.0,123.4" fill="none" stroke="#2ca02c" stroke-width="2.5"/>
+<circle cx="72.0" cy="220.9" r="4.5" fill="#2ca02c" stroke="white" stroke-width="1.5"/>
+<circle cx="238.0" cy="214.5" r="4.5" fill="#2ca02c" stroke="white" stroke-width="1.5"/>
+<circle cx="404.0" cy="187.2" r="4.5" fill="#2ca02c" stroke="white" stroke-width="1.5"/>
+<circle cx="570.0" cy="123.4" r="4.5" fill="#2ca02c" stroke="white" stroke-width="1.5"/>
 <text x="586" y="52" font-family="sans-serif" font-size="12" font-weight="bold">Arm</text>
 <line x1="586" y1="72" x2="614" y2="72" stroke="#1f77b4" stroke-width="3"/>
 <circle cx="600" cy="72" r="4" fill="#1f77b4"/>
@@ -49,5 +49,5 @@
 <line x1="586" y1="116" x2="614" y2="116" stroke="#2ca02c" stroke-width="3"/>
 <circle cx="600" cy="116" r="4" fill="#2ca02c"/>
 <text x="620" y="117" dominant-baseline="middle" font-family="sans-serif" font-size="12">Arm C (dormant)</text>
-<text x="72" y="414" font-family="sans-serif" font-size="10" fill="#555">Source: sweep_insurance.tsv</text>
+<text x="72" y="414" font-family="sans-serif" font-size="10" fill="#555">Source: headline_th50.tsv</text>
 </svg>
