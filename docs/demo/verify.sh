@@ -22,7 +22,7 @@ set -euo pipefail
 
 WORKTREE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$WORKTREE"
-ROOT=/home/michael/repos/hearsay-four
+ROOT="$WORKTREE"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cargo/target-demo}"
 case "$CARGO_TARGET_DIR" in
   *"/target-demo") ;;
@@ -33,7 +33,7 @@ BRIDGE="$OUT/bridge"
 WORK="$OUT/work"
 UTTS="1995-1836-0004 7021-79730-0004 61-70968-0060"
 LM="$ROOT/data/lm-text/r1v2-full/lm-r1v2-interpolated.json"
-TIER1=/home/michael/repos/better-voice/data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt
+TIER1="${HEARSAY_TIER1_PATH:-$WORKTREE/../better-voice/data/phonetics/Master_English_Phonetics_FINAL_COMPLETE.txt}"
 TIER2="$ROOT/data/lexicon/librispeech-lexicon.txt"
 
 echo "==> [1/6] checking read-only inputs"
