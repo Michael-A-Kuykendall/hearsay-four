@@ -180,6 +180,7 @@ fn main() {
             delta,
             h,
             h_max: hmax,
+            j: 3,
         };
         let t0 = Instant::now();
         let mut b_hyps = Vec::new();

@@ -47,6 +47,7 @@ pub struct ArmParams {
     pub delta: f64,
     pub h: u32,
     pub h_max: u32,
+    pub j: u32,
 }
 
 impl ArmParams {
@@ -61,6 +62,7 @@ impl ArmParams {
             delta: 0.0,
             h: 10,
             h_max: 20,
+            j: 3,
         }
     }
 
@@ -83,6 +85,7 @@ impl ArmParams {
             h_max: self.h_max,
             delta: self.delta,
             arm: fabric_arm,
+            j: self.j,
             ..DecisionParams::default()
         }
     }

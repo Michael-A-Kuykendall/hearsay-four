@@ -66,7 +66,11 @@ fn main() {
             continue;
         }
         let f: Vec<&str> = line.split_whitespace().collect();
-        assert_eq!(f.len(), 9, "shard line {} wants 9 fields", lineno + 1);
+        assert!(
+            f.len() == 9 || f.len() == 10,
+            "shard line {} wants 9 fields + optional j",
+            lineno + 1
+        );
         let (utt, budget, arm_s) = (f[0], f[1].parse::<usize>().unwrap(), f[2]);
         let arm = match arm_s {
             "B" => Arm::B,
@@ -81,6 +85,7 @@ fn main() {
             delta: f[6].parse().unwrap(),
             h: f[7].parse().unwrap(),
             h_max: f[8].parse().unwrap(),
+            j: f.get(9).map(|s| s.parse().unwrap()).unwrap_or(3),
         };
         let dest = out_dir.join(format!("{utt}.{budget}.{arm_s}.json"));
         if dest.exists() {

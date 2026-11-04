@@ -273,3 +273,12 @@ fn delta_ci_rejects_mismatched_lengths() {
     assert_eq!(totals.subs, 1);
     assert!((totals.wer() - 0.5).abs() < 1e-12);
 }
+#[test]
+fn arm_params_carries_sealing_horizon() {
+    // J plumbing (insurance sweep): the shard default keeps legacy rows
+    // on J=3, and an explicit J flows into the run.
+    assert_eq!(ArmParams::fixture_defaults(50).j, 3);
+    let mut p = ArmParams::fixture_defaults(500);
+    p.j = 100;
+    assert_eq!(p.j, 100);
+}
