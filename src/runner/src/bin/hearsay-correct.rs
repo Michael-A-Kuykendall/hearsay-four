@@ -653,7 +653,11 @@ fn cmd_demo(paths: &Paths) {
     let lexicon = lexicon::load_tiered(&paths.cfg.tier1, &paths.cfg.tier2)
         .unwrap_or_else(|e| fail(format!("load tiered lexicon: {e}")));
     let mut failures = 0;
-    for utt in DEMO_UTTS {
+    // HEARSAY_DEMO_VIDEO=1: one utterance, readable why line, no collateral
+    // report (screen-recordable). Unset: the full demo, unchanged.
+    let video = std::env::var("HEARSAY_DEMO_VIDEO").is_ok();
+    let n_utts = if video { 1 } else { DEMO_UTTS.len() };
+    for utt in DEMO_UTTS.iter().copied().take(n_utts) {
         println!("=== {utt} ===");
         let wav = wav_path(paths, utt).unwrap_or_else(|e| fail(e));
         let reference = ref_words(paths, utt).unwrap_or_else(|e| fail(e));
@@ -677,11 +681,28 @@ fn cmd_demo(paths: &Paths) {
             secs0,
             &lat0,
         );
-        println!(
-            "why[{}] {}",
-            hyp0[idx],
-            serde_json::to_string(&why["words"][idx]).unwrap_or_default()
-        );
+        if video {
+            let w = &why["words"][idx];
+            println!(
+                "why[{}]: heard at {}-{} ms, acoustic {:.1}, LM p={:.2e} after \"{}\"",
+                hyp0[idx],
+                w["start_ms"],
+                w["end_ms"],
+                w["why"]["acoustic_score"].as_f64().unwrap_or(0.0),
+                w["why"]["lm_probability"].as_f64().unwrap_or(0.0),
+                w["why"]["lm_history"]
+                    .as_array()
+                    .map(|h| h.iter().filter_map(|x| x.as_str()).collect::<Vec<_>>().join(" "))
+                    .unwrap_or_default()
+            );
+            println!("correct: {} -> {}", hyp0[idx], reference[idx]);
+        } else {
+            println!(
+                "why[{}] {}",
+                hyp0[idx],
+                serde_json::to_string(&why["words"][idx]).unwrap_or_default()
+            );
+        }
         // Apply: USER fact + personal-LM count increment, then re-decode.
         let mut corr = match apply_correction(
             &lexicon,
@@ -750,6 +771,13 @@ fn cmd_demo(paths: &Paths) {
             continue;
         }
         println!("undo verified: post-undo decode byte-identical to original");
+    }
+    if video {
+        if failures > 0 {
+            fail(format!("{failures} demo utterance(s) failed"));
+        }
+        println!("DEMO OK: fix + undo verified (video mode, collateral skipped)");
+        return;
     }
     // Collateral: the same base decoder before/after each demo correction.
     println!("=== collateral (20 utts, base vs corrected) ===");
