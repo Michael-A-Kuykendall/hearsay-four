@@ -684,3 +684,23 @@ fn one_pass_preserves_weak_midchain_word_with_strong_successor() {
         out.uncommitted_ids
     );
 }
+
+#[test]
+fn sequence_llr_lowercases_lattice_words() {
+    // LM vocab is lowercase; lattice words are uppercase. Pre-fix, every
+    // pair was OOV so KN backed off to exactly the unigram and llr was
+    // 0.0 for all pairs (SANITY root cause).
+    let sents = vec![
+        vec!["a".to_string(), "b".to_string()],
+        vec!["a".to_string(), "b".to_string()],
+        vec!["a".to_string(), "c".to_string()],
+    ];
+    let g = KnTrigram::train(&sents);
+    let p = KnTrigram::train(&[]);
+    let lm = InterpolatedLm::new(g, p, 0.0).expect("weight 0 valid");
+    let scorer = InterpolatedScorer::new(&lm);
+    let upper = scorer.sequence_llr(Some("A"), "B");
+    let lower = scorer.sequence_llr(Some("a"), "b");
+    assert_ne!(upper, 0.0, "observed uppercase pair must score, not OOV-floor");
+    assert_eq!(upper, lower, "scorer must be case-insensitive");
+}

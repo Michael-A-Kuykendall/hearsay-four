@@ -117,8 +117,16 @@ impl<'a> InterpolatedScorer<'a> {
 
 impl SequenceScorer for InterpolatedScorer<'_> {
     fn sequence_llr(&self, prev: Option<&str>, word: &str) -> f64 {
+        // The LM vocabulary is lowercase (normalize.rs); lattice words are
+        // uppercase (decoder vocab). Without this, every pair is OOV and
+        // KN backs off to exactly the unigram, so llr is 0.0 everywhere.
+        // The decoder lowercases at its call sites (moore.rs); the scorer
+        // normalizes centrally so all bridge paths agree.
         let history = prev.unwrap_or(BOS_TOKEN);
-        (self.cond_prob(history, word).max(PROB_FLOOR) / self.uni_prob(word).max(PROB_FLOOR)).ln()
+        let h_low = history.to_lowercase();
+        let w_low = word.to_lowercase();
+        (self.cond_prob(&h_low, &w_low).max(PROB_FLOOR) / self.uni_prob(&w_low).max(PROB_FLOOR))
+            .ln()
     }
 }
 
