@@ -193,7 +193,7 @@ EOF
 cp -f scripts/a6/frozen_real.json "$A6OUT/frozen_real.json"
 # 3. Sweep: TEST-200 x budgets x B/C with winner params, one shard per utt.
 # shellcheck disable=SC2016
-WPARAMS="$(python3 -c 'import json; p=json.load(open("scripts/a6/frozen_real.json"))["params"]; print(p["w_acoustic"], p["w_sequence"], p["theta_live"], p["delta"], p["h"], p["h_max"])')"
+WPARAMS="$(python3 -c 'import json; p=json.load(open("scripts/a6/frozen_real.json"))["params"]; print(p["w_acoustic"], p["w_sequence"], p["theta_live"], p["delta"], int(p["h"]), int(p["h_max"]))')"
 SWEEP_DIR="$A6OUT/sweep_cells"
 mkdir -p "$SWEEP_DIR"
 cut -f1 "$TEST_MAN" > "$A6OUT/test_ids.txt"

@@ -179,7 +179,7 @@ fn run_tune(manifest: &Path, params_file: &Path, task_dir: &Path, budgets: &[usi
             serde_json::json!({
                 "cand": k,
                 "w_acoustic": p[0], "w_sequence": p[1], "theta_live": p[2],
-                "delta": p[3], "h": p[4], "h_max": p[5],
+                "delta": p[3], "h": p[4] as u32, "h_max": p[5] as u32,
                 "dev_errors": e,
             })
         })
@@ -188,7 +188,7 @@ fn run_tune(manifest: &Path, params_file: &Path, task_dir: &Path, budgets: &[usi
         "params": {
             "budget": 0,
             "w_acoustic": bp[0], "w_sequence": bp[1], "theta_live": bp[2],
-            "delta": bp[3], "h": bp[4], "h_max": bp[5],
+            "delta": bp[3], "h": bp[4] as u32, "h_max": bp[5] as u32,
         },
         "winner_cand": bk,
         "dev_errors": be,

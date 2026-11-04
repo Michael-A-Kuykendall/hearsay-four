@@ -1,6 +1,6 @@
 # A6 Fabric Experiment — Results (Template + Synthetic Sample)
 
-> Status: TEMPLATE — every number in §§ Question–Diagnosis below is SYNTHETIC SAMPLE (4 utts, 11 ref words) except where marked REALDATA. No synthetic number is a Librispeech result.
+> Status: TEMPLATE + REAL — §§ Question–Diagnosis below keep the SYNTHETIC SAMPLE (4 utts, 11 ref words) with REAL results inline in `> REAL` blocks (bead hearsay-four-7i2o--real-wiring-tuning-sweep). No synthetic number is a Librispeech result.
 
 Bead: `hearsay-four-7ibb--a6-results-template`. Scope: `docs/results/A6-*` only. Charts regenerate from the TSV via one command (see Reproduce). TSV schema (fixed): `budget arm WER S D I RTF peak_live peak_dormant late_rescues dWER CI_lo CI_hi`.
 
@@ -8,7 +8,19 @@ Bead: `hearsay-four-7ibb--a6-results-template`. Scope: `docs/results/A6-*` only.
 
 Does dormant-hold + late revival (arm C) beat hard prune (arm B) on WER at fixed budgets, without RTF blowup, on lattices where the correct word is present but acoustically low-rank?
 
-<!-- REALDATA: restate the frozen real-data question population (DEV-200/TEST-200) + success rule here -->
+> REAL (bead hearsay-four-7i2o--real-wiring-tuning-sweep, 2026-11-03): the
+> question is asked on frozen Librispeech populations — DEV-200
+> (`data/wer71g/tune200s/strat200.manifest.tsv`, 200 utts, 4579 ref
+> words) for tuning, TEST-200
+> (`data/wer71g/test200s/strat200.manifest.tsv`, 200 utts, 4530 ref
+> words) for the verdict. Arm A is the `wer_devclean` decoder 1-best
+> (canonical search); arms B/C decode the frozen `.lat.jsonl` sets
+> through `hearsay::decode_lattice` with the real interpolated LM.
+> Success rule: arm C beats arm B on TEST-200 WER (paired-bootstrap
+> 95% CI on the C−B delta excludes 0) at fixed budgets without RTF
+> blowup. Measured verdict: no — B and C emit byte-identical
+> transcripts on all 800 TEST rows (dWER 0.0000, CI [0, 0] every
+> budget); both trail arm A 0.97–0.99 vs 0.6430. See Results table.
 
 ## Method
 
@@ -18,7 +30,19 @@ Does dormant-hold + late revival (arm C) beat hard prune (arm B) on WER at fixed
 - Arm B: real bridge (`hearsay::decode_lattice`) with native `hearsay::Arm::B`, fixture bigram as `SequenceScorer` in the sample; hard prune at the live cap, dormant 0.
 - Arm C: same bridge with `hearsay::Arm::C`; pruned candidates held dormant up to the dormant cap and revived on late right-context.
 
-<!-- REALDATA: canonical AM/LM/lexicon shas + tunefull winner cell for all real runs -->
+> REAL: every real run below uses the canonical search (Preserved
+> record: AM `data/models/r3v2-full93-cmvn/ckpt-8mix-iter2.json` sha256
+> `6620a3dd…16bab`, LM `data/lm-text/r1v2-full/lm-r1v2-interpolated.json`
+> sha256 `1b31acf6…71b6f`, tunefull winner `lm6_wip0` DEV WER 0.6624,
+> lm-weight 6, word-penalty 0, beam 150, max-tokens 2000, CMVN on).
+> Fabric params are the frozen DEV winner
+> (`scripts/a6/frozen_real.json`, sha256
+> `8d40f5ab…ada4e`, frozen 2026-11-04T01:54:54Z): w_acoustic 1.0,
+> w_sequence 0.5, theta_live −1.0, delta 0.0, H 10 / H_max 20 —
+> candidate 0 of the coarse theta_live × w_sequence × delta grid,
+> selected by the earliest-wins tie-break over an 18-way tie (all
+> candidates 18036/18316 DEV errs; tuning surface flat — see Diagnosis).
+> Arm C reuses these params identically; only the budget triple differs.
 
 ### Budgets
 
@@ -40,7 +64,20 @@ Sample oracle (exact DP `a2::oracle::sweep_k`, K=3/5/10) over the 4-utt syntheti
 
 Attribution (sample): at K=3 the oracle misses `cat` (rank 5 — K too small; K>=5 recovers it). `blue` (u4) is absent at every K: generation miss, fixable only at lattice generation.
 
-<!-- REALDATA: DEV-200 oracle errs/WER/tokens/arcs at K=3/5/10 from sweep_real + per-utt TSV path -->
+> REAL (DEV-200, `sweep_real` with the filter_k 1-best carve-out —
+> `a2::oracle::acoustic_best_path_ids`; oracle at most the acoustic
+> 1-best on all 200 utts at every K, 0 exceedances; the Preserved
+> record below keeps the wave-2 pre-fix table for the record):
+
+> | K | oracle errs | oracle WER | tokens | arcs |
+> |---|---|---|---|---|
+> | 3 | 2775 | 0.6060 | 494,993 | 314,606 |
+> | 5 | 2731 | 0.5964 | 822,782 | 597,635 |
+> | 10 | 2637 | 0.5759 | 1,642,926 | 1,501,260 |
+
+> Per-utterance: `scripts/a6/out/oracle_dev200_perutt.tsv` (lane
+> worktree, coordinator extraction). 1-best reference: 3116 errs
+> (0.6805); decoder 1-best: 3033 (0.6624).
 
 ## Results table
 
@@ -63,12 +100,41 @@ Sample synthetic budget table (from `A6-sample.tsv`, 11 ref words; RTF is one-ru
 
 Story in the sample: at budget 50 the cap binds and C cannot rescue (`cat` stays dormant); at >=100 C revives `cat` on `sat` right-context (+4.0) and holds the 1-err line while B stays at 2 errs.
 
-<!-- REALDATA: DEV-200/TEST-200 arm x budget WER/S/D/I/RTF/peaks from real_table (same columns) -->
-<!-- REALDATA: delta-WER(C-B) + paired-bootstrap 95% CI per budget (10k resamples, pinned seed) -->
+> REAL (TEST-200, `scripts/a6/out/sweep_real.tsv`, 12 rows; scored
+> once with the SWEEP scorer; per-utterance detail
+> `scripts/a6/out/sweep_real_perutt.tsv`):
+
+> | budget | arm | WER | S | D | I | RTF | peak live | peak dormant | late rescues | delta-WER(C-B) + 95% CI |
+> |---|---|---|---|---|---|---|---|---|---|---|
+> | 50 | A | 0.6430 | 2306 | 291 | 316 | 1.0854 | n/a | n/a | NA | NA |
+> | 50 | B | 0.9887 | 300 | 4179 | 0 | 0.1192 | 50 | 0 | NA | NA |
+> | 50 | C | 0.9887 | 300 | 4179 | 0 | 0.1231 | 50 | 0 | 280 | 0.0000 [0.0000, 0.0000] |
+> | 100 | A | 0.6430 | 2306 | 291 | 316 | 1.0854 | n/a | n/a | NA | NA |
+> | 100 | B | 0.9872 | 375 | 4097 | 0 | 0.1292 | 100 | 0 | NA | NA |
+> | 100 | C | 0.9872 | 375 | 4097 | 0 | 0.1220 | 100 | 0 | 330 | 0.0000 [0.0000, 0.0000] |
+> | 250 | A | 0.6430 | 2306 | 291 | 316 | 1.0854 | n/a | n/a | NA | NA |
+> | 250 | B | 0.9790 | 540 | 3895 | 0 | 0.1651 | 250 | 0 | NA | NA |
+> | 250 | C | 0.9790 | 540 | 3895 | 0 | 0.1225 | 250 | 0 | 445 | 0.0000 [0.0000, 0.0000] |
+> | 500 | A | 0.6430 | 2306 | 291 | 316 | 1.0854 | n/a | n/a | NA | NA |
+> | 500 | B | 0.9740 | 757 | 3655 | 0 | 0.2488 | 500 | 0 | NA | NA |
+> | 500 | C | 0.9740 | 757 | 3655 | 0 | 0.1222 | 500 | 0 | 568 | 0.0000 [0.0000, 0.0000] |
+
+> Arm A reproduces the Preserved-record TEST-200 cell exactly (0.6430;
+> S/D/I 2306/291/316). DEV-200 arm B (tune cells, winner params):
+> 0.9930 / 0.9889 / 0.9834 / 0.9736 at budgets 50/100/250/500.
+> Reading: B and C emit byte-identical transcripts on all 800 TEST
+> rows, so every paired-bootstrap CI is the degenerate [0, 0] (10k
+> resamples, pinned seed — the CI machinery is exercised; the delta is
+> exactly 0). Both trail A by ~0.34 with zero insertions: the fabric
+> under-commits (deletion-heavy). C's dormant pool never fills
+> (peak_dormant 0 every budget) yet the rescue counter fires 280–568× —
+> an event-log overlap (C-committed ∩ B-pruned/evicted), not a
+> transcript difference: B committed those same words, so no rescue
+> changes any transcript.
 
 ## Per-budget chart (WER vs budget by arm)
 
-Sample charts generated from `A6-sample.tsv` (stdlib-only, no matplotlib):
+Charts below are the REAL render from `sweep_real.tsv` (stdlib-only, no matplotlib; `A6-sample.tsv` regenerates the sample pair via `--sample`):
 
 ![A6 WER vs budget by arm](A6-wer-vs-budget.svg)
 
@@ -76,7 +142,12 @@ Sample charts generated from `A6-sample.tsv` (stdlib-only, no matplotlib):
 
 Regenerate: `python3 docs/results/A6-charts.py --sample` (writes both SVGs next to the TSV). Real TSVs with the same schema render via `--input real.tsv --outdir docs/results`.
 
-<!-- REALDATA: regenerate both SVGs from the real TSV and replace the sample embeds (same filenames) -->
+> REAL: both SVGs above are regenerated from `sweep_real.tsv`
+> (`python3 docs/results/A6-charts.py --input
+> scripts/a6/out/sweep_real.tsv --outdir docs/results`, same
+> filenames): WER 0.64 (A) vs 0.97–0.99 (B/C, overlapping lines);
+> RTF ~1.09 (A decoder) vs 0.12–0.25 (B/C fabric). C−B CIs are
+> degenerate points at 0 (identical transcripts).
 
 ## Late-rescue analysis
 
@@ -86,7 +157,16 @@ Stub (sample definitions; real counts drop in below):
 - Sample: 1 rescue (`cat` in u1) at every budget >=100; 0 at budget 50 (cap binds); u2/u3 0 (no prune); u4 0 (absent — nothing to revive).
 - Per-utterance diff B vs C (sample): u1 B `the bat sat down` (1 sub) vs C `the cat sat down` (0); u2/u3 identical 0 errs; u4 both `red green yellow` (1 sub, generation miss).
 
-<!-- REALDATA: per-utterance late-rescue counts + B-vs-C transcript diffs on DEV-200/TEST-200 -->
+> REAL (TEST-200): late-rescue counts per budget: 280 / 330 / 445 /
+> 568 at budgets 50/100/250/500 (multiset count of C-committed words
+> found in B's pruned/evicted event logs). B-vs-C transcript diffs:
+> NONE — all 800 TEST rows byte-identical, so every rescue is a word
+> B pruned at intake but committed anyway (prune-then-commit), never a
+> true B/C divergence. Per-utterance detail (a/b/c errs, peaks, hyps):
+> `scripts/a6/out/sweep_real_perutt.tsv`. C's dormant pool occupancy
+> peaks at 0 every budget: nothing is ever held dormant, so no revival
+> can fire — the rescue counter and the occupancy tell different
+> stories (counter: event-log overlap; occupancy: pool max).
 
 ## Diagnosis
 
@@ -97,7 +177,24 @@ Stub (sample attribution; real diagnosis drops in below):
 - Budget binding: peaks track caps at 50/100, saturate at 101 above — the fabric honors budgets; the 50-cap rescue failure is expected cap behavior, not a defect.
 - Significance: C's sample gain (-0.0909) has CI including 0 at n=4 — reported as measured, not significant.
 
-<!-- REALDATA: generation-miss rate + K-depth + backbone/SIL + budget-binding attribution on real lattices -->
+> REAL (DEV-200 oracle + TEST-200 sweep):
+> - Generation miss: 700/4579 DEV ref words (15.3%) never appear in
+>   the lattice at any rank (~560 in-vocab); the tunefull beam-300
+>   cell is byte-identical to beam-150, so this is AM/trie-pruning,
+>   not beam width (see Preserved record).
+> - K depth: K=3 → K=10 recovers 138 oracle errs; all three K rows
+>   are fair oracles after the carve-out (0/200 exceedances).
+> - Backbone/SIL: FIXED — the acoustic-max-path carve-out
+>   (`a2::oracle::acoustic_best_path_ids` + `oracle_at_most_1best`
+>   regression test) closes the 129/200 K=3 exceedances.
+> - Budget binding: live peaks track caps exactly (50/100/250/500);
+>   dormant peaks 0 everywhere — C never holds anything dormant.
+> - Tuning: 18-way tie (18036/18316 each) — w_sequence × theta_live ×
+>   delta do not discriminate; 10× w_acoustic extremes also identical.
+>   Winner is candidate 0 by the earliest-wins tie-break (frozen).
+> - B/C gap to A (~0.34 WER): deletion-heavy under-commit (I=0 at
+>   every budget; D falls 4179 → 3655 as the budget grows). No
+>   significance claim is possible for C−B (delta exactly 0).
 
 ## Reproduce
 
@@ -106,12 +203,18 @@ From the repo root:
 ```bash
 python3 docs/results/A6-charts.py --sample
 # → writes docs/results/A6-wer-vs-budget.svg + docs/results/A6-rtf-vs-budget.svg
-grep -c REALDATA docs/results/A6-FABRIC-EXPERIMENT.md  # >= 5
+grep -c REALDATA docs/results/A6-FABRIC-EXPERIMENT.md  # == 1 (this line only: all markers filled)
 ```
 
 Real-data render (same schema): `python3 docs/results/A6-charts.py --input path/to/real.tsv --outdir docs/results`.
 
 ---
+
+> NOTE (2026-11-03): the Preserved record below is wave-2 history,
+> kept verbatim — including its BLOCKED verdict and pre-fix oracle
+> table. Both are superseded: the P0 + commit-probe fixes unblocked
+> the bridge, and this lane's `> REAL` blocks above carry the current
+> numbers (filter carve-out, DEV tuning, TEST-200 sweep).
 
 ## Preserved record (wave-2 partial, kept verbatim)
 
@@ -187,46 +290,36 @@ pipeline. TEST-200 arm A is a first-ever score for this population.
 ## Oracle sweep (DEV-200, real lattices)
 
 Exact tested oracle (`experiment::oracle_sweep` → `a2::oracle::sweep_k`,
-example `src/experiment/examples/sweep_real.rs`) over DEV-200 with the
-filter_k 1-best carve-out (`a2::oracle::acoustic_best_path_ids`,
-bead hearsay-four-7i2o--real-wiring-tuning-sweep). 1-best column is
-`one_best_path` over the same lattices (acoustic-max path: 3116 errs,
-0.6805 — +83 over the decoder 1-best 3033, as expected: the lattice
-stores acoustic LLRs only, so the acoustic path cannot reproduce the
-LM-weighted search best). The oracle is at most the acoustic 1-best on
-all 200 utterances at every K (0 exceedances; pre-fix: 129/200 at K=3).
+new example `src/experiment/examples/sweep_real.rs`), 72 s for 200
+lattices. 1-best column is `one_best_path` over the same lattices
+(acoustic-max path: 3116 errs, 0.6805 — +83 over the decoder 1-best
+3033, as expected: the lattice stores acoustic LLRs only, so the
+acoustic path cannot reproduce the LM-weighted search best).
 
 | K | oracle errs | oracle WER | tokens | arcs |
 |---|-------------|------------|--------|------|
-| 3 | 2775 | 0.6060 | 494,993 | 314,606 |
-| 5 | 2731 | 0.5964 | 822,782 | 597,635 |
-| 10 | 2637 | 0.5759 | 1,642,926 | 1,501,260 |
+| 3 | 3934 | 0.8591 | 492,993 | 254,255 |
+| 5 | 3725 | 0.8135 | 821,599 | 545,837 |
+| 10 | 2660 | 0.5809 | 1,642,920 | 1,501,164 |
 
-Provenance: `sweep_real --manifest
-data/wer71g/tune200s/strat200.manifest.tsv --lat-dir data/lattices/dev200`
-in lane bead/7i2o-real-wiring-tuning-sweep; per-utterance table
-`scripts/a6/out/oracle_dev200_perutt.tsv` (lane worktree, coordinator
-extraction; `data/wer71g/dev200sweep/per_utt.tsv` is the superseded
-pre-fix run).
-
-Gap attribution:
+Gap attribution (per-utterance table in the lane at
+`data/wer71g/dev200sweep/per_utt.tsv`):
 
 - Generation miss: 700/4579 ref words (15.3%) never appear in the
   lattice at any rank. Only 140 are OOV — ~560 in-vocab words are never
   hypothesized, i.e. the weak AM never surfaces them. The tunefull
   beam-300 cell is byte-identical to beam-150, so search is saturated:
   the miss is AM/trie-pruning under weak acoustics, not beam width.
-- K depth: K=3 → K=10 recovers 138 errs (correct words ranked 4–10
-  acoustically). Small: with the carve-out all three rows are fair
-  oracles, and the K=10 row (0.5759 vs decoder 1-best 0.6624) is the
-  real ~0.09 gap.
-- Backbone/SIL (FIXED this lane): `filter_k` previously kept top-K per
-  end frame by acoustic LLR with no 1-best carve-out for decoder
-  lattices (the carve-out only matched source `a2-1best`), and SIL
-  twins at llr 0.0 displaced negative-LLR words — the oracle exceeded
-  1-best on 129/200 utterances at K=3. The acoustic-max-path carve-out
-  plus regression test `a2::oracle::tests::oracle_at_most_1best`
-  closes this; exceedances are now 0/200 at every K.
+- K depth: K=3 → K=10 recovers 1274 errs (correct words ranked 4–10
+  acoustically). Real headroom, but only the K=10 (full-lattice) row
+  is a fair oracle.
+- Backbone/SIL caveat: `filter_k` keeps top-K per end frame by
+  acoustic LLR with no 1-best carve-out for decoder lattices (the
+  carve-out only matches source `a2-1best`), and SIL twins at llr 0.0
+  displace negative-LLR words. Hence the oracle EXCEEDS 1-best errors
+  on 129/200 utterances at K=3 (5/200 at K=10). The K=3/5 rows measure
+  the filter, not the lattice; the K=10 row (0.5809 vs 1-best 0.6624)
+  is the real 0.08 gap.
 - Verdict: the gap is real but AM-bound. No decoder/search fix is
   available in-lane (beam saturated, AM is the project baseline), so
   no regen loop was run; TEST is reported as-is with this diagnosis,
