@@ -139,6 +139,12 @@ gitignored), `~/hearsay-personal/`, `target/`, `web/demo-out/`,
 ## Secrets scan — rerun on the release commit (lane su00)
 
 - [ ] G1 `bash scripts/no_model_guard.sh` → exit 0.
+  - PRE-EXISTING (owner disposition 2026-11-03, leave open): guard is RED
+    on `src/hmm/tests/phase_test_scoring_tests.rs` consuming
+    `stt_transcript` outside `src/corpus` (from `f4fbdc0`); likewise
+    `fabric survival_contract::d1` fails identically on pre-P0 main.
+    Neither is caused by the A6 experiment work. Do not gate release on
+    either; fix post-deadline.
 - [ ] G2 `bash scripts/personal_guard.sh` → `PERSONAL-GUARD-OK`.
 - [ ] G3 Key grep → no hits outside the D3 strip set (zero after D3):
   `grep -rEn 'AKIA[0-9A-Z]{16}|BEGIN (RSA |EC |OPENSSH )?PRIVATE[ ]KEY|api[_-]?key|ghp_[0-9A-Za-z]{36}|xox[bap]-|csk-[A-Za-z0-9]{20,}' src web scripts docs`
