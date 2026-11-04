@@ -1190,15 +1190,24 @@ impl DecisionFabric {
     /// non-overlapping WORD/SIL tokens (§7), maximising `S(T)` (§4).
     pub fn best_tilings(&self, region: (u32, u32)) -> (Option<ScoredTiling>, Option<ScoredTiling>) {
         let (s, e) = region;
-        // Candidates start in [s, e): start >= s, and start < end <= e.
-        // (Empty when s >= e, exactly as the old full scan.)
+        let partials = self.tiling_partials(s, e);
+        let mut finals = partials.get(&e).cloned().unwrap_or_default();
+        finals.sort_by(|a, b| self.tiling_cmp(a, b));
+        finals.dedup_by(|a, b| a.tokens == b.tokens);
+        let winner = finals.first().cloned();
+        let runner_up = finals.get(1).cloned();
+        (winner, runner_up)
+    }
+    fn tiling_partials(&self, s: u32, max_e: u32) -> BTreeMap<u32, Vec<ScoredTiling>> {
+        // Candidates start in [s, max_e): start >= s, and start < end <= max_e.
+        // (Empty when s >= max_e, exactly as the old full scan.)
         let mut candidates: Vec<&Token> = Vec::new();
-        if s < e {
-            for facts in self.by_start.range(s..e).map(|(_, facts)| facts) {
+        if s < max_e {
+            for facts in self.by_start.range(s..max_e).map(|(_, facts)| facts) {
                 for f in facts {
                     let t = &self.tokens[f];
                     if t.tiling_eligible()
-                        && t.end_frame <= e
+                        && t.end_frame <= max_e
                         // R1: tilings admit live tokens only.
                         && self.is_live(t.fact)
                     {
@@ -1264,14 +1273,21 @@ impl DecisionFabric {
                 }
             }
         }
-        let mut finals = partials.get(&e).cloned().unwrap_or_default();
-        finals.sort_by(|a, b| self.tiling_cmp(a, b));
-        finals.dedup_by(|a, b| a.tokens == b.tokens);
-        let winner = finals.first().cloned();
-        let runner_up = finals.get(1).cloned();
-        (winner, runner_up)
+        partials
     }
-
+    /// Single-pass tileable ends (f6tp): run the tiling DP once over
+    /// `(s, max_e)` and return every frame end tileable from `s`,
+    /// ascending. Replaces the bridge's largest-first per-end probing
+    /// loop (one DP per region instead of one per candidate end).
+    pub fn tileable_ends(&self, s: u32, max_e: u32) -> Vec<u32> {
+        if s >= max_e {
+            return Vec::new();
+        }
+        let partials = self.tiling_partials(s, max_e);
+        let mut ends: Vec<u32> = partials.keys().copied().filter(|&f| f > s).collect();
+        ends.sort_unstable();
+        ends
+    }
     /// Commit a region (§10): eligible once the frontier passes `e + H`;
     /// commits when the best tiling beats the runner-up by >= delta, or
     /// unconditionally at `e + H_max`. Winners go through the fabric's
