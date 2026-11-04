@@ -3,6 +3,18 @@
 Post with the demo clip (shot C: `web/demo.sh` → click-a-word why
 panel). Two lengths; pick one at post time. [Video URL TBD.]
 
+Frozen paper numbers (from `docs/writeup/WRITEUP.md`) for both variants:
+decoder 64.3% TEST-200 + 67.6% dev-clean
+(`docs/results/A6-FABRIC-EXPERIMENT.md`,
+`docs/results/analysis/HEADLINE-ERROR-ANALYSIS.md`); Fabric 85.5% with
+dormancy-vs-pruning delta -0.02 pts [-0.07, 0.00]
+(`docs/results/A6-FABRIC-EXPERIMENT.md`); 1599/1600 identical transcripts,
+rev_winner 0 — no demonstrated difference; 29/29 cross-channel
+(`docs/results/NUMBER-LEDGER.md` §5); 7/16 one-correction fixes
+(`docs/demo/correction-demo.md`); CX1 1.07
+(`src/fabric/tests/decision_cx1.rs`); fabric RTF 0.08-0.26
+(`scripts/a6/out/sweep_insurance.tsv`).
+
 ## Short (233 chars)
 
 Hearsay-IV: transcription you can argue with. Fully mechanistic,
@@ -10,12 +22,13 @@ model-free, offline — and every word carries its why panel: acoustic
 score, losing alternatives, LM probability. An error with an address.
 Built with Muse Code. [video]
 
-## With numbers (262 chars)
+## With numbers
 
 Hearsay-IV: transcription you can argue with. Model-free, offline,
 zero learned weights — every word ships with provenance. LibriSpeech:
-CMVN win 0.6137 vs 0.6416 PER (paired-bootstrap CI), tune-best 0.6624
-WER, 29/29 cross-channel. Built with Muse Code. [video]
+decoder 64.3% TEST-200 / 67.6% dev-clean, Fabric 85.5%, null result
+1599/1600 identical (rev_winner 0), 29/29 cross-channel. Built with
+Muse Code. [video]
 
 ## Alt text for the clip (accessibility)
 

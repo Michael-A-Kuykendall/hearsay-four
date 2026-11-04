@@ -34,22 +34,27 @@ model-free claim with `bash scripts/no_model_guard.sh`.
 
 ## Results
 
-Headline numbers, each with command, data, size, and plausibility check in the
-[number ledger](docs/results/NUMBER-LEDGER.md):
+Frozen paper numbers from [the writeup](docs/writeup/WRITEUP.md); each value
+sits next to its on-disk source. Tuning history stays in the
+[number ledger](docs/results/NUMBER-LEDGER.md).
 
-| Headline | Value | Status |
+| Headline | Value | Source |
 |---|---|---|
-| Fallback 9-cell best WER (lm6/wip0, 200 utts) | 0.7233 | landed |
-| full93 4-mix dev PER | 0.6707 | landed |
-| full93 8-mix dev PER | 0.6416 | landed |
-| CMVN 8-mix iter1 dev PER | 0.6416 | landed (iters 2–4 TBD) |
-| 30-word cross-channel top-1 | 1.0000 (29/29) | landed |
-| sub20 tune best WER (lm8/wip0, 200 utts) | 0.8332 | landed |
-| Headline WER (final AM, full dev) | TBD | pending |
-| Live-mic RTF | TBD | pending |
+| Decoder WER, TEST-200 (200 utts, 4530 words) | 64.3% | `docs/results/A6-FABRIC-EXPERIMENT.md` Run 1 (arm A 0.6430) |
+| Decoder WER, full dev-clean (2703 utts, 54402 words) | 67.6% (95% CI 66.9–68.3%) | `docs/results/analysis/HEADLINE-ERROR-ANALYSIS.md` (0.6760) |
+| Fabric WER, TEST-200 best (budget 500) | 85.5% | `docs/results/A6-FABRIC-EXPERIMENT.md` Run 1 (B/C 0.8550) |
+| Dormancy-vs-pruning delta (C−B), largest | -0.02 pts (95% CI [-0.07, 0.00]) | `docs/results/A6-FABRIC-EXPERIMENT.md` th25/budget-500 (`scripts/a6/out/headline_th25.tsv`) |
+| Paired runs with identical transcripts | 1599/1600; rev_winner 0 | `docs/results/A6-FABRIC-EXPERIMENT.md` headline freeze |
+| Fabric scaling exponent (CX1) | 1.07 | `src/fabric/tests/decision_cx1.rs` (commit `de334c5`, k~1.07 both profiles) |
+| Fabric real-time factor | 0.08-0.26 | `docs/results/A6-FABRIC-EXPERIMENT.md` Run 1 (`scripts/a6/out/sweep_insurance.tsv`) |
+| 30-word cross-channel top-1 | 29/29 | `docs/results/NUMBER-LEDGER.md` §5 |
+| One-correction fixes | 7/16 fixed, 3 partial, 6 not; undo byte-identical | `docs/demo/correction-demo.md` |
 
-WER rows are 200-utterance tune subsets, not the headline; no confidence
-intervals computed yet. See the ledger for the full provenance of every row.
+Null-result framing: dormancy and pruning produced identical transcripts in
+1599 of 1600 paired runs (rev_winner 0 — no revived hypothesis ever entered
+a committed answer), so the experiment shows no demonstrated difference
+between the two lifecycles at equal budget. The Fabric's measured value in
+this test is provenance plus retractable corrections, not accuracy.
 
 ## Data attribution
 

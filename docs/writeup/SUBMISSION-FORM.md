@@ -45,15 +45,26 @@ harness, the full93 acoustic model (26,727 utterances / 93.9 h /
 251 speakers), a one-command demo (`bash web/demo.sh`) with a
 click-a-word why panel for every decoded word.
 
-Measured results (LibriSpeech, CC BY 4.0; every value traces to a
-file in the repo): controlled CMVN shootout won with phone error
-rate 0.6137 vs 0.6416 baseline (paired-bootstrap 95% CI excludes
-zero — first CI in the repo); LM tuning best word error rate 0.6624
-on a 200-utterance dev-clean subset, beam-adequacy proven at 2x
-beam; 30-word cross-channel check 29/29, zero confusions.
-[Headline TBD: full dev-clean WER from the Lane A gate run;
-fills `data/wer71g/tunefull/fullgate/cell.tsv`.]
-[16-mix TBD: overnight swap verdict, night of Nov 2.]
+Measured results (LibriSpeech, CC BY 4.0; frozen paper numbers from
+`docs/writeup/WRITEUP.md`, each with its on-disk source): decoder 64.3%
+WER on TEST-200 (200 utts, 4530 words;
+`docs/results/A6-FABRIC-EXPERIMENT.md` Run 1, arm A 0.6430) and 67.6% on
+full dev-clean (2703 utts, 54402 words, 95% CI 66.9–68.3%;
+`docs/results/analysis/HEADLINE-ERROR-ANALYSIS.md`); Fabric 85.5% at its
+best budget-500 point (`docs/results/A6-FABRIC-EXPERIMENT.md` Run 1);
+dormancy-vs-pruning delta (C−B) largest -0.02 pts, 95% CI [-0.07, 0.00]
+(`docs/results/A6-FABRIC-EXPERIMENT.md` th25,
+`scripts/a6/out/headline_th25.tsv`); identical transcripts in 1599/1600
+paired runs with rev_winner 0
+(`docs/results/A6-FABRIC-EXPERIMENT.md` headline freeze) — no demonstrated
+difference between the lifecycles at equal budget, so the Fabric's measured
+value here is provenance plus retractable corrections, not accuracy;
+Fabric scaling exponent CX1 1.07 (`src/fabric/tests/decision_cx1.rs`,
+commit `de334c5`) at 0.08-0.26x real time
+(`scripts/a6/out/sweep_insurance.tsv`); 30-word cross-channel check 29/29
+(`docs/results/NUMBER-LEDGER.md` §5); one correction fixed 7/16
+single-word errors with byte-identical undo
+(`docs/demo/correction-demo.md`).
 
 ## Meta tooling usage
 
