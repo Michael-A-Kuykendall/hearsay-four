@@ -179,6 +179,73 @@ pub fn lattice_oracle_wer(
     })
 }
 
+/// Acoustic-max path through `lat` as token ids (utterance-start to best end).
+///
+/// Exact id-returning mirror of `experiment::scoring::one_best_path` (same
+/// `(end, start, id)` order, same forward-arc guard, same strict-`>` wins),
+/// living here because `a2` cannot depend on `experiment` (cycle). The two
+/// must stay in lockstep: `filter_k` carves exactly this path so the oracle
+/// over the filtered lattice is at most the acoustic 1-best on every K.
+pub fn acoustic_best_path_ids(lat: &lattice::Lattice) -> Vec<u64> {
+    let n = lat.tokens.len();
+    if n == 0 {
+        return Vec::new();
+    }
+    let mut order: Vec<usize> = (0..n).collect();
+    order.sort_by(|&a, &b| {
+        (lat.tokens[a].end, lat.tokens[a].start, lat.tokens[a].id).cmp(&(
+            lat.tokens[b].end,
+            lat.tokens[b].start,
+            lat.tokens[b].id,
+        ))
+    });
+    let mut rank_of: HashMap<u64, usize> = HashMap::new();
+    for (rank, &i) in order.iter().enumerate() {
+        rank_of.insert(lat.tokens[i].id, rank);
+    }
+    let mut incoming: Vec<Vec<usize>> = vec![Vec::new(); n];
+    for a in &lat.arcs {
+        if let (Some(&u), Some(&v)) = (rank_of.get(&a.from), rank_of.get(&a.to)) {
+            let from = &lat.tokens[order[u]];
+            let to = &lat.tokens[order[v]];
+            if from.end <= to.start {
+                incoming[v].push(u);
+            }
+        }
+    }
+    let mut best = vec![f64::NEG_INFINITY; n];
+    let mut back: Vec<Option<usize>> = vec![None; n];
+    for (rank, &i) in order.iter().enumerate() {
+        let mut b = lat.tokens[i].acoustic_llr;
+        let mut p = None;
+        for &u in &incoming[rank] {
+            let c = best[u] + lat.tokens[i].acoustic_llr;
+            if c > b {
+                b = c;
+                p = Some(u);
+            }
+        }
+        best[rank] = b;
+        back[rank] = p;
+    }
+    let mut end = 0;
+    for r in 1..n {
+        if best[r] > best[end] {
+            end = r;
+        }
+    }
+    let mut rev = Vec::new();
+    let mut r = end;
+    loop {
+        rev.push(lat.tokens[order[r]].id);
+        match back[r] {
+            Some(u) => r = u,
+            None => break,
+        }
+    }
+    rev.reverse();
+    rev
+}
 /// Filter lattice text to top-`k` tokens per end frame + induced arcs.
 /// Tokens with source `a2-1best` (the 1-best backbone) are always kept.
 pub fn filter_k(lat_text: &str, k: usize) -> Result<lattice::Lattice, String> {
@@ -199,6 +266,13 @@ pub fn filter_k(lat_text: &str, k: usize) -> Result<lattice::Lattice, String> {
         for t in v.iter() {
             keep.insert(t.id);
         }
+    }
+    // 1-best carve-out (decoder lattices carry no `a2-1best` marks and SIL
+    // twins at llr 0.0 displace negative-LLR words): the acoustic-max path
+    // always survives, so the filtered oracle is at most the acoustic
+    // 1-best at every K.
+    for id in acoustic_best_path_ids(&lat) {
+        keep.insert(id);
     }
     let tokens: Vec<lattice::Token> = lat
         .tokens
@@ -311,6 +385,23 @@ mod tests {
         assert_eq!(f.tokens.len(), 2);
         assert!(f.tokens.iter().any(|t| t.word == "b"));
         assert!(f.tokens.iter().any(|t| t.word == "c"));
+    }
+    #[test]
+    fn oracle_at_most_1best() {
+        // Regression (DEV-200 2026-11-03): `good` is on the acoustic-max
+        // path but ranked below K=1 at its end frame by the isolated
+        // `lure`; without the carve-out the filter drops it and the
+        // oracle (1 err) exceeds the acoustic 1-best (0 errs).
+        let lat = lat_of(&[("a", 0, 1, 1.0), ("good", 2, 3, 1.0), ("lure", 0, 3, 1.5)]);
+        assert_eq!(acoustic_best_path_ids(&lat), vec![0, 1]);
+        let text = lattice::write_lattice(&lat).expect("write");
+        let f = filter_k(&text, 1).expect("filter");
+        assert!(
+            f.tokens.iter().any(|t| t.word == "good"),
+            "carve-out keeps the 1-best path token"
+        );
+        let o = lattice_oracle_wer(&f, &w(&["a", "good"])).expect("oracle");
+        assert_eq!(o.errors, 0, "oracle at most acoustic 1-best");
     }
 
     #[test]

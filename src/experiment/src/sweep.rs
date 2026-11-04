@@ -13,6 +13,7 @@
 use crate::arms::{Arm, ArmParams, run_fabric_arm};
 use crate::scoring::{delta_ci, per_utterance_errors, score_corpus};
 use eval::BootstrapCi;
+use hearsay::SequenceScorer;
 use lattice::{Arc, Lattice, Token};
 use std::path::PathBuf;
 
@@ -22,6 +23,18 @@ pub struct SweepUtt {
     pub id: String,
     pub lattice: Lattice,
     pub reference: Vec<String>,
+    /// Arm-A 1-best baseline from the `wer_devclean` cell TSV (`None` on
+    /// synthetic feeds, which have no decoder baseline).
+    pub arm_a: Option<ArmABaseline>,
+}
+
+/// Arm-A baseline for one utterance: decoder 1-best hypothesis plus the
+/// cell's own audio/decode seconds (arm-A RTF needs no fabric run).
+#[derive(Debug, Clone)]
+pub struct ArmABaseline {
+    pub hyp: Vec<String>,
+    pub audio_sec: f64,
+    pub decode_sec: f64,
 }
 
 /// Language-model source behind a feed.
@@ -29,13 +42,23 @@ pub struct SweepUtt {
 pub enum FeedLm {
     /// Deterministic bigram over the synthetic vocabulary.
     Synthetic,
+    /// Real interpolated KN LM (`lm-r1v2-interpolated.json`), boxed: the
+    /// 72 MB model must not ride the enum by value (clippy
+    /// `large_enum_variant`).
+    Real(Box<lm::InterpolatedLm>),
 }
 
 impl FeedLm {
     /// Score `llr_SEQ(a -> b)` for word labels (`"<s>"` = utterance start).
+    /// The real variant delegates to [`hearsay::InterpolatedScorer`]
+    /// (bigram-over-unigram LLR), exactly as `real_table` does.
     pub fn score(&self, a: &str, b: &str) -> f64 {
         match self {
             FeedLm::Synthetic => synthetic_bigram(a, b),
+            FeedLm::Real(lm) => {
+                let scorer = hearsay::InterpolatedScorer::new(lm);
+                scorer.sequence_llr(if a == "<s>" { None } else { Some(a) }, b)
+            }
         }
     }
 }
@@ -49,12 +72,16 @@ pub enum FeedSource {
         test_n: usize,
         seed: u64,
     },
-    /// Real DEV/TEST manifests plus a lattice directory. Wired after the
-    /// P0+bridge merge; see [`load_experiment_feed`].
+    /// Real DEV/TEST manifests plus a lattice directory, the interpolated
+    /// LM, and the `wer_devclean` arm-A cell TSVs; see
+    /// [`load_experiment_feed`].
     Real {
         dev_manifest: PathBuf,
         test_manifest: PathBuf,
         lat_dir: PathBuf,
+        lm_path: PathBuf,
+        dev_cell: PathBuf,
+        test_cell: PathBuf,
     },
 }
 
@@ -68,22 +95,159 @@ pub struct ExperimentFeed {
 
 /// THE SEAM: the single function that swaps the synthetic dry-run feed for
 /// real data. `Synthetic` builds deterministic lattices plus
-/// [`synthetic_bigram`]; `Real` must read the two 4-column manifest TSVs
-/// (`id`, `rel`, `seconds`, `transcript`), load `{id}.lat.jsonl` per row
-/// through [`lattice::read_lattice`], and attach the real (interpolated)
-/// language model. Until the P0+bridge merge lands, `Real` returns `Err`.
+/// [`synthetic_bigram`]; `Real` reads the two 4-column manifest TSVs
+/// (`id`, `rel`, `seconds`, `transcript`), loads `{id}.lat.jsonl` per row
+/// through [`lattice::read_lattice`], attaches the real interpolated LM,
+/// and joins the arm-A cell TSVs row-for-row (same order as the manifest).
+/// Falsification gate: manifest ids must be Librispeech-shaped
+/// (`<spk>-<chap>-<utt>`, all digits) — synthetic-shaped rows fail loudly.
 pub fn load_experiment_feed(src: &FeedSource) -> Result<ExperimentFeed, String> {
     match src {
-        FeedSource::Synthetic { dev_n, test_n, seed } => Ok(ExperimentFeed {
+        FeedSource::Synthetic {
+            dev_n,
+            test_n,
+            seed,
+        } => Ok(ExperimentFeed {
             dev: synthetic_corpus(*dev_n, seed ^ 0x9e37_79b9_7f4a_7c15, "dev"),
             test: synthetic_corpus(*test_n, *seed, "test"),
             lm: FeedLm::Synthetic,
         }),
-        FeedSource::Real { .. } => Err(
-            "real feed not wired: implement the load_experiment_feed Real branch after the P0+bridge merge"
-                .to_string(),
-        ),
+        FeedSource::Real {
+            dev_manifest,
+            test_manifest,
+            lat_dir,
+            lm_path,
+            dev_cell,
+            test_cell,
+        } => {
+            let lm = lm::persist::load_interpolated(lm_path)
+                .map_err(|e| format!("real feed: LM {}: {e}", lm_path.display()))?;
+            let dev = load_real_set(dev_manifest, dev_cell, lat_dir, "dev")?;
+            let test = load_real_set(test_manifest, test_cell, lat_dir, "test")?;
+            Ok(ExperimentFeed {
+                dev,
+                test,
+                lm: FeedLm::Real(Box::new(lm)),
+            })
+        }
     }
+}
+/// Librispeech utterance id shape: three dash-separated all-digit groups
+/// (`1272-128104-0001`). Synthetic ids (`dev-0000`) fail this check, so a
+/// real feed built over synthetic-shaped rows errors instead of silently
+/// scoring the wrong population.
+fn is_librispeech_id(id: &str) -> bool {
+    let parts: Vec<&str> = id.split('-').collect();
+    parts.len() == 3
+        && !parts[0].is_empty()
+        && parts.iter().all(|p| p.bytes().all(|b| b.is_ascii_digit()))
+}
+/// Load one real set: manifest rows joined row-for-row to the arm-A cell
+/// TSV (same order required) plus `{id}.lat.jsonl` per row.
+fn load_real_set(
+    manifest: &std::path::Path,
+    cell: &std::path::Path,
+    lat_dir: &std::path::Path,
+    name: &str,
+) -> Result<Vec<SweepUtt>, String> {
+    let text = std::fs::read_to_string(manifest)
+        .map_err(|e| format!("real feed {name}: manifest {}: {e}", manifest.display()))?;
+    let mut ids: Vec<String> = Vec::new();
+    let mut refs: Vec<Vec<String>> = Vec::new();
+    for (lineno, line) in text.lines().enumerate() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let mut parts = line.splitn(4, '\t');
+        match (parts.next(), parts.next(), parts.next(), parts.next()) {
+            (Some(id), Some(_), Some(_), Some(t)) => {
+                if !is_librispeech_id(id) {
+                    return Err(format!(
+                        "real feed {name}: manifest line {} id {id:?} is not Librispeech-shaped",
+                        lineno + 1
+                    ));
+                }
+                ids.push(id.to_string());
+                refs.push(t.split_whitespace().map(str::to_string).collect());
+            }
+            _ => {
+                return Err(format!(
+                    "real feed {name}: manifest line {} malformed",
+                    lineno + 1
+                ));
+            }
+        }
+    }
+    if ids.is_empty() {
+        return Err(format!("real feed {name}: empty manifest"));
+    }
+    let cell_text = std::fs::read_to_string(cell)
+        .map_err(|e| format!("real feed {name}: cell {}: {e}", cell.display()))?;
+    let mut baselines: Vec<ArmABaseline> = Vec::new();
+    for (lineno, line) in cell_text.lines().enumerate() {
+        if lineno == 0 {
+            if !line.starts_with("utt\terrors") {
+                return Err(format!("real feed {name}: cell header: {line}"));
+            }
+            continue;
+        }
+        if line.trim().is_empty() {
+            continue;
+        }
+        let cols: Vec<&str> = line.split('\t').collect();
+        if cols.len() != 7 {
+            return Err(format!(
+                "real feed {name}: cell line {} has {} cols, want 7",
+                lineno + 1,
+                cols.len()
+            ));
+        }
+        if baselines.len() >= ids.len() || cols[0] != ids[baselines.len()] {
+            let want = ids
+                .get(baselines.len())
+                .map(String::as_str)
+                .unwrap_or("(none)");
+            return Err(format!(
+                "real feed {name}: cell row {} id {:?} != manifest {:?} (join order)",
+                lineno + 1,
+                cols[0],
+                want
+            ));
+        }
+        let audio_sec: f64 = cols[4]
+            .parse()
+            .map_err(|_| format!("real feed {name}: cell line {} bad audio_sec", lineno + 1))?;
+        let decode_sec: f64 = cols[5]
+            .parse()
+            .map_err(|_| format!("real feed {name}: cell line {} bad decode_sec", lineno + 1))?;
+        baselines.push(ArmABaseline {
+            hyp: cols[6].split_whitespace().map(str::to_string).collect(),
+            audio_sec,
+            decode_sec,
+        });
+    }
+    if baselines.len() != ids.len() {
+        return Err(format!(
+            "real feed {name}: cell covers {} utts, manifest has {}",
+            baselines.len(),
+            ids.len()
+        ));
+    }
+    let mut out = Vec::with_capacity(ids.len());
+    for ((id, reference), arm_a) in ids.into_iter().zip(refs).zip(baselines) {
+        let p = lat_dir.join(format!("{id}.lat.jsonl"));
+        let lt = std::fs::read_to_string(&p)
+            .map_err(|e| format!("real feed {name}: lattice {}: {e}", p.display()))?;
+        let lattice =
+            lattice::read_lattice(&lt).map_err(|e| format!("real feed {name}: {id}: {e}"))?;
+        out.push(SweepUtt {
+            id,
+            lattice,
+            reference,
+            arm_a: Some(arm_a),
+        });
+    }
+    Ok(out)
 }
 
 /// Minimal splitmix64 stream (dependency-free deterministic RNG, mirroring
@@ -259,6 +423,7 @@ fn synth_revival(rng: &mut Rng, id: &str, pat: &Pattern) -> SweepUtt {
         id: id.to_string(),
         lattice: lat(id, tokens, arcs),
         reference: words(&[pat.carrier, pat.correct, pat.right1, pat.right2]),
+        arm_a: None,
     }
 }
 
@@ -283,6 +448,7 @@ fn synth_clean(id: &str, sent: &[&str]) -> SweepUtt {
         id: id.to_string(),
         lattice: lat(id, tokens, arcs),
         reference: words(sent),
+        arm_a: None,
     }
 }
 
@@ -298,6 +464,7 @@ fn synth_absent(id: &str) -> SweepUtt {
         id: id.to_string(),
         lattice: lat(id, tokens, vec![(1, 2), (2, 3)]),
         reference: words(&["red", "green", "blue"]),
+        arm_a: None,
     }
 }
 
@@ -320,6 +487,7 @@ fn synth_bulk(rng: &mut Rng, id: &str) -> SweepUtt {
         id: id.to_string(),
         lattice: lat(id, tokens, Vec::new()),
         reference: words(&["alpha"]),
+        arm_a: None,
     }
 }
 
@@ -345,6 +513,7 @@ pub fn synthetic_corpus(n: usize, seed: u64, prefix: &str) -> Vec<SweepUtt> {
 #[derive(Debug, Clone)]
 pub struct TuningGrid {
     pub w_acoustic: Vec<f64>,
+    pub w_sequence: Vec<f64>,
     pub theta_live: Vec<f64>,
     pub delta: Vec<f64>,
 }
@@ -353,6 +522,7 @@ impl Default for TuningGrid {
     fn default() -> Self {
         Self {
             w_acoustic: vec![0.5, 1.0, 2.0],
+            w_sequence: vec![1.0],
             theta_live: vec![-1.0, 0.0, 1.0],
             delta: vec![0.0, 1.0],
         }
@@ -360,18 +530,32 @@ impl Default for TuningGrid {
 }
 
 impl TuningGrid {
-    /// Grid candidates in evaluation order (outer `w_acoustic`, inner `delta`).
-    /// `w_sequence`/`h`/`h_max` stay at [`ArmParams::fixture_defaults`].
-    fn candidates(&self, budget: usize) -> Vec<ArmParams> {
+    /// Coarse real-data grid: `theta_live` x `w_sequence` x `delta` (18
+    /// candidates), `w_acoustic` pinned at the fixture default.
+    pub fn real_coarse() -> Self {
+        Self {
+            w_acoustic: vec![1.0],
+            w_sequence: vec![0.5, 1.0, 2.0],
+            theta_live: vec![-1.0, 0.0, 1.0],
+            delta: vec![0.0, 1.0],
+        }
+    }
+
+    /// Grid candidates in evaluation order (outer `w_acoustic`, inner
+    /// `delta`). `h`/`h_max` stay at [`ArmParams::fixture_defaults`].
+    pub fn candidates(&self, budget: usize) -> Vec<ArmParams> {
         let mut out = Vec::new();
-        for &w in &self.w_acoustic {
-            for &t in &self.theta_live {
-                for &d in &self.delta {
-                    let mut p = ArmParams::fixture_defaults(budget);
-                    p.w_acoustic = w;
-                    p.theta_live = t;
-                    p.delta = d;
-                    out.push(p);
+        for &wa in &self.w_acoustic {
+            for &ws in &self.w_sequence {
+                for &t in &self.theta_live {
+                    for &d in &self.delta {
+                        let mut p = ArmParams::fixture_defaults(budget);
+                        p.w_acoustic = wa;
+                        p.w_sequence = ws;
+                        p.theta_live = t;
+                        p.delta = d;
+                        out.push(p);
+                    }
                 }
             }
         }
@@ -457,8 +641,10 @@ pub struct SweepCell {
     pub inss: usize,
     pub ref_len: usize,
     pub rtf: f64,
-    pub peak_live: usize,
-    pub peak_dormant: usize,
+    /// Fabric pool peaks (`None` on arm-A rows: the decoder baseline never
+    /// touches the fabric; rendered `n/a`).
+    pub peak_live: Option<usize>,
+    pub peak_dormant: Option<usize>,
     /// Pair-level (C-vs-B) stats at this budget: populated on C rows,
     /// `None` on B rows (rendered `NA`).
     pub rescues: Option<usize>,
@@ -475,21 +661,26 @@ pub fn count_late_rescues(committed: &[String], pruned: &[String], evicted: &[St
         .count()
 }
 
-/// Per-utterance decode record kept for cell assembly.
-struct CellRun {
-    hyp: Vec<String>,
-    pruned: Vec<String>,
-    evicted: Vec<String>,
-    peak_live: usize,
-    peak_dormant: usize,
-    elapsed: f64,
-    span: f64,
+/// Per-utterance decode record kept for cell assembly. Public so the
+/// 16-worker queue (`cell_decode` shards + `sweep_collect`) assembles
+/// identical cells from per-task files.
+#[derive(Debug, Clone)]
+pub struct CellRun {
+    pub hyp: Vec<String>,
+    pub pruned: Vec<String>,
+    pub evicted: Vec<String>,
+    pub peak_live: usize,
+    pub peak_dormant: usize,
+    pub elapsed: f64,
+    pub span: f64,
 }
 
 /// Sweep TEST over `budgets` x arms {B, C} with the DEV-tuned params (C uses
-/// params identical to B). One task per (budget, arm, utterance), decoded in
-/// parallel and assembled in row order (budget-major, B then C). Any decode
-/// failure aborts the sweep with the utterance id.
+/// params identical to B), plus an arm-A baseline row per budget when every
+/// TEST utt carries one (real feeds). One task per (budget, arm,
+/// utterance), decoded in parallel and assembled in row order
+/// (budget-major, A then B then C). Any decode failure aborts the sweep
+/// with the utterance id.
 pub fn sweep_test(
     test: &[SweepUtt],
     lm: &FeedLm,
@@ -540,8 +731,16 @@ pub fn sweep_test(
     for (t, r) in tasks.iter().zip(results) {
         per_cell[t.cell].push(r?);
     }
-    let mut out = Vec::with_capacity(meta.len());
+    // Arm-A baseline rows (real feeds only: every utt carries a baseline).
+    let arm_a: Option<Vec<ArmABaseline>> = test
+        .iter()
+        .map(|u| u.arm_a.clone())
+        .collect::<Option<Vec<_>>>();
+    let mut out = Vec::with_capacity(meta.len() + budgets.len());
     for (k, &budget) in budgets.iter().enumerate() {
+        if let Some(base) = &arm_a {
+            out.push(assemble_arm_a_cell(budget, &refs, base));
+        }
         let b_runs = &per_cell[2 * k];
         let c_runs = &per_cell[2 * k + 1];
         let b_hyps: Vec<Vec<String>> = b_runs.iter().map(|r| r.hyp.clone()).collect();
@@ -569,7 +768,9 @@ pub fn sweep_test(
     Ok(out)
 }
 
-fn assemble_cell(
+/// Assemble one B/C cell from per-utterance runs (shared by the
+/// in-process sweep and the queue collector: one scorer, one schema).
+pub fn assemble_cell(
     budget: usize,
     arm: Arm,
     tot: &crate::scoring::WerTotals,
@@ -588,10 +789,37 @@ fn assemble_cell(
         inss: tot.inss,
         ref_len: tot.ref_len,
         rtf: if span > 0.0 { elapsed / span } else { 0.0 },
-        peak_live: runs.iter().map(|r| r.peak_live).max().unwrap_or(0),
-        peak_dormant: runs.iter().map(|r| r.peak_dormant).max().unwrap_or(0),
+        peak_live: Some(runs.iter().map(|r| r.peak_live).max().unwrap_or(0)),
+        peak_dormant: Some(runs.iter().map(|r| r.peak_dormant).max().unwrap_or(0)),
         rescues,
         delta,
+    }
+}
+
+/// Assemble the arm-A baseline cell at one budget (identical WER at every
+/// budget: the decoder baseline is budget-free). Peaks are `None`.
+pub fn assemble_arm_a_cell(
+    budget: usize,
+    refs: &[Vec<String>],
+    base: &[ArmABaseline],
+) -> SweepCell {
+    let hyps: Vec<Vec<String>> = base.iter().map(|b| b.hyp.clone()).collect();
+    let tot = score_corpus(refs, &hyps);
+    let audio: f64 = base.iter().map(|b| b.audio_sec).sum();
+    let decode: f64 = base.iter().map(|b| b.decode_sec).sum();
+    SweepCell {
+        budget,
+        arm: Arm::A,
+        wer: tot.wer(),
+        subs: tot.subs,
+        dels: tot.dels,
+        inss: tot.inss,
+        ref_len: tot.ref_len,
+        rtf: if audio > 0.0 { decode / audio } else { 0.0 },
+        peak_live: None,
+        peak_dormant: None,
+        rescues: None,
+        delta: None,
     }
 }
 
@@ -608,8 +836,9 @@ fn arm_name(arm: Arm) -> &'static str {
 }
 
 /// Render sweep cells as TSV under [`SWEEP_TSV_HEADER`]. Pair-level columns
-/// (`late_rescues`, `dWER`, `CI_lo`, `CI_hi`) render on C rows; B rows show
-/// `NA` (the delta is defined C-minus-B at the row's budget).
+/// (`late_rescues`, `dWER`, `CI_lo`, `CI_hi`) render on C rows; A/B rows
+/// show `NA` (the delta is defined C-minus-B at the row's budget). Peaks
+/// render `n/a` on arm-A rows (no fabric run).
 pub fn render_sweep_tsv(cells: &[SweepCell]) -> String {
     let mut s = String::from(SWEEP_TSV_HEADER);
     s.push('\n');
@@ -628,8 +857,16 @@ pub fn render_sweep_tsv(cells: &[SweepCell]) -> String {
                 "NA".to_string(),
             ),
         };
+        let pl = c
+            .peak_live
+            .map(|p| p.to_string())
+            .unwrap_or("n/a".to_string());
+        let pd = c
+            .peak_dormant
+            .map(|p| p.to_string())
+            .unwrap_or("n/a".to_string());
         s.push_str(&format!(
-            "{}\t{}\t{:.4}\t{}\t{}\t{}\t{:.4}\t{}\t{}\t{resc}\t{dw}\t{lo}\t{hi}\n",
+            "{}\t{}\t{:.4}\t{}\t{}\t{}\t{:.4}\t{pl}\t{pd}\t{resc}\t{dw}\t{lo}\t{hi}\n",
             c.budget,
             arm_name(c.arm),
             c.wer,
@@ -637,8 +874,6 @@ pub fn render_sweep_tsv(cells: &[SweepCell]) -> String {
             c.dels,
             c.inss,
             c.rtf,
-            c.peak_live,
-            c.peak_dormant
         ));
     }
     s
@@ -771,8 +1006,8 @@ mod tests {
             inss: 0,
             ref_len: 4,
             rtf: 0.01,
-            peak_live: 12,
-            peak_dormant: 0,
+            peak_live: Some(12),
+            peak_dormant: Some(0),
             rescues: None,
             delta: None,
         };
@@ -785,8 +1020,8 @@ mod tests {
             inss: 0,
             ref_len: 4,
             rtf: 0.02,
-            peak_live: 12,
-            peak_dormant: 3,
+            peak_live: Some(12),
+            peak_dormant: Some(3),
             rescues: Some(1),
             delta: Some(ci),
         };
@@ -873,9 +1108,23 @@ mod tests {
             dev_manifest: PathBuf::from("dev.tsv"),
             test_manifest: PathBuf::from("test.tsv"),
             lat_dir: PathBuf::from("lat"),
+            lm_path: PathBuf::from("lm.json"),
+            dev_cell: PathBuf::from("dev-cell.tsv"),
+            test_cell: PathBuf::from("test-cell.tsv"),
         })
-        .expect_err("Real unwired until the P0+bridge merge");
-        assert!(err.contains("not wired"), "{err}");
+        .expect_err("Real with missing inputs errors loudly");
+        assert!(err.contains("real feed"), "{err}");
+    }
+
+    #[test]
+    fn real_feed_rejects_synthetic_shaped_ids() {
+        assert!(is_librispeech_id("1272-128104-0001"));
+        assert!(is_librispeech_id("1089-134686-0006"));
+        assert!(!is_librispeech_id("dev-0000"));
+        assert!(!is_librispeech_id("test-0042"));
+        assert!(!is_librispeech_id("abc"));
+        assert!(!is_librispeech_id(""));
+        assert!(!is_librispeech_id("1272-128104"));
     }
 
     #[test]
@@ -884,6 +1133,7 @@ mod tests {
         let lm = FeedLm::Synthetic;
         let grid = TuningGrid {
             w_acoustic: vec![0.5, 1.0],
+            w_sequence: vec![1.0],
             theta_live: vec![0.0],
             delta: vec![0.0],
         };
@@ -910,7 +1160,7 @@ mod tests {
         assert!(cells[1].rescues.is_some() && cells[1].delta.is_some());
         for c in &cells {
             assert!(c.wer < 1.0, "WER below 1.0: {}", c.wer);
-            assert!(c.peak_live <= 250);
+            assert!(c.peak_live.unwrap_or(0) <= 250);
         }
         let tsv = render_sweep_tsv(&cells);
         assert_eq!(tsv.lines().count(), 3);

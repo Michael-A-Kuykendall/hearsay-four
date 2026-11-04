@@ -91,7 +91,7 @@ fn main() {
     let cells = sweep_test(&feed.test, &feed.lm, &tuned.params, &BUDGETS).expect("TEST sweep");
     for c in &cells {
         eprintln!(
-            "CELL budget={} arm={:?} WER={:.4} peak_live={} peak_dormant={}",
+            "CELL budget={} arm={:?} WER={:.4} peak_live={:?} peak_dormant={:?}",
             c.budget, c.arm, c.wer, c.peak_live, c.peak_dormant
         );
     }

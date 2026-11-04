@@ -187,36 +187,46 @@ pipeline. TEST-200 arm A is a first-ever score for this population.
 ## Oracle sweep (DEV-200, real lattices)
 
 Exact tested oracle (`experiment::oracle_sweep` → `a2::oracle::sweep_k`,
-new example `src/experiment/examples/sweep_real.rs`), 72 s for 200
-lattices. 1-best column is `one_best_path` over the same lattices
-(acoustic-max path: 3116 errs, 0.6805 — +83 over the decoder 1-best
-3033, as expected: the lattice stores acoustic LLRs only, so the
-acoustic path cannot reproduce the LM-weighted search best).
+example `src/experiment/examples/sweep_real.rs`) over DEV-200 with the
+filter_k 1-best carve-out (`a2::oracle::acoustic_best_path_ids`,
+bead hearsay-four-7i2o--real-wiring-tuning-sweep). 1-best column is
+`one_best_path` over the same lattices (acoustic-max path: 3116 errs,
+0.6805 — +83 over the decoder 1-best 3033, as expected: the lattice
+stores acoustic LLRs only, so the acoustic path cannot reproduce the
+LM-weighted search best). The oracle is at most the acoustic 1-best on
+all 200 utterances at every K (0 exceedances; pre-fix: 129/200 at K=3).
 
 | K | oracle errs | oracle WER | tokens | arcs |
 |---|-------------|------------|--------|------|
-| 3 | 3934 | 0.8591 | 492,993 | 254,255 |
-| 5 | 3725 | 0.8135 | 821,599 | 545,837 |
-| 10 | 2660 | 0.5809 | 1,642,920 | 1,501,164 |
+| 3 | 2775 | 0.6060 | 494,993 | 314,606 |
+| 5 | 2731 | 0.5964 | 822,782 | 597,635 |
+| 10 | 2637 | 0.5759 | 1,642,926 | 1,501,260 |
 
-Gap attribution (per-utterance table in the lane at
-`data/wer71g/dev200sweep/per_utt.tsv`):
+Provenance: `sweep_real --manifest
+data/wer71g/tune200s/strat200.manifest.tsv --lat-dir data/lattices/dev200`
+in lane bead/7i2o-real-wiring-tuning-sweep; per-utterance table
+`scripts/a6/out/oracle_dev200_perutt.tsv` (lane worktree, coordinator
+extraction; `data/wer71g/dev200sweep/per_utt.tsv` is the superseded
+pre-fix run).
+
+Gap attribution:
 
 - Generation miss: 700/4579 ref words (15.3%) never appear in the
   lattice at any rank. Only 140 are OOV — ~560 in-vocab words are never
   hypothesized, i.e. the weak AM never surfaces them. The tunefull
   beam-300 cell is byte-identical to beam-150, so search is saturated:
   the miss is AM/trie-pruning under weak acoustics, not beam width.
-- K depth: K=3 → K=10 recovers 1274 errs (correct words ranked 4–10
-  acoustically). Real headroom, but only the K=10 (full-lattice) row
-  is a fair oracle.
-- Backbone/SIL caveat: `filter_k` keeps top-K per end frame by
-  acoustic LLR with no 1-best carve-out for decoder lattices (the
-  carve-out only matches source `a2-1best`), and SIL twins at llr 0.0
-  displace negative-LLR words. Hence the oracle EXCEEDS 1-best errors
-  on 129/200 utterances at K=3 (5/200 at K=10). The K=3/5 rows measure
-  the filter, not the lattice; the K=10 row (0.5809 vs 1-best 0.6624)
-  is the real 0.08 gap.
+- K depth: K=3 → K=10 recovers 138 errs (correct words ranked 4–10
+  acoustically). Small: with the carve-out all three rows are fair
+  oracles, and the K=10 row (0.5759 vs decoder 1-best 0.6624) is the
+  real ~0.09 gap.
+- Backbone/SIL (FIXED this lane): `filter_k` previously kept top-K per
+  end frame by acoustic LLR with no 1-best carve-out for decoder
+  lattices (the carve-out only matched source `a2-1best`), and SIL
+  twins at llr 0.0 displaced negative-LLR words — the oracle exceeded
+  1-best on 129/200 utterances at K=3. The acoustic-max-path carve-out
+  plus regression test `a2::oracle::tests::oracle_at_most_1best`
+  closes this; exceedances are now 0/200 at every K.
 - Verdict: the gap is real but AM-bound. No decoder/search fix is
   available in-lane (beam saturated, AM is the project baseline), so
   no regen loop was run; TEST is reported as-is with this diagnosis,
