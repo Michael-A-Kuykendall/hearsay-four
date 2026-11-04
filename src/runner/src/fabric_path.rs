@@ -11,8 +11,11 @@
 //! the defeating tiling + margin, and explicit correction none (the v1 log
 //! carries no USER evidence).
 //!
-//! Demo utterances are the fabric-experiment fixture population (u1-u4,
-//! including the u1 late rescue), disclosed as chosen in every transcript.
+//! Demo utterances are a disclosed chosen set: the fabric-experiment
+//! fixture population (u1-u4, including the u1 late rescue) for
+//! `web/demo.sh`, or TEST-200 utterances for `docs/demo/verify.sh` (bead
+//! `hearsay-four-sq9l--fabric-path-demo`). Either way the `chosen` label
+//! discloses the utterance as chosen in every transcript.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -31,7 +34,7 @@ pub const FABRIC_NOTE: &str =
     "bridge v1 event log: revivals, dormancy outcome, defeating tiling + margin";
 pub const FABRIC_TIMING_NOTE: &str =
     "fabric path reads stored bridge outputs; no audio decode timed";
-pub const FABRIC_CHOSEN_NOTE: &str = "chosen: demo utterance from the fabric-experiment fixture population (A6), disclosed as chosen";
+pub const FABRIC_CHOSEN_NOTE: &str = "chosen: demo utterance, disclosed as chosen (set: fabric-experiment fixtures or TEST-200; see the demo doc)";
 
 /// One utterance's fabric inputs: bridge transcript + event log + lattice.
 pub struct FabricUtt {
