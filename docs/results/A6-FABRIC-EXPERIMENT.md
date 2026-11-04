@@ -238,6 +238,15 @@ th25, th75; doc uses complete rows only.
 > decoder 0.6430. The experiment ran clean (4800-run design, 3200
 > complete, 0 FAIL) and disproves a Fabric lifecycle effect on
 > TEST-200 at p25/p50 thetas.
+>
+> Freeze (13:00 science stop): code main `c902f46`; runner
+> `scripts/a6/headline3.sh` (thetas -4.2967437502168 / 0.0 /
+> 750.6713080377012, J=100, w10/d0/h10/hmax20); inputs per
+> `scripts/a6/frozen_real.json` sha256 (TEST manifest
+> 1f4a36fc..., LM 1b31acf6..., TEST cells ff6792b4...); outputs
+> `scripts/a6/out/headline_th{50,25}.tsv` + per-utt (15-col),
+> `sweep_insurance.tsv` Run 1 (13-col); th75 partial (80 cells) kept,
+> excluded.
 
 ## Track B SANITY (unigram-cancel v1.5 lane): FAIL (2026-11-04)
 
@@ -315,7 +324,7 @@ not. Lane worktree retained with `sanity.tsv`, `term_diff`,
 
 ## Per-budget chart (WER vs budget by arm)
 
-Charts below are the REAL render from `sweep_real.tsv` (stdlib-only, no matplotlib; `A6-sample.tsv` regenerates the sample pair via `--sample`):
+Charts below are the REAL render from `scripts/a6/out/headline_th50.tsv` (stdlib-only, no matplotlib; `python3 docs/results/A6-charts.py --input <tsv> --outdir docs/results`; `--sample` regenerates the sample pair):
 
 ![A6 WER vs budget by arm](A6-wer-vs-budget.svg)
 
