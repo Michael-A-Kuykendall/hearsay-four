@@ -18,17 +18,25 @@
 set -euo pipefail
 
 usage() {
-    echo "usage: scripts/a6/run_all.sh (--synthetic [--out <tsv>] | --real [--smoke] [--out <tsv>] [--workers N] [--tune-budgets CSV] [--tune-manifest TSV] [--tune-cell TSV])" >&2
+    echo "usage: scripts/a6/run_all.sh (--synthetic [--out <tsv>] | --real [--smoke] [--out <tsv>] [--workers N] [--tune-budgets CSV] [--tune-manifest TSV] [--tune-cell TSV] [--dev-man P] [--dev-lat P] [--dev-cell P] [--test-man P] [--test-lat P] [--test-cell P] [--lm P])" >&2
     exit 2
 }
 
 MODE=""
 SMOKE=0
+TUNE_ONLY=0
 OUT=""
 WORKERS=16
 TUNE_BUDGETS=""
 TUNE_MANIFEST=""
 TUNE_CELL=""
+DEV_MAN_OV=""
+DEV_LAT_OV=""
+DEV_CELL_OV=""
+TEST_MAN_OV=""
+TEST_LAT_OV=""
+TEST_CELL_OV=""
+LM_OV=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --synthetic) MODE="synthetic"; shift ;;
@@ -39,6 +47,14 @@ while [ $# -gt 0 ]; do
         --tune-budgets) TUNE_BUDGETS="${2:?--tune-budgets needs a value}"; shift 2 ;;
         --tune-manifest) TUNE_MANIFEST="${2:?--tune-manifest needs a value}"; shift 2 ;;
         --tune-cell) TUNE_CELL="${2:?--tune-cell needs a value}"; shift 2 ;;
+        --dev-man) DEV_MAN_OV="${2:?--dev-man needs a value}"; shift 2 ;;
+        --dev-lat) DEV_LAT_OV="${2:?--dev-lat needs a value}"; shift 2 ;;
+        --dev-cell) DEV_CELL_OV="${2:?--dev-cell needs a value}"; shift 2 ;;
+        --test-man) TEST_MAN_OV="${2:?--test-man needs a value}"; shift 2 ;;
+        --test-lat) TEST_LAT_OV="${2:?--test-lat needs a value}"; shift 2 ;;
+        --test-cell) TEST_CELL_OV="${2:?--test-cell needs a value}"; shift 2 ;;
+        --lm) LM_OV="${2:?--lm needs a value}"; shift 2 ;;
+        --tune-only) TUNE_ONLY=1; shift ;;
         -h|--help) usage ;;
         *) echo "unknown argument: $1" >&2; usage ;;
     esac
@@ -53,13 +69,15 @@ export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cargo/target-shared}"
 cd "$ROOT"
 
 BUDGETS="50,100,250,500"
-DEV_MAN="data/wer71g/tune200s/strat200.manifest.tsv"
-TEST_MAN="data/wer71g/test200s/strat200.manifest.tsv"
-DEV_LAT="data/lattices/dev200"
-TEST_LAT="data/lattices/test200"
-LM="data/lm-text/r1v2-full/lm-r1v2-interpolated.json"
-DEV_CELL="data/wer71g/armA/dev200-cell.tsv"
-TEST_CELL="data/wer71g/armA/test200-cell.tsv"
+# Lane runs point these at the main workspace (read-only) via the --*-ov flags;
+# defaults are the in-checkout data paths.
+DEV_MAN="${DEV_MAN_OV:-data/wer71g/tune200s/strat200.manifest.tsv}"
+TEST_MAN="${TEST_MAN_OV:-data/wer71g/test200s/strat200.manifest.tsv}"
+DEV_LAT="${DEV_LAT_OV:-data/lattices/dev200}"
+TEST_LAT="${TEST_LAT_OV:-data/lattices/test200}"
+LM="${LM_OV:-data/lm-text/r1v2-full/lm-r1v2-interpolated.json}"
+DEV_CELL="${DEV_CELL_OV:-data/wer71g/armA/dev200-cell.tsv}"
+TEST_CELL="${TEST_CELL_OV:-data/wer71g/armA/test200-cell.tsv}"
 A6OUT="scripts/a6/out"
 
 check_schema() {
@@ -179,6 +197,13 @@ fi
     --task-dir "$TUNE_DIR" --budgets "$TUNE_BUDGETS" --out "$A6OUT/frozen_raw.json" | tee "$A6OUT/tune.log"
 # 2. Freeze: winner + sha256 of every input -> committed config.
 FREEZE_CMD="scripts/a6/run_all.sh --real --tune-budgets $TUNE_BUDGETS --tune-manifest $TUNE_MAN --tune-cell $TUNE_CL --workers $WORKERS"
+[ -n "$DEV_MAN_OV" ] && FREEZE_CMD="$FREEZE_CMD --dev-man $DEV_MAN_OV"
+[ -n "$DEV_LAT_OV" ] && FREEZE_CMD="$FREEZE_CMD --dev-lat $DEV_LAT_OV"
+[ -n "$DEV_CELL_OV" ] && FREEZE_CMD="$FREEZE_CMD --dev-cell $DEV_CELL_OV"
+[ -n "$TEST_MAN_OV" ] && FREEZE_CMD="$FREEZE_CMD --test-man $TEST_MAN_OV"
+[ -n "$TEST_LAT_OV" ] && FREEZE_CMD="$FREEZE_CMD --test-lat $TEST_LAT_OV"
+[ -n "$TEST_CELL_OV" ] && FREEZE_CMD="$FREEZE_CMD --test-cell $TEST_CELL_OV"
+[ -n "$LM_OV" ] && FREEZE_CMD="$FREEZE_CMD --lm $LM_OV"
 python3 - "$A6OUT/frozen_raw.json" "scripts/a6/frozen_real.json" "$FREEZE_CMD" "$DEV_MAN" "$TEST_MAN" "$LM" "$DEV_CELL" "$TEST_CELL" "$TUNE_MAN" "$TUNE_CL" <<'EOF'
 import hashlib, json, sys, time
 raw, dest, cmd = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -191,6 +216,10 @@ json.dump(f, open(dest, "w"), indent=2)
 print("froze", dest, "winner cand", f["winner_cand"], "dev_errors", f["dev_errors"])
 EOF
 cp -f scripts/a6/frozen_real.json "$A6OUT/frozen_real.json"
+if [ "$TUNE_ONLY" = 1 ]; then
+    echo "TUNE DONE: $A6OUT/frozen_raw.json + scripts/a6/frozen_real.json (TEST sweep skipped by --tune-only)"
+    exit 0
+fi
 # 3. Sweep: TEST-200 x budgets x B/C with winner params, one shard per utt.
 # shellcheck disable=SC2016
 WPARAMS="$(python3 -c 'import json; p=json.load(open("scripts/a6/frozen_real.json"))["params"]; print(p["w_acoustic"], p["w_sequence"], p["theta_live"], p["delta"], int(p["h"]), int(p["h_max"]))')"

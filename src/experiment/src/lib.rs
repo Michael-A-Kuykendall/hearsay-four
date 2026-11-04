@@ -32,6 +32,7 @@
 //! table, scoring, and sampling code is unchanged.
 
 pub mod arms;
+pub mod calibrate;
 pub mod fixtures;
 pub mod oracle_sweep;
 pub mod sampling;

@@ -530,14 +530,19 @@ impl Default for TuningGrid {
 }
 
 impl TuningGrid {
-    /// Coarse real-data grid: `theta_live` x `w_sequence` x `delta` (18
-    /// candidates), `w_acoustic` pinned at the fixture default.
+    /// DEV-200 calibrated coarse grid (bead `hearsay-four-v7fa`, 2026-11-04):
+    /// `w_sequence` per owner spec; `theta_live` at the DEV liveness
+    /// quartiles (`p25 = p50 = 0.0` exactly — the 50% zero-mass — so the
+    /// owner triple `{p25, p50, p75}` collapses to the two distinct
+    /// values `{0, p75}`); `delta` at `{0}` (all 3.28M DEV commit
+    /// margins are exactly 0.0: doppelganger tokens tie every
+    /// runner-up; see the bead). Eight candidates.
     pub fn real_coarse() -> Self {
         Self {
             w_acoustic: vec![1.0],
-            w_sequence: vec![0.5, 1.0, 2.0],
-            theta_live: vec![-1.0, 0.0, 1.0],
-            delta: vec![0.0, 1.0],
+            w_sequence: vec![4.0, 6.0, 8.0, 10.0],
+            theta_live: vec![0.0, 751.8986152839452],
+            delta: vec![0.0],
         }
     }
 
