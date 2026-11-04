@@ -514,10 +514,20 @@ pub struct DecisionFabric {
     /// commit window (item 8) instead of growing with winners. Pool
     /// QUERIES (`live_tokens`, `dormant_tokens`, counts) iterate this set.
     open: BTreeSet<FactId>,
-    /// Every active token, committed regions included. Pool MUTATIONS
-    /// (`prune_below_threshold`, `enforce_budgets`) iterate this set, so
-    /// prune/evict outcomes stay bit-identical to the pre-index code.
+    /// Every active token, committed regions included. Pool MUTATIONS scan
+    /// this set on the external-dirt fallback only, so prune/evict outcomes
+    /// stay bit-identical to the pre-index code; the hot paths are
+    /// incremental (`prune_below_threshold` over `prune_dirty`, budgets
+    /// over persistent heaps).
     active_all: BTreeSet<FactId>,
+    /// Incremental prune frontier (arm B only; bead alpv): tokens whose
+    /// prune-predicate inputs may have changed since the last prune —
+    /// newly minted tokens plus tokens liveness-refreshed by the
+    /// propagation drain. `prune_below_threshold` checks exactly this set
+    /// (ascending id: same relative victim order as the full scan) instead
+    /// of rescanning `active_all`. External mutation (`fabric_mut`) takes
+    /// the full-scan fallback. Unused (stays empty) in arm C.
+    prune_dirty: BTreeSet<FactId>,
     /// Tokens whose span lies in a committed region (O(1) region test).
     committed_tokens: BTreeSet<FactId>,
     committed_regions: Vec<(u32, u32)>,
@@ -563,6 +573,7 @@ impl DecisionFabric {
             premise_refs: HashMap::new(),
             open: BTreeSet::new(),
             active_all: BTreeSet::new(),
+            prune_dirty: BTreeSet::new(),
             committed_tokens: BTreeSet::new(),
             committed_regions: Vec::new(),
             log: Vec::new(),
@@ -653,6 +664,12 @@ impl DecisionFabric {
         } else {
             self.open.remove(&fact);
             self.active_all.remove(&fact);
+        }
+        // Incremental prune frontier (bead alpv, arm B only): a
+        // (re-)registered token's liveness is refreshed below, so it is a
+        // prune candidate at the next prune.
+        if self.params.arm == Arm::B {
+            self.prune_dirty.insert(fact);
         }
         // Newly sealed (§8 v1.3): a frontier advance exempts tokens with
         // end in [old_thr, new_thr) from budget counts. State entries are
@@ -951,14 +968,41 @@ impl DecisionFabric {
         if self.params.arm != Arm::B {
             return;
         }
-        self.sync_open();
-        // Mutations iterate every active token (committed regions
-        // included), exactly as the pre-index full scan did.
+        // External mutation (`fabric_mut`) bypassed propagation: membership
+        // may be stale and caches cleared, so fall back to the full scan
+        // (which re-syncs membership first). `budget.dirty` is the sticky
+        // signal; `external_dirty` covers a mutation no query has consumed.
+        let full = self.budget.dirty || self.external_dirty.get();
+        if full {
+            self.sync_open();
+        }
+        // Incremental scan (bead alpv): candidates are exactly the tokens
+        // minted or liveness-refreshed since the last prune. Sound because
+        // every prune-predicate input is covered: cached liveness changes
+        // only via `refresh_liveness`, whose call sites all dirty the token
+        // (drain `touched`, `register_token`; the lazy-miss and pool-rebuild
+        // sites run only after an external clear, i.e. the full path);
+        // `is_active` flips only via a direct retract (victims leave the
+        // sets eagerly; tokens are pure fabric assumptions so a retract
+        // never cascades onto another token) or externally (full path);
+        // sealing is monotonic (frontier grows, `j` fixed) so it only ever
+        // removes candidates, and any token in (active, unsealed,
+        // below-theta) after a prune was dirtied getting there. The frontier
+        // is drained upfront, so dirt added by retractions inside the victim
+        // loop waits for the next prune — exactly the full scan's upfront
+        // victim collection. Ascending-id iteration preserves victim order.
+        // `sync_open` is skipped on the clean path: internal callers above
+        // keep membership exact, and its retain is the other O(active) scan
+        // this fix removes from per-intake budgets.
         // Sealed (§8 v1.3) are exempt from prune.
-        let victims: Vec<FactId> = self
-            .active_all
-            .iter()
-            .copied()
+        let candidates: Vec<FactId> = if full {
+            self.prune_dirty.clear();
+            self.active_all.iter().copied().collect()
+        } else {
+            std::mem::take(&mut self.prune_dirty).into_iter().collect()
+        };
+        let victims: Vec<FactId> = candidates
+            .into_iter()
             .filter(|t| {
                 self.fabric.is_active(*t)
                     && self.liveness(*t) < self.params.theta_live
@@ -993,8 +1037,9 @@ impl DecisionFabric {
         self.prune_below_threshold();
         // O(1) no-op proof: live/dormant counts are bounded above by the
         // active-token count, so cleared caps mean no loop below can execute.
-        // Mutations iterate every active token (committed regions included),
-        // exactly as the pre-index full scans did.
+        // Mutations cover every active token (committed regions included),
+        // exactly as the pre-index full scans did — incrementally on the
+        // clean path, by full scan after external dirt.
         let live_ok = self.active_all.len() <= self.params.live_budget;
         let dormant_ok =
             self.params.arm == Arm::B || self.active_all.len() <= self.params.dormant_budget;
@@ -1664,6 +1709,13 @@ impl DecisionFabric {
         while let Some(row) = self.pending.pop_front() {
             self.pending_set.remove(&row);
             touched.extend(self.dispatch_row(row));
+        }
+        // Incremental prune frontier (bead alpv, arm B only): every
+        // liveness-refreshed token is a prune candidate. Dirt added by
+        // retractions inside the prune loop itself stays for the next
+        // prune, matching the full scan's upfront victim collection.
+        if self.params.arm == Arm::B {
+            self.prune_dirty.extend(touched.iter().copied());
         }
         if !self.budget.dirty {
             for t in touched {
