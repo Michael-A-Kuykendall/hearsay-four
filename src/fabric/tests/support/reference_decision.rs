@@ -14,7 +14,7 @@
 //! (§2 weakening, §9.4 cascade).
 
 use fabric::{Fabric, FactId};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 /// The frozen spec version implemented by this module (§14).
 pub const SPEC_VERSION: &str = "1.3";
@@ -327,6 +327,8 @@ pub struct DecisionFabric {
     /// Sealed(f) iff frontier > f.end + J; sealed stay for tiling but
     /// are exempt from budgets, eviction, and prune.
     intake_frontier: u32,
+    /// Lattice arc index (§7 v1.4), mirrored with the real fabric.
+    arcs: HashSet<(FactId, FactId)>,
 }
 
 impl DecisionFabric {
@@ -341,6 +343,7 @@ impl DecisionFabric {
             committed_regions: Vec::new(),
             log: Vec::new(),
             intake_frontier: 0,
+            arcs: HashSet::new(),
         }
     }
 
@@ -476,6 +479,14 @@ impl DecisionFabric {
             null: SourceClass::Sequence.declared_null(),
             premises,
         });
+        Ok(())
+    }
+
+    /// Record one lattice arc `from -> to` (§7 v1.4), mirrored.
+    pub fn add_lattice_arc(&mut self, from: FactId, to: FactId) -> DecisionResult<()> {
+        self.known(from)?;
+        self.known(to)?;
+        self.arcs.insert((from, to));
         Ok(())
     }
 
@@ -922,6 +933,12 @@ impl DecisionFabric {
             for tok in candidates.iter().filter(|t| t.start_frame == frame) {
                 for partial in &current {
                     let prev = partial.tokens.last().copied();
+                    // §7 v1.4: tilings extend only along lattice arcs.
+                    if let Some(p) = prev {
+                        if !self.arcs.contains(&(p, tok.fact)) {
+                            continue;
+                        }
+                    }
                     let mut score = partial.score + self.unary_sum(tok.fact);
                     if let Some(llr) = self.active_sequence_max(prev, tok.fact) {
                         score += self.params.w_sequence * llr;

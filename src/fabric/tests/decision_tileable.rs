@@ -18,6 +18,8 @@ fn build(params: DecisionParams) -> DecisionFabric {
             pre.insert(p);
             pre.insert(f);
             d.add_sequence(p, f, 1.0, pre).unwrap();
+            // §7 v1.4: the chain rides lattice arcs.
+            d.add_lattice_arc(p, f).unwrap();
         }
         prev = Some(f);
     }

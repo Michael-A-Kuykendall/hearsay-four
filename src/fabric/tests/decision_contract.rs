@@ -27,7 +27,7 @@ fn token(fact: u64, label: &str, start: u32, end: u32) -> Token {
 
 #[test]
 fn spec_version_is_cited() {
-    assert_eq!(SPEC_VERSION, "1.3");
+    assert_eq!(SPEC_VERSION, "1.4");
     // Every class names its declared null (§3 rule 1).
     for class in [
         SourceClass::Acoustic,
@@ -92,6 +92,9 @@ fn dormancy_revival_defeat_scenario() {
         .expect("acoustic");
     d.add_sequence(wreath, now, 0.1, no_premises())
         .expect("seq");
+    // §7 v1.4: intended tiling pairs ride lattice arcs.
+    d.add_lattice_arc(wreath, now).expect("arc");
+    d.add_lattice_arc(reef, now).expect("arc");
     d.attach_context_for_new_token(now, &|a: &Token, b: &Token| {
         if a.label == "reef" && b.label == "now" {
             5.0
@@ -165,6 +168,9 @@ fn unopposed_commit_margin_absent() {
     d.add_boundary_sequence(wreath, 0.2).expect("boundary");
     d.add_sequence(wreath, now, 0.1, no_premises())
         .expect("seq");
+    // §7 v1.4: intended tiling pairs ride lattice arcs.
+    d.add_lattice_arc(wreath, now).expect("arc");
+    d.add_lattice_arc(reef, now).expect("arc");
     d.attach_context_for_new_token(now, &|a: &Token, b: &Token| {
         if a.label == "reef" && b.label == "now" {
             5.0
@@ -227,14 +233,20 @@ fn deterministic_tie_order() {
     // on repeated runs and shuffled insertion order.
     let build = |labels_in_order: &[&str]| {
         let mut d = DecisionFabric::new(DecisionParams::default());
+        let mut firsts = Vec::new();
         for label in labels_in_order {
             let t = d.mint_token(*label, TokenKind::Word, 0, 10).expect("token");
             d.add_unary(t, SourceClass::Acoustic, 1.5, no_premises())
                 .expect("acoustic");
+            firsts.push(t);
         }
         let sil = d.mint_token("<sil>", TokenKind::Sil, 10, 20).expect("sil");
         d.add_unary(sil, SourceClass::Acoustic, 0.0, no_premises())
             .expect("acoustic");
+        // §7 v1.4: intended tiling pairs ride lattice arcs.
+        for t in firsts {
+            d.add_lattice_arc(t, sil).expect("arc");
+        }
         d
     };
     for order in [&["beta", "alpha"][..], &["alpha", "beta"][..]] {
@@ -260,8 +272,47 @@ fn deterministic_tie_order() {
     let sil = d.mint_token("<sil>", TokenKind::Sil, 10, 20).expect("sil");
     d.add_unary(sil, SourceClass::Acoustic, 0.0, no_premises())
         .expect("acoustic");
+    // §7 v1.4: intended tiling pairs ride lattice arcs.
+    d.add_lattice_arc(first, sil).expect("arc");
+    d.add_lattice_arc(second, sil).expect("arc");
     let (winner, _) = d.best_tilings((0, 20));
     assert_eq!(winner.expect("tiling").tokens[0], first);
+}
+
+#[test]
+fn tiling_follows_arcs_not_frames() {
+    // §7 v1.4: adjacent tiling tokens must ride a lattice arc, however
+    // hot the arc-free alternative is acoustically. Pre-fix the DP
+    // stitches any abutting pair and junk (9.0) beats the arc path.
+    let mut d = DecisionFabric::new(DecisionParams::default());
+    let a = d.mint_token("a", TokenKind::Word, 0, 10).expect("t");
+    let good = d.mint_token("good", TokenKind::Word, 10, 20).expect("t");
+    let junk = d.mint_token("junk", TokenKind::Word, 10, 20).expect("t");
+    d.add_unary(a, SourceClass::Acoustic, 1.0, no_premises())
+        .expect("a");
+    d.add_unary(good, SourceClass::Acoustic, 1.0, no_premises())
+        .expect("a");
+    d.add_unary(junk, SourceClass::Acoustic, 9.0, no_premises())
+        .expect("a");
+    d.add_lattice_arc(a, good).expect("arc");
+    let (winner, runner_up) = d.best_tilings((0, 20));
+    let winner = winner.expect("arc path tiles");
+    assert_eq!(winner.tokens, vec![a, good]);
+    assert!(
+        runner_up.is_none(),
+        "arc-free junk forms no tiling at all, so no runner-up"
+    );
+    // And the control: the same hot pair WITH an arc tiles and wins.
+    let mut e = DecisionFabric::new(DecisionParams::default());
+    let a2 = e.mint_token("a", TokenKind::Word, 0, 10).expect("t");
+    let junk2 = e.mint_token("junk", TokenKind::Word, 10, 20).expect("t");
+    e.add_unary(a2, SourceClass::Acoustic, 1.0, no_premises())
+        .expect("a");
+    e.add_unary(junk2, SourceClass::Acoustic, 9.0, no_premises())
+        .expect("a");
+    e.add_lattice_arc(a2, junk2).expect("arc");
+    let (w2, _) = e.best_tilings((0, 20));
+    assert_eq!(w2.expect("arced pair tiles").tokens, vec![a2, junk2]);
 }
 
 #[test]
@@ -544,6 +595,9 @@ fn decision_arm_c_revives_on_identical_late_evidence() {
         .expect("acoustic");
     d.add_sequence(wreath, now, 0.1, no_premises())
         .expect("seq");
+    // §7 v1.4: intended tiling pairs ride lattice arcs.
+    d.add_lattice_arc(wreath, now).expect("arc");
+    d.add_lattice_arc(reef, now).expect("arc");
     d.attach_context_for_new_token(now, &|a: &Token, b: &Token| {
         if a.label == "reef" && b.label == "now" {
             5.0
@@ -599,6 +653,9 @@ fn decision_arms_b_and_c_score_identically() {
             .expect("a");
         d.add_sequence(wreath, now, 0.1, no_premises()).expect("s");
         d.add_sequence(reef, now, 5.0, no_premises()).expect("s");
+        // §7 v1.4: intended tiling pairs ride lattice arcs.
+        d.add_lattice_arc(wreath, now).expect("arc");
+        d.add_lattice_arc(reef, now).expect("arc");
         d.enforce_budgets();
         (d, wreath, reef, now)
     };

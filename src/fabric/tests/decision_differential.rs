@@ -247,6 +247,13 @@ impl Pair {
             let ra = self.n.add_sequence(f, t, llr, ps.clone());
             let rb = self.o.add_sequence(f, t, llr, ps);
             assert_eq!(ra.is_ok(), rb.is_ok(), "add_sequence at {tag}");
+            // §7 v1.4: arcs ride along half the sequences, so the driver
+            // covers arc-linked and arc-free pairs on both sides.
+            if rng.below(2) == 0 {
+                let ra = self.n.add_lattice_arc(f, t);
+                let rb = self.o.add_lattice_arc(f, t);
+                assert_eq!(ra.is_ok(), rb.is_ok(), "add_lattice_arc at {tag}");
+            }
         } else if choice < 68 {
             // Boundary pair.
             let t = self.tokens[rng.below(self.tokens.len())];

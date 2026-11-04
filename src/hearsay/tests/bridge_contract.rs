@@ -686,6 +686,36 @@ fn one_pass_preserves_weak_midchain_word_with_strong_successor() {
 }
 
 #[test]
+fn duplicate_tokens_intern_to_one_fact_with_margin() {
+    // §7 v1.4 / patent §5.5: identical (word, start, end) lattice tokens
+    // are ONE fact with appended justifications — no doppelgangers. The
+    // dup arcs collapse onto the same fact pair. Pre-fix the dup tilings
+    // tie and the margin is 0; post-fix the real runner-up sets it.
+    let lat = read(&lat_text(
+        "doppelganger",
+        &[
+            (1, "alpha", 0, 10, 3.0),
+            (2, "alpha", 0, 10, 3.0),
+            (3, "beta", 10, 20, 4.0),
+            (4, "gamma", 10, 20, 1.0),
+        ],
+        &[(1, 3), (2, 3), (1, 4), (2, 4)],
+    ));
+    let scorer = map_scorer(0.0, &[], 0.0);
+    let out = decode_lattice(&lat, &scorer, DecisionParams::default()).expect("decodes");
+    assert_eq!(
+        out.transcript,
+        vec!["alpha".to_string(), "beta".to_string()]
+    );
+    assert_eq!(out.commits.len(), 1);
+    let m = out.commits[0].margin.expect("real runner-up sets margin");
+    assert!(approx(m, 3.0), "margin {m}, want 7.0 - 4.0");
+    // Both dup ids credit the shared winning fact; nothing is orphaned.
+    assert!(out.uncommitted_ids.is_empty());
+    assert_eq!(out.commits[0].defeated_words, vec!["gamma".to_string()]);
+}
+
+#[test]
 fn sequence_llr_lowercases_lattice_words() {
     // LM vocab is lowercase; lattice words are uppercase. Pre-fix, every
     // pair was OOV so KN backed off to exactly the unigram and llr was

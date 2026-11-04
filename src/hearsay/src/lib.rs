@@ -258,6 +258,12 @@ pub fn decode_lattice(
     let mut fabric = DecisionFabric::new(params);
     let mut fact_of: BTreeMap<u64, FactId> = BTreeMap::new();
     let mut refs: BTreeMap<FactId, TokenRef> = BTreeMap::new();
+    // Token interning (§7 v1.4, patent §5.5): identical (word, start, end)
+    // lattice tokens are ONE fact; later occurrences append justifications
+    // instead of minting doppelgangers that tie every runner-up.
+    let mut intern_of: BTreeMap<(String, u32, u32), FactId> = BTreeMap::new();
+    // All lattice ids sharing one interned fact (won/lost accounting).
+    let mut ids_of: BTreeMap<FactId, Vec<u64>> = BTreeMap::new();
     let mut minted: Vec<TokenRef> = Vec::new();
     // Single-pass intake, in frame order (7mge): each token mints, adds its
     // unaries, runs the §9 context hook, attaches its SEQUENCE structure
@@ -275,9 +281,20 @@ pub fn decode_lattice(
     let mut peak_total = 0usize;
     for &i in &order {
         let t = &lat.tokens[i];
-        let fact = fabric
-            .mint_token(t.word.clone(), TokenKind::Word, t.start, t.end)
-            .map_err(dec_err)?;
+        let key = (t.word.clone(), t.start, t.end);
+        // Intern: first occurrence mints + hooks context; later ones reuse
+        // the fact and append justifications (re-added unaries land on the
+        // same intern keys with a new row each).
+        let fresh = !intern_of.contains_key(&key);
+        let fact = if fresh {
+            let fact = fabric
+                .mint_token(t.word.clone(), TokenKind::Word, t.start, t.end)
+                .map_err(dec_err)?;
+            intern_of.insert(key, fact);
+            fact
+        } else {
+            intern_of[&key]
+        };
         fabric
             .add_unary(fact, SourceClass::Acoustic, t.acoustic_llr, BTreeSet::new())
             .map_err(dec_err)?;
@@ -299,11 +316,14 @@ pub fn decode_lattice(
             start: t.start,
             end: t.end,
         };
-        refs.insert(fact, r.clone());
+        refs.entry(fact).or_insert_with(|| r.clone());
+        ids_of.entry(fact).or_default().push(t.id);
         minted.push(r);
-        fabric.attach_context_for_new_token(fact, &|from_tok, to_tok| {
-            scorer.sequence_llr(Some(from_tok.label.as_str()), to_tok.label.as_str())
-        });
+        if fresh {
+            fabric.attach_context_for_new_token(fact, &|from_tok, to_tok| {
+                scorer.sequence_llr(Some(from_tok.label.as_str()), to_tok.label.as_str())
+            });
+        }
         match incoming.get(&t.id) {
             None => {
                 let llr = scorer.sequence_llr(None, &t.word);
@@ -314,6 +334,11 @@ pub fn decode_lattice(
                     let from_fact = *fact_of.get(f).ok_or_else(|| {
                         format!("bridge: arc {f} -> {} runs backward in frame order", t.id)
                     })?;
+                    // §7 v1.4: feed the arc index over interned facts (dup
+                    // arcs collapse in the set).
+                    fabric
+                        .add_lattice_arc(from_fact, fact)
+                        .map_err(dec_err)?;
                     let from_word = &lat.tokens[by_id[f]].word;
                     let llr = scorer.sequence_llr(Some(from_word), &t.word);
                     let mut premises = BTreeSet::new();
@@ -449,14 +474,15 @@ pub fn decode_lattice(
         match ev {
             DecisionEvent::Committed { winner, .. } => {
                 for f in winner {
-                    if let Some(r) = refs.get(f) {
-                        won.insert(r.id);
+                    // Interned facts credit every lattice id sharing them.
+                    if let Some(ids) = ids_of.get(f) {
+                        won.extend(ids.iter().copied());
                     }
                 }
             }
             DecisionEvent::Defeated { token, .. } => {
-                if let Some(r) = refs.get(token) {
-                    lost.insert(r.id);
+                if let Some(ids) = ids_of.get(token) {
+                    lost.extend(ids.iter().copied());
                 }
             }
             _ => {}

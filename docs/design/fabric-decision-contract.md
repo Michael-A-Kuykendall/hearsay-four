@@ -1,6 +1,6 @@
 # Fabric Decision Contract — Specification
 
-Spec version: 1.3 (amends 1.2: section 8 sealing; amends 1.1: section 10 unopposed margin; amends 1.0: section 8 tiling exclusion; see docs/design/a4-budget-semantics.md)
+Spec version: 1.4 (amends 1.3: section 7 arc-constrained tilings + token interning; amends 1.2: section 8 sealing; amends 1.1: section 10 unopposed margin; amends 1.0: section 8 tiling exclusion; see docs/design/a4-budget-semantics.md)
 
 Author: Michael A. Kuykendall
 Status: Frozen-candidate v1.0 (bead hearsay-four-p7u / A4a)
@@ -8,7 +8,7 @@ Date: 2026-10-27
 Relates to: Master Plan v3 §6 A4 (parent bead hearsay-four-enu, closed by
 split); implemented by hearsay-four-dg8 (A4b); consumed by A5
 (hearsay-four-p3o), A6 (hearsay-four-cjj), P2 (hearsay-four-ofy).
-Spec version: **1.3** — A4b must cite this version string in its code and
+Spec version: **1.4** — A4b must cite this version string in its code and
 tests. Amendments happen on DEV only, bump the version, and re-freeze
 (§14).
 
@@ -166,6 +166,19 @@ L(h) = unary(h) + max_left  w_SEQ · llr_SEQ(p → h)
   is non-overlapping (no two members conflict — in fact no two overlap at
   all) and covers `[s, e)` (SIL tokens fill non-word gaps). Only tilings
   are scored by `S(T)` and only a tiling can commit (§10).
+- **v1.4 arc rule:** adjacent tokens in a tiling must be joined by a
+  lattice arc (recorded in the arc index at intake), except the first
+  token, which the utterance boundary licenses. An acoustically hot pair
+  with no arc is not a tiling continuation — the DP skips it. Rationale
+  (measured 2026-11-04): arc-free search stitched decoder-impossible
+  paths and scored WER 1.05 at full budget against the decoder's 0.66 on
+  the same lattices; the arc-following oracle scores 0.58. Applies
+  identically to arms B and C.
+- **v1.4 interning:** the bridge interns identical (word, start, end)
+  lattice tokens into ONE fact; later occurrences append justifications
+  (patent §5.5) instead of minting doppelgangers. Dup arcs collapse onto
+  the same fact pair in the arc index. Without this, dup tilings tie
+  every runner-up and all commit margins are exactly 0.0.
 
 ## 8. Activation, dormancy, and budgets
 
