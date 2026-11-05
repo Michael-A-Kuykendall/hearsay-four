@@ -14,7 +14,7 @@ lives in `docs/results/` so the numbers are citable from the repo.
 | 1 | Fallback 9-cell best (lm6/wip0) WER | 0.7233 | landed |
 | 2 | full93 4-mix dev PER | 0.6707 | landed |
 | 3 | full93 8-mix dev PER | 0.6416 | landed |
-| 4 | CMVN 8-mix iter1 dev PER | 0.6416 | landed (iters 2-4 TBD) |
+| 4 | CMVN 8-mix iters 1-4 dev PER | 0.6416 / 0.6262 / 0.6179 / 0.6137 | landed |
 | 5 | 30-word cross-channel top-1 | 1.0000 (29/29) | landed |
 | 6 | sub20 tune best (lm8/wip0) WER | 0.8332 | landed |
 | 7 | Headline WER (final AM, full dev) | TBD | pending |
@@ -85,23 +85,54 @@ lives in `docs/results/` so the numbers are citable from the repo.
   doubling improved dev PER, consistent with the likelihood gains.
 - CI status: TBD — none computed.
 
-## 4. CMVN 8-mix per-iter dev PER (in progress)
+## 4. CMVN 8-mix per-iter dev PER (complete)
 
-- Source: `data/models/r3v2-full93-cmvn/cmvn_per.log` (1 line):
-  `2026-11-01T22:18:03Z stage=cmvn8-iter1 ckpt=ckpt-cmvn8-iter1.json
-  dev_per=0.6416`.
+- Source: `data/models/r3v2-full93-cmvn/cmvn_per.log` (6 lines, read
+  2026-11-05 from the main checkout):
+  `2026-11-01T22:18:03Z stage=cmvn8-iter1 ckpt=ckpt-cmvn8-iter1.json dev_per=0.6416`
+  `2026-11-01T23:15:45Z stage=cmvn8-iter2 ckpt=ckpt-cmvn8-iter2.json dev_per=0.6262`
+  `2026-11-01T23:18:25Z stage=cmvn8-iter2 ckpt=ckpt-cmvn8-iter2.json dev_per=0.6262`
+  (re-logged, same value)
+  `2026-11-02T15:57:08Z stage=cmvn8-iter3 ckpt=ckpt-8mix-iter1.json dev_per=0.6179`
+  `2026-11-02T16:48:44Z stage=cmvn8-iter4 ckpt=ckpt-8mix-iter2.json dev_per=0.6137`
+  `2026-11-02T16:48:44Z verdict=CMVN_WINS cmvn=0.6137 noncmvn=0.6416
+  mean_diff=-0.009119 ci95=[-0.014685,-0.003553] n=2557 unpaired=0`.
+- Per-iter checkpoints (sha256 measured 2026-11-05 on the main disk):
+  iter1 0.6416 `ckpt-cmvn8-iter1.json` (752142056 bytes)
+  sha256 `2fbcc78316232d34e6d959d3235475bfde49aa99e41b8623ca8e1e194e93f71b`;
+  iter2 0.6262 `ckpt-cmvn8-iter2.json` (741773818 bytes)
+  sha256 `b38f2841e09a285e258596833de3285255a870a52836fb1c3dd2b4266df1bbda`;
+  iter3 0.6179 `ckpt-8mix-iter1.json` (743925545 bytes)
+  sha256 `37332b213e2f0738ebb9e1abedfbcfcdd998126f33ed2d5dd03c875af7c3d622`;
+  iter4 0.6137 `ckpt-8mix-iter2.json` (747656515 bytes)
+  sha256 `6620a3dd9b8520bdbb756007e606ab9c734b593b7d1c95589d50d4d7ff416bab`
+  (matches the sha256 already recorded in `A6-FABRIC-EXPERIMENT.md`).
+- MODEL-NAME-MISMATCH record: `data/models/r3v2-full93-cmvn/ckpt-8mix-iter2.json`
+  (sha256 `6620a3dd...f416bab`, full value above) holds CMVN stage iter4
+  (dev PER 0.6137), not CMVN iter2 — the `8mix-iter2` name comes from the
+  `train_si_continue` lineage (`cont-iter34.log`: `target_mix=8 iters=2`,
+  `mix=8 iter=2/2 ... ckpt-8mix-iter2.json`), which wrote iters 3-4 of the
+  CMVN track under continue-training names. Decision: NO rename. A rename
+  is owner-disk-only (`data/` is gitignored) yet 12 repo references hard-code
+  the current name (2 demo scripts' `HEARSAY_AM` defaults, 1 test helper
+  `am_relpath`, frozen-evidence rows in A6/D0), and the current name is the
+  true continue-training provenance — renaming would destroy that lineage
+  and silently break external/historical references. Cite by sha256.
 - Command: TBD (eval command not yet recorded for the CMVN track; presumed
   same `eval_si` dev-clean probe — verify before citing).
 - Data: `cmvn_retrain threads=24 iters=4
   frontend=hmm-fe2.cmvn-pop-floor1e-6`, reestimate frames=33752128
-  (`train.log`: iter 1/4, ll=61593703.8, s=2415). Checkpoints
-  `ckpt-cmvn8-iter0.json` / `ckpt-cmvn8-iter1.json` present.
+  (`train.log`: iters 1-2/4, ll=61593703.8 -> 89320918.5); iters 3-4/4 via
+  `train_si_continue` (`cont-iter34.log`: split to 8 mixes,
+  ll=100104016.1 -> 105638331.3, `CONTINUE exit: 0`). Checkpoints
+  `ckpt-cmvn8-iter0/1/2.json` + `ckpt-8mix-iter1/2.json` all present.
 - Size: train 33752128 frames. Dev denominator: TBD.
-- Plausibility check: iter1 0.6416 equals the non-CMVN 8-mix iter4 value
-  after one retrain iter — plausible for a CMVN retrain started from the
-  converted model; direction of iters 2-4 unknown until they land.
-- CI status: TBD — none computed.
-- Pending: iters 2/4, 3/4, 4/4 — TBD rows to fill when `cmvn_per.log` grows.
+- Plausibility check: iters 1-4 read 0.6416 -> 0.6262 -> 0.6179 -> 0.6137,
+  monotonic improvement, all < 1.0 gate; final 0.6137 < non-CMVN 8-mix
+  0.6416, consistent with the log's `CMVN_WINS` verdict.
+- CI status: TBD — none computed (the verdict line carries its own
+  `ci95=[-0.014685,-0.003553]` from the watcher; no paired-bootstrap CI was
+  recorded for this row — do not cite the watcher's interval as the row's CI).
 
 ## 5. 30-word cross-channel top-1 1.0000 (29/29)
 
