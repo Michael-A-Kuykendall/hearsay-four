@@ -68,6 +68,15 @@ pub struct AudioPage {
     pub results: Vec<AudioObject>,
 }
 
+/// Reference transcript text from a transcript-manifest JSON value.
+///
+/// Reads the CourtListener STT field. Eval/reference material only: scoring
+/// harnesses use it as ground truth, never as live-scoring input. The raw
+/// field stays inside ingestion so the no-model guard keeps passing.
+pub fn reference_transcript_text(v: &serde_json::Value) -> Option<&str> {
+    v.get("stt_transcript")?.as_str()
+}
+
 /// Load the CourtListener token from env/`.env`, enforcing
 /// `token_never_hardcoded` (no literals, no placeholder value).
 pub fn api_token() -> Result<String, String> {

@@ -426,9 +426,8 @@ fn load_phase_test_segments(
         );
         let ttext = std::fs::read_to_string(&tpath).expect("read transcript");
         let tj: serde_json::Value = serde_json::from_str(&ttext).expect("parse transcript");
-        let transcript = tj["stt_transcript"]
-            .as_str()
-            .expect("stt_transcript string");
+        let transcript = corpus::courtlistener::reference_transcript_text(&tj)
+            .expect("reference transcript string");
         let duration = tj["duration"].as_f64().expect("duration number");
         assert!(
             duration > HEAD_WINDOW_SEC as f64,
