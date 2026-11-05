@@ -49,6 +49,14 @@ pub struct DecoderConfig {
     /// Per-utterance CMVN on static features before deltas (hmm-fe2,
     /// default true). Set false ONLY to decode pre-CMVN acoustic models.
     pub cmvn: bool,
+    /// Word-internal triphone expansion (default false). When true, the
+    /// trie is built over per-position unit keys (`L-C+R` word-internally,
+    /// biphone at the edges, monophone for single-phone words) and each
+    /// arc's acoustics are looked up in the tied model, falling back to
+    /// the center monophone for units absent from the AM. Word identity
+    /// and LM scoring still see words only — units never leak past the
+    /// acoustic lookup. Cross-word contexts are excluded.
+    pub triphone: bool,
 }
 
 impl Default for DecoderConfig {
@@ -60,6 +68,7 @@ impl Default for DecoderConfig {
             lm_weight: 1.0,
             lookahead_weight: 1.0,
             cmvn: true,
+            triphone: false,
         }
     }
 }
@@ -201,7 +210,10 @@ impl MooreDecoder {
     /// the acoustic inventory are skipped loudly (see `skipped_words`);
     /// malformed dict lines fail the load. An acoustic model stamped for
     /// the other frontend (see `cfg.cmvn`) is refused loudly; legacy
-    /// unstamped models warn and proceed.
+    /// unstamped models warn and proceed. In triphone mode (`cfg.triphone`)
+    /// the coverage check still maps centers: unit keys absent from the AM
+    /// fall back to their center monophone at search time, so only a
+    /// missing center skips a word.
     pub fn load(
         am_path: &Path,
         lm_path: Option<&Path>,
@@ -276,13 +288,25 @@ impl MooreDecoder {
     ) -> Result<Self, String> {
         let mut topo: HashMap<String, PhoneTopology> = HashMap::new();
         for entry in &entries {
-            for phone in &entry.phones {
-                if !topo.contains_key(phone) {
-                    topo.insert(phone.clone(), Self::topology(&am, phone)?);
+            if cfg.triphone {
+                for key in hmm::triphone::unit_keys_for_word(&entry.phones) {
+                    if !topo.contains_key(&key) {
+                        topo.insert(key.clone(), Self::topology(&am, &key)?);
+                    }
+                }
+            } else {
+                for phone in &entry.phones {
+                    if !topo.contains_key(phone) {
+                        topo.insert(phone.clone(), Self::topology(&am, phone)?);
+                    }
                 }
             }
         }
-        let trie = PronTrie::build(&entries);
+        let trie = if cfg.triphone {
+            PronTrie::build_triphone(&entries)
+        } else {
+            PronTrie::build(&entries)
+        };
         let lookahead = match &lm {
             None => vec![0.0; trie.nodes.len()],
             Some(lm) => {
@@ -328,6 +352,9 @@ impl MooreDecoder {
     /// a surviving set of zero fails the load. Frontend-guard refusal is
     /// the same as [`MooreDecoder::load`]: a model stamped for the other
     /// frontend (see `cfg.cmvn`) fails; legacy unstamped models proceed.
+    /// In triphone mode (`cfg.triphone`) the coverage check still maps
+    /// centers: unit keys absent from the AM fall back to their center
+    /// monophone at search time, so only a missing center skips an entry.
     pub fn load_with_vocab(
         am_path: &Path,
         lm_path: Option<&Path>,
@@ -408,14 +435,27 @@ impl MooreDecoder {
         self.cmvn_windows = 0;
     }
 
-    fn topology(am: &HmmSet, phone: &str) -> Result<PhoneTopology, String> {
+    /// Resolve a trie arc label to the acoustic inventory key: the label
+    /// itself when the model carries it, else its center monophone
+    /// (`L-C+R`/`L-C`/`C+R` → `C`; monophone labels are their own
+    /// centers, so this is a no-op outside triphone mode).
+    fn acoustic_key<'a>(am: &'a HmmSet, key: &'a str) -> &'a str {
+        if am.phones.contains_key(key) {
+            key
+        } else {
+            hmm::triphone::center_of_unit(key)
+        }
+    }
+
+    fn topology(am: &HmmSet, key: &str) -> Result<PhoneTopology, String> {
+        let resolved = Self::acoustic_key(am, key);
         let h = am
             .phones
-            .get(phone)
-            .ok_or_else(|| format!("phone {phone} missing from AM"))?;
+            .get(resolved)
+            .ok_or_else(|| format!("phone {key} missing from AM"))?;
         let n = h.n_states;
         if n == 0 || h.trans.len() != n + 2 || h.trans.iter().any(|r| r.len() != n + 2) {
-            return Err(format!("phone {phone}: bad transition shape"));
+            return Err(format!("phone {key}: bad transition shape"));
         }
         let mut loop_lp = vec![0.0; n];
         let mut next_lp = vec![f64::NEG_INFINITY; n];
@@ -526,7 +566,11 @@ impl MooreDecoder {
         let score = self.trie.nodes[node]
             .phone
             .as_ref()
-            .and_then(|phone| self.am.emission(phone, state).ok())
+            .and_then(|key| {
+                self.am
+                    .emission(Self::acoustic_key(&self.am, key), state)
+                    .ok()
+            })
             .map(|mixture| mixture.log_prob(frame))
             .unwrap_or(f64::NEG_INFINITY);
         cache.insert((node, state), score);
@@ -1202,6 +1246,212 @@ mod tests {
             "hotbed branch {:?} must outrank ripple branch {:?}",
             with_lm.lookahead[h],
             with_lm.lookahead[r]
+        );
+    }
+
+    // --- Word-internal triphone fixtures (no data/ needed) ---
+    //
+    // Two-word vocab: AB = [AH, B], AD = [AH, D]. Single-state phones,
+    // unit variance, means separated on dim 0 (AH=0, B=+5, D=-5). Two
+    // synthetic frames: f0 AH-like, f1 nearer B than D — so the monophone
+    // 1-best is AB, and a tied model can flip it to AD through unit means
+    // alone (same search code path, no LM).
+
+    fn triphone_fixture_phone(name: &str, mean0: f64) -> hmm::PhoneHmm {
+        let dim = fse::FEATURE_DIM;
+        let mut mean = vec![0.0; dim];
+        mean[0] = mean0;
+        hmm::PhoneHmm {
+            name: name.to_string(),
+            n_states: 1,
+            emissions: vec![hmm::Mixture::single(
+                hmm::Gaussian {
+                    mean,
+                    var: vec![1.0; dim],
+                },
+                hmm::ParamStats::zeros(dim),
+            )],
+            trans: vec![
+                vec![0.0, 1.0, 0.0],
+                vec![0.0, 0.5, 0.5],
+                vec![0.0, 0.0, 0.0],
+            ],
+            tied_to: None,
+        }
+    }
+
+    fn triphone_fixture_mono() -> HmmSet {
+        let dim = fse::FEATURE_DIM;
+        HmmSet {
+            dim,
+            phones: [("AH", 0.0), ("B", 5.0), ("D", -5.0)]
+                .into_iter()
+                .map(|(p, m)| (p.to_string(), triphone_fixture_phone(p, m)))
+                .collect(),
+            global_mean: vec![0.0; dim],
+            global_var: vec![1.0; dim],
+            var_floor_ratio: 0.01,
+            frontend_id: None,
+        }
+    }
+
+    fn triphone_fixture_entries() -> Vec<PronEntry> {
+        ["AB", "AD"]
+            .into_iter()
+            .map(|w| PronEntry {
+                phones: w
+                    .chars()
+                    .map(|c| match c {
+                        'A' => "AH".to_string(),
+                        other => other.to_string(),
+                    })
+                    .collect(),
+                word: w.to_string(),
+            })
+            .collect()
+    }
+
+    fn triphone_fixture_frames() -> Vec<fse::Frame> {
+        let f0 = [0.0; fse::FEATURE_DIM];
+        let mut f1 = [0.0; fse::FEATURE_DIM];
+        f1[0] = 1.0;
+        vec![f0, f1]
+    }
+
+    fn triphone_wide_cfg() -> DecoderConfig {
+        DecoderConfig {
+            beam: 1e9,
+            max_tokens: 1_000_000,
+            ..DecoderConfig::default()
+        }
+    }
+
+    fn triphone_best_words(lat: &Lattice) -> Vec<&str> {
+        lat.tokens.iter().map(|t| t.word.as_str()).collect()
+    }
+
+    #[test]
+    fn triphone_tied_decode_differs_from_monophone_only_by_acoustics() {
+        let mono = triphone_fixture_mono();
+        let entries = triphone_fixture_entries();
+        let frames = triphone_fixture_frames();
+        let cfg = triphone_wide_cfg();
+        let mono_dec =
+            MooreDecoder::assemble(mono.clone(), None, entries.clone(), Vec::new(), cfg.clone())
+                .expect("assemble mono");
+        let (mono_lat, mono_score, _) = mono_dec.decode_inner(&frames);
+        assert_eq!(triphone_best_words(&mono_lat), vec!["AB"]);
+
+        // Tied model: same centers, unit means that flip the 1-best to AD.
+        let mut tied = mono.clone();
+        for (unit, mean0) in [("AH+B", -5.0), ("AH-B", 5.0), ("AH+D", 0.0), ("AH-D", -5.0)] {
+            tied.phones
+                .insert(unit.to_string(), triphone_fixture_phone(unit, mean0));
+        }
+        let tri_cfg = DecoderConfig {
+            triphone: true,
+            ..cfg.clone()
+        };
+        let tied_dec =
+            MooreDecoder::assemble(tied.clone(), None, entries.clone(), Vec::new(), tri_cfg)
+                .expect("assemble tied");
+        assert!(
+            tied_dec.trie.nodes.len() > mono_dec.trie.nodes.len(),
+            "triphone trie must expand beyond the monophone trie"
+        );
+        let (tied_lat, _, _) = tied_dec.decode_inner(&frames);
+        assert_eq!(
+            triphone_best_words(&tied_lat),
+            vec!["AD"],
+            "tied 1-best must flip via unit acoustic scores"
+        );
+
+        // Control: the SAME tied AM with triphone off ignores units and
+        // reproduces the monophone result bit-exactly — the search code
+        // path is shared, so the flip comes only from unit acoustics.
+        let ctrl_dec =
+            MooreDecoder::assemble(tied, None, entries, Vec::new(), cfg).expect("assemble ctrl");
+        let (ctrl_lat, ctrl_score, _) = ctrl_dec.decode_inner(&frames);
+        assert_eq!(triphone_best_words(&ctrl_lat), vec!["AB"]);
+        assert_eq!(
+            ctrl_score, mono_score,
+            "tied AM + triphone off must equal the monophone decode"
+        );
+    }
+
+    #[test]
+    fn triphone_unseen_units_fall_back_to_monophone() {
+        let mono = triphone_fixture_mono();
+        let entries = triphone_fixture_entries();
+        let frames = triphone_fixture_frames();
+        let cfg = triphone_wide_cfg();
+        let mono_dec =
+            MooreDecoder::assemble(mono.clone(), None, entries.clone(), Vec::new(), cfg.clone())
+                .expect("assemble mono");
+        let (mono_lat, mono_score, _) = mono_dec.decode_inner(&frames);
+        // Triphone trie over a pure monophone AM: every unit falls back.
+        let tri_cfg = DecoderConfig {
+            triphone: true,
+            ..cfg.clone()
+        };
+        let fb_dec = MooreDecoder::assemble(mono, None, entries, Vec::new(), tri_cfg)
+            .expect("assemble fallback");
+        let (fb_lat, fb_score, _) = fb_dec.decode_inner(&frames);
+        assert_eq!(triphone_best_words(&fb_lat), triphone_best_words(&mono_lat));
+        assert_eq!(
+            fb_score, mono_score,
+            "full fallback must reproduce monophone scores exactly"
+        );
+    }
+
+    #[test]
+    fn triphone_partial_units_fall_back_per_arc() {
+        let mono = triphone_fixture_mono();
+        let entries = triphone_fixture_entries();
+        let frames = triphone_fixture_frames();
+        let cfg = triphone_wide_cfg();
+        let tri_cfg = || DecoderConfig {
+            triphone: true,
+            ..cfg.clone()
+        };
+
+        // Pure fallback baseline: monophone AM, triphone trie.
+        let pure_dec =
+            MooreDecoder::assemble(mono.clone(), None, entries.clone(), Vec::new(), tri_cfg())
+                .expect("assemble pure");
+        let (pure_lat, _, _) = pure_dec.decode_inner(&frames);
+        assert_eq!(triphone_best_words(&pure_lat), vec!["AB"]);
+
+        // Partial tied AM carrying ONE unit (AH-D tuned to f1): the present
+        // arc scores the unit (flipping the 1-best), absent arcs fall back.
+        let mut partial = mono.clone();
+        partial
+            .phones
+            .insert("AH-D".to_string(), triphone_fixture_phone("AH-D", 1.0));
+        let part_dec =
+            MooreDecoder::assemble(partial, None, entries.clone(), Vec::new(), tri_cfg())
+                .expect("assemble partial");
+        let (part_lat, part_score, _) = part_dec.decode_inner(&frames);
+        assert_eq!(
+            triphone_best_words(&part_lat),
+            vec!["AD"],
+            "the one present unit must score (1-best flips)"
+        );
+
+        // Full tied AM whose other units are exact center clones: identical
+        // scores prove the absent arcs fell back to their centers.
+        let mut full = mono.clone();
+        for (unit, mean0) in [("AH+B", 0.0), ("AH-B", 5.0), ("AH+D", 0.0), ("AH-D", 1.0)] {
+            full.phones
+                .insert(unit.to_string(), triphone_fixture_phone(unit, mean0));
+        }
+        let full_dec = MooreDecoder::assemble(full, None, entries, Vec::new(), tri_cfg())
+            .expect("assemble full");
+        let (full_lat, full_score, _) = full_dec.decode_inner(&frames);
+        assert_eq!(triphone_best_words(&full_lat), vec!["AD"]);
+        assert_eq!(
+            part_score, full_score,
+            "partial tied AM must equal the center-clone-filled AM"
         );
     }
 }
