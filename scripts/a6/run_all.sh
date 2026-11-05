@@ -65,7 +65,10 @@ if [ "$SMOKE" = 1 ] && [ "$MODE" != "real" ]; then
 fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cargo/target-shared}"
+# Per-worktree target (bead hearsay-four-xk1k--per-worktree-target-dirs): explicit
+# $CARGO_TARGET_DIR respected, else derived from the worktree toplevel.
+# shellcheck source=../cargo_target.sh
+. "$ROOT/scripts/cargo_target.sh"
 cd "$ROOT"
 
 BUDGETS="50,100,250,500"
