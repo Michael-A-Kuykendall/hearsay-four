@@ -1,8 +1,12 @@
-# Build output: machine-wide shared target dir via $CARGO_TARGET_DIR
-# (see ~/.bashrc / ~/.profile). No per-repo target-dir here: an absolute
-# hard-coded home-dir path breaks other machines, and per-checkout target dirs
-# duplicate gigabytes across lane worktrees.
-# Fresh slate: run ~/bin/cargo-tidy (also on a 6h systemd user timer).
+# Build output: per-worktree target dir (bead hearsay-four-xk1k--per-worktree-target-dirs).
+# The 2026-11-04 shared-target incident (stale lane cell_decode reused in
+# main: cargo fingerprints do not distinguish same-package different-source
+# worktrees) bans machine-wide sharing. No target-dir here: source
+# scripts/cargo_target.sh (per-worktree default under
+# $HOME/.cargo/targets/, explicit $CARGO_TARGET_DIR respected) or export a
+# lane-unique $CARGO_TARGET_DIR before building.
+# Fresh slate: `cargo clean` in the worktree (clears only its own target),
+# periodic trim via ~/bin/cargo-tidy.
 [build]
-# target-dir intentionally unset; $CARGO_TARGET_DIR governs.
+# target-dir intentionally unset; $CARGO_TARGET_DIR governs (per-worktree).
 

@@ -24,7 +24,10 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cargo/target-shared}"
+# Per-worktree target (bead hearsay-four-xk1k--per-worktree-target-dirs): explicit
+# $CARGO_TARGET_DIR respected, else derived from the worktree toplevel.
+# shellcheck source=../cargo_target.sh
+. "$ROOT/scripts/cargo_target.sh"
 
 LATDIR="data/lattices/dev200"
 LM="data/lm-text/r1v2-full/lm-r1v2-interpolated.json"
