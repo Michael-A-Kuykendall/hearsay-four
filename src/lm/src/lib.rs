@@ -3,7 +3,14 @@
 //! inspectable counts. R1b (hearsay-four-2a0) adds two-component
 //! interpolation with DEV weight tuning, entropy pruning, deterministic
 //! persistence, and DEV perplexity reporting on top.
+//!
+//! Binary format (bead hearsay-four-6qn): `binary::kn_to_binary` and
+//! `binary::interpolated_to_binary` store the same count tables behind a
+//! string-id vocabulary so large models load in well under 2s where the
+//! JSON form needs tens of seconds; the byte layout is documented on
+//! `binary`, and `persist` carries the file-level save/load wrappers.
 
+pub mod binary;
 pub mod ingest;
 pub mod interpolate;
 pub mod kneser_ney;

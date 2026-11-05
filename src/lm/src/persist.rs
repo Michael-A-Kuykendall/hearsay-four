@@ -60,8 +60,7 @@ fn parse_archive<T: serde::de::DeserializeOwned + ArchiveKind>(
 ) -> Result<T, String> {
     // Single pass straight into the typed struct: the old Value-then-convert
     // path parsed and walked multi-million-entry maps twice.
-    let archive: T =
-        serde_json::from_slice(bytes).map_err(|e| format!("parse LM archive: {e}"))?;
+    let archive: T = serde_json::from_slice(bytes).map_err(|e| format!("parse LM archive: {e}"))?;
     let (format, version, actual) = archive.header();
     if format != ARCHIVE_FORMAT || version != ARCHIVE_VERSION || actual != kind {
         return Err(format!(
@@ -132,4 +131,49 @@ pub fn save_interpolated(lm: &InterpolatedLm, path: &Path) -> Result<(), String>
 pub fn load_interpolated(path: &Path) -> Result<InterpolatedLm, String> {
     let bytes = std::fs::read(path).map_err(|e| format!("read {}: {e}", path.display()))?;
     interpolated_from_bytes(&bytes)
+}
+
+/// Serialize one KN model to binary archive bytes (see `crate::binary`).
+pub fn kn_to_binary_bytes(model: &KnTrigram) -> Vec<u8> {
+    crate::binary::kn_to_binary(model)
+}
+
+/// Rebuild a KN model from `kn_to_binary_bytes` bytes.
+pub fn kn_from_binary_bytes(bytes: &[u8]) -> Result<KnTrigram, String> {
+    crate::binary::kn_from_binary(bytes)
+}
+
+/// Save one KN model in binary form; reload with `load_kn_binary`.
+pub fn save_kn_binary(model: &KnTrigram, path: &Path) -> Result<(), String> {
+    std::fs::write(path, kn_to_binary_bytes(model))
+        .map_err(|e| format!("write {}: {e}", path.display()))
+}
+
+/// Load a KN model saved by `save_kn_binary`.
+pub fn load_kn_binary(path: &Path) -> Result<KnTrigram, String> {
+    let bytes = std::fs::read(path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    kn_from_binary_bytes(&bytes)
+}
+
+/// Serialize an interpolated LM to binary archive bytes (see `crate::binary`).
+pub fn interpolated_to_binary_bytes(lm: &InterpolatedLm) -> Vec<u8> {
+    crate::binary::interpolated_to_binary(lm)
+}
+
+/// Rebuild an interpolated LM from `interpolated_to_binary_bytes` bytes.
+pub fn interpolated_from_binary_bytes(bytes: &[u8]) -> Result<InterpolatedLm, String> {
+    crate::binary::interpolated_from_binary(bytes)
+}
+
+/// Save an interpolated LM in binary form; reload with
+/// `load_interpolated_binary`.
+pub fn save_interpolated_binary(lm: &InterpolatedLm, path: &Path) -> Result<(), String> {
+    std::fs::write(path, interpolated_to_binary_bytes(lm))
+        .map_err(|e| format!("write {}: {e}", path.display()))
+}
+
+/// Load an interpolated LM saved by `save_interpolated_binary`.
+pub fn load_interpolated_binary(path: &Path) -> Result<InterpolatedLm, String> {
+    let bytes = std::fs::read(path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    interpolated_from_binary_bytes(&bytes)
 }
