@@ -19,6 +19,7 @@ lives in `docs/results/` so the numbers are citable from the repo.
 | 6 | sub20 tune best (lm8/wip0) WER | 0.8332 | landed |
 | 7 | Headline WER (final AM, full dev) | TBD | pending |
 | 8 | LIVE RTF (live mic) | TBD | pending |
+| 9 | A6 th75 stall diagnosis (dormant-context saturation storm) | stall mechanism, row dropped pending C-hi perf fix | landed |
 
 ## 1. Fallback 9-cell best WER 0.7233
 
@@ -179,3 +180,58 @@ lives in `docs/results/` so the numbers are citable from the repo.
   `train.log.attempt2-badroot`, `train.log.attempt3-fresh`,
   `subset.tsv.pre-crash` in `data/models/r3v2-full93/`.
 - `stage_per.log` lines 1-4 are watcher start/relaunch markers, not scores.
+
+## 9. A6 th75 stall diagnosis (dormant-context saturation storm)
+
+- Source: `scripts/a6/out/headline_cells_th75/` (80/1600 cells, 17 utts,
+  1 utt complete 8/8) + `scripts/a6/out/headline_run2.log` (16 SHARD FAIL,
+  one per worker on its first shard; shard `.log` files contain only
+  `Terminated`) + bounded repro cells (kept in /tmp scratch, not committed).
+- Command: sweep `scripts/a6/headline3.sh` (theta order th50, th25, th75;
+  `queue.sh` 16 workers, resume-on); repro
+  `target-shared/release/examples/cell_decode --lm
+  data/lm-text/r1v2-full/lm-r1v2-interpolated.json --lat-dir
+  data/lattices/test200 --shard <1-line> --out-dir /tmp/pxtr-out-*`
+  (main-checkout binary, read-only; main HEAD == 934f251 so the binary
+  matches this source).
+- Data: TEST-200 lattices `data/lattices/test200`, LM r1v2-full
+  interpolated; frozen v7fa w10/d0, J=100; theta 750.6713080377012
+  (post-fix DEV liveness_ws10 p75).
+- Size: 4800-run design, 3200 complete (th50 + th25); th75 ran 80 cells
+  in ~12 min, then killed. Completed-cell skew by budget: 50:31,
+  100:28, 250:17, 500:4. Arm C median elapsed 36.6 s vs arm B 0.9 s
+  (C max 371.7 s, still rising with budget). Repro cell (one TEST-200
+  utt, budget 250, arm C, theta-only difference): theta 0 decode
+  1.57 s / peak_dormant 6 / revivals 1 / peak RSS 1.44 GB; theta
+  750.67 decode 262.6 s / peak_dormant 268 / revivals 64 / peak RSS
+  1.69 GB — 167x decode slowdown from theta alone.
+- Stall mechanism (diagnosis): dormant-context saturation storm. Every
+  ingested token calls `attach_context_for_new_token`
+  (`src/hearsay/src/lib.rs:323` ->
+  `src/fabric/src/decision.rs:1207`), which scans the +-J (J=100) frame
+  windows and asserts a SEQUENCE edge via `add_sequence`
+  (`decision.rs:824`) for EVERY dormant neighbor — each edge followed
+  by a full `drain_pending` saturation dispatch (`decision.rs:1733`).
+  At theta 0 the dormant pool is ~empty so the scan skips cheaply; at
+  theta 750.67 nearly every token sits below threshold, so per-token
+  cost scales with dormant-window density against a monotonically
+  growing SEQUENCE evidence base, plus commit-time loser-retraction
+  drains (`commit_region`, `decision.rs:1433`) over the inflated base.
+  Consistent with the earlier C-hi perf pathology (A6 doc: one
+  64.5k-token utt, arm C, budget 500, theta-hi killed at 600 s / 660 s
+  CPU / 5.9 GB vs 11.7 s at theta 0).
+- Plausibility check: the mechanism predicts exactly the observed skew
+  — arm B (prune, no dormant set) stays fast at th75 (median 0.9 s)
+  while arm C (dormant-holding) stalls, worsening with budget (larger
+  live+dormant pools); the same-cell theta-only comparison isolates
+  theta as the cause (167x, all else equal). B-side check: the same
+  cell at th75 prunes 6897 tokens vs 445 at th50 — B-vs-C degenerates
+  at th75 regardless of the stall.
+- CI status: n/a — diagnosis, not a headline estimate; no sampling.
+- Verdict: RERUNNABLE after fix X — the C-hi perf subtask (bound
+  dormant-context/saturation cost at high theta; owned by the
+  arc-tiling C-hi perf bead, not this bead). Row stays DROPPED until
+  then. Even post-fix, rerun only as a perf-gate validation, not for
+  science: at theta 750.67 arm B prunes nearly every token, so the
+  B-vs-C comparison is degenerate; p25/p50 remain the informative
+  thetas.
