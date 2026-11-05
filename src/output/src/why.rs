@@ -694,6 +694,9 @@ mod why_tests {
         d.add_boundary_sequence(reef, 0.3).expect("e");
         d.add_boundary_sequence(wreath, 0.2).expect("e");
         d.add_sequence(wreath, now, 0.1, np()).expect("e");
+        // §7 v1.4: intended tiling pairs ride lattice arcs.
+        d.add_lattice_arc(wreath, now).expect("arc");
+        d.add_lattice_arc(reef, now).expect("arc");
         // Right context arrives while reef is dormant: revival event.
         d.attach_context_for_new_token(now, &|a, b| {
             if a.label == "reef" && b.label == "now" {
