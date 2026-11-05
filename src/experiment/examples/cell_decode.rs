@@ -27,6 +27,8 @@ fn main() {
     let mut lat_dir: Option<PathBuf> = None;
     let mut shard: Option<PathBuf> = None;
     let mut out_dir: Option<PathBuf> = None;
+    // v1.5 ablation switch: --no-lex reruns the pre-v1.5 behavior (silent hook).
+    let mut no_lex = false;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -42,6 +44,7 @@ fn main() {
                     take_value(&args, &mut i, "--out-dir").unwrap(),
                 ))
             }
+            "--no-lex" => no_lex = true,
             other => panic!("unknown argument {other:?}"),
         }
         i += 1;
@@ -104,7 +107,13 @@ fn main() {
                 lat
             }
         };
-        let o = match run_fabric_arm(&lat, arm, &params, &lm_fn, Some(&lex_fn)) {
+        let o = match run_fabric_arm(
+            &lat,
+            arm,
+            &params,
+            &lm_fn,
+            if no_lex { None } else { Some(&lex_fn) },
+        ) {
             Ok(o) => o,
             Err(e) => {
                 // Loud but non-fatal: leave a FAIL marker (retried on

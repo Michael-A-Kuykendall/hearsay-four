@@ -91,6 +91,9 @@ impl ArmParams {
     }
 }
 
+/// v1.5 LEXICAL hook: per-word `ln P_unigram`, or silence.
+pub type LexHook<'a> = Option<&'a dyn Fn(&str) -> Option<f64>>;
+
 /// Adapts a plain bigram closure to [`hearsay::SequenceScorer`].
 /// `None` (utterance-start boundary) maps to the `"<s>"` predecessor.
 struct ClosureScorer<'a> {
@@ -98,7 +101,7 @@ struct ClosureScorer<'a> {
     /// Unigram hook behind [`hearsay::SequenceScorer::lexical_llr`] (v1.5
     /// LEXICAL wiring). `None` keeps the pre-v1.5 behavior: no LEXICAL
     /// unary from the scorer (bridge falls back to lattice-carried values).
-    lex: Option<&'a dyn Fn(&str) -> Option<f64>>,
+    lex: LexHook<'a>,
 }
 
 impl hearsay::SequenceScorer for ClosureScorer<'_> {
@@ -161,7 +164,7 @@ pub fn run_fabric_arm(
     arm: Arm,
     params: &ArmParams,
     lm: &dyn Fn(&str, &str) -> f64,
-    lex: Option<&dyn Fn(&str) -> Option<f64>>,
+    lex: LexHook<'_>,
 ) -> Result<ArmOutcome, String> {
     assert!(
         arm == Arm::B || arm == Arm::C,

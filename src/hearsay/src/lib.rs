@@ -336,12 +336,12 @@ pub fn decode_lattice(
         // legacy lattice-carried lexical_llr (kept as fallback for scorers
         // that cannot supply unigrams); SIL tokens take no LEXICAL evidence
         // under either source.
-        if t.word != "SIL" {
-            if let Some(llr) = scorer.lexical_llr(&t.word).or(t.lexical_llr) {
-                fabric
-                    .add_unary(fact, SourceClass::Lexical, llr, BTreeSet::new())
-                    .map_err(dec_err)?;
-            }
+        if t.word != "SIL"
+            && let Some(llr) = scorer.lexical_llr(&t.word).or(t.lexical_llr)
+        {
+            fabric
+                .add_unary(fact, SourceClass::Lexical, llr, BTreeSet::new())
+                .map_err(dec_err)?;
         }
         for (class, llr) in [
             (SourceClass::Speaker, t.speaker_llr),
