@@ -21,9 +21,19 @@
 //!   the whole estimate is degenerate; per-component fallback is
 //!   `0.5 * count-index`).
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
+// FxHash for every count table: keys are interned `u32` ids (or short
+// tokens in `token_id`), hashed millions of times per load/probe, in a
+// non-adversarial local-data setting where SipHash is pure overhead.
+use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
+
+/// Fx `HashMap` with preallocated capacity. (The `FxHashMap` alias lacks
+/// std's `RandomState`-specific `with_capacity` constructor.)
+pub(crate) fn map_with_capacity<K, V>(n: usize) -> HashMap<K, V> {
+    HashMap::with_capacity_and_hasher(n, rustc_hash::FxBuildHasher)
+}
 
 use crate::normalize::{BOS_TOKEN, EOS_TOKEN, UNK_TOKEN};
 
@@ -81,7 +91,7 @@ fn estimate_discounts(counts: &HashMap<u64, u64>) -> Discounts {
 }
 
 fn counts_of_counts<I: Iterator<Item = u64>>(it: I) -> HashMap<u64, u64> {
-    let mut m = HashMap::new();
+    let mut m = HashMap::default();
     for c in it {
         if c > 0 {
             *m.entry(c).or_insert(0) += 1;
@@ -107,23 +117,32 @@ pub struct InspectableModel {
 }
 
 /// Trigram modified Kneser-Ney model over normalized token sentences.
+///
+/// Tokens are interned: `tokens`/`token_id` map between surface strings and
+/// `u32` ids once, and every count table is keyed by ids. Multi-million-entry
+/// models then cost one `String` per distinct token instead of one per
+/// n-gram occurrence, which is what lets the binary format load them in
+/// well under 2s. The public API still speaks plain `&str`, and all
+/// probability arithmetic is unchanged.
 #[derive(Debug, Clone, Default)]
 pub struct KnTrigram {
-    unigram: HashMap<String, u64>,
-    bigram: HashMap<(String, String), u64>,
-    trigram: HashMap<(String, String, String), u64>,
+    tokens: Vec<String>,
+    token_id: HashMap<String, u32>,
     vocab: BTreeSet<String>,
     total_tokens: u64,
+    unigram: HashMap<u32, u64>,
+    bigram: HashMap<(u32, u32), u64>,
+    trigram: HashMap<(u32, u32, u32), u64>,
     // continuation structures, rebuilt in finalize()
-    bigram_cont: HashMap<(String, String), u64>, // (u,w) -> |{v: c(v,u,w)>0}|
-    unigram_cont: HashMap<String, u64>,          // w -> |{v: c(v,w)>0}| (bigrams)
+    bigram_cont: HashMap<(u32, u32), u64>, // (u,w) -> |{v: c(v,u,w)>0}|
+    unigram_cont: HashMap<u32, u64>,       // w -> |{v: c(v,w)>0}| (bigrams)
     unigram_cont_total: u64,
     tri_discounts: Discounts,
     bi_discounts: Discounts,
     // Per-history (total, n1, n2, n3plus) follower-type stats, rebuilt in
     // finalize(). Caches only: prob()/bigram_prob() arithmetic is unchanged.
-    tri_hist_stats: HashMap<(String, String), (u64, u64, u64, u64)>,
-    bi_hist_stats: HashMap<String, (u64, u64, u64, u64)>,
+    tri_hist_stats: HashMap<(u32, u32), (u64, u64, u64, u64)>,
+    bi_hist_stats: HashMap<u32, (u64, u64, u64, u64)>,
 }
 
 /// Perplexity of a model on held-out normalized sentences.
@@ -143,9 +162,37 @@ fn key3(a: &str, b: &str, c: &str) -> String {
     format!("{a} {b} {c}")
 }
 
+/// Raw tables shared with the binary codec (`crate::binary`): vocabulary,
+/// token table, token->id map, unigram/bigram/trigram counts, total tokens.
+pub(crate) type BinaryParts<'a> = (
+    &'a BTreeSet<String>,
+    &'a Vec<String>,
+    &'a HashMap<String, u32>,
+    &'a HashMap<u32, u64>,
+    &'a HashMap<(u32, u32), u64>,
+    &'a HashMap<(u32, u32, u32), u64>,
+    u64,
+);
+
 impl KnTrigram {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Intern `tok`, returning its id (inserts on first sight).
+    fn intern(&mut self, tok: &str) -> u32 {
+        if let Some(&id) = self.token_id.get(tok) {
+            return id;
+        }
+        let id = self.tokens.len() as u32;
+        self.tokens.push(tok.to_string());
+        self.token_id.insert(tok.to_string(), id);
+        id
+    }
+
+    /// Id of an already-interned token.
+    fn id(&self, tok: &str) -> Option<u32> {
+        self.token_id.get(tok).copied()
     }
 
     /// Train on normalized sentences (tokens without boundary padding).
@@ -153,58 +200,75 @@ impl KnTrigram {
         let mut m = Self::new();
         m.vocab.insert(EOS_TOKEN.into());
         m.vocab.insert(UNK_TOKEN.into());
+        let bos = m.intern(BOS_TOKEN);
+        m.intern(EOS_TOKEN);
+        m.intern(UNK_TOKEN);
         for sent in sentences {
-            let mut padded: Vec<String> = vec![BOS_TOKEN.into(), BOS_TOKEN.into()];
-            padded.extend(sent.iter().cloned());
-            padded.push(EOS_TOKEN.into());
-            for w in &padded {
-                if w != BOS_TOKEN {
-                    m.vocab.insert(w.clone());
-                    *m.unigram.entry(w.clone()).or_insert(0) += 1;
-                    m.total_tokens += 1;
+            let mut padded: Vec<u32> = vec![bos, bos];
+            for w in sent {
+                padded.push(m.intern(w));
+            }
+            padded.push(m.intern(EOS_TOKEN));
+            for &id in &padded {
+                if id == bos {
+                    continue;
                 }
+                if !m.vocab.contains(&m.tokens[id as usize]) {
+                    m.vocab.insert(m.tokens[id as usize].clone());
+                }
+                *m.unigram.entry(id).or_insert(0) += 1;
+                m.total_tokens += 1;
             }
             for p in padded.windows(2) {
-                *m.bigram.entry((p[0].clone(), p[1].clone())).or_insert(0) += 1;
+                *m.bigram.entry((p[0], p[1])).or_insert(0) += 1;
             }
             for t in padded.windows(3) {
-                *m.trigram
-                    .entry((t[0].clone(), t[1].clone(), t[2].clone()))
-                    .or_insert(0) += 1;
+                *m.trigram.entry((t[0], t[1], t[2])).or_insert(0) += 1;
             }
         }
         m.finalize();
         m
     }
 
-        fn finalize(&mut self) {
+    fn finalize(&mut self) {
         // Bigram continuation counts: distinct predecessors v per (u,w).
         // Trigram keys are unique, so each key contributes exactly one
         // predecessor (no dedup set). Every (u,w) here is also a stored
         // bigram, which bounds the map.
-        let mut cont: HashMap<(String, String), u64> =
-            HashMap::with_capacity(self.bigram.len());
-        for key in self.trigram.keys() {
-            *cont.entry((key.1.clone(), key.2.clone())).or_insert(0) += 1;
+        let mut cont: HashMap<(u32, u32), u64> = map_with_capacity(self.bigram.len());
+        let mut tri_stats: HashMap<(u32, u32), (u64, u64, u64, u64)> =
+            map_with_capacity(self.bigram.len());
+        // One pass builds both the continuation map and the trigram
+        // history follower-type stats (same buckets prob() rescanned for).
+        for ((a, b, c), &n) in &self.trigram {
+            *cont.entry((*b, *c)).or_insert(0) += 1;
+            let e = tri_stats.entry((*a, *b)).or_default();
+            e.0 += n;
+            match n {
+                1 => e.1 += 1,
+                2 => e.2 += 1,
+                _ => e.3 += 1,
+            }
         }
         self.bigram_cont = cont;
+        self.tri_hist_stats = tri_stats;
         // Unigram continuation: distinct predecessors v per w, via sort +
-        // linear dedup. Same counts as per-word predecessor sets, without
-        // cloning every bigram string twice into nested sets.
-        let mut pairs: Vec<(&str, &str)> = Vec::with_capacity(self.bigram.len());
+        // linear dedup over interned ids. Same counts as per-word
+        // predecessor sets, without cloning any token strings.
+        let bos = self.token_id.get(BOS_TOKEN).copied();
+        let mut pairs: Vec<(u32, u32)> = Vec::with_capacity(self.bigram.len());
         for (v, w) in self.bigram.keys() {
-            if w != BOS_TOKEN {
-                pairs.push((w.as_str(), v.as_str()));
+            if Some(*w) != bos {
+                pairs.push((*w, *v));
             }
         }
         pairs.sort_unstable();
-        let mut unigram_cont: HashMap<String, u64> =
-            HashMap::with_capacity(self.vocab.len());
+        let mut unigram_cont: HashMap<u32, u64> = map_with_capacity(self.vocab.len());
         let mut i = 0;
         while i < pairs.len() {
             let w = pairs[i].0;
             let mut n = 0u64;
-            let mut prev: Option<&str> = None;
+            let mut prev: Option<u32> = None;
             while i < pairs.len() && pairs[i].0 == w {
                 if Some(pairs[i].1) != prev {
                     n += 1;
@@ -212,33 +276,21 @@ impl KnTrigram {
                 }
                 i += 1;
             }
-            unigram_cont.insert(w.to_string(), n);
+            unigram_cont.insert(w, n);
         }
         self.unigram_cont = unigram_cont;
         // Guarantee <unk> and </s> carry continuation mass.
-        self.unigram_cont.entry(UNK_TOKEN.into()).or_insert(1);
-        self.unigram_cont.entry(EOS_TOKEN.into()).or_insert(1);
+        let unk = self.intern(UNK_TOKEN);
+        let eos = self.intern(EOS_TOKEN);
+        self.unigram_cont.entry(unk).or_insert(1);
+        self.unigram_cont.entry(eos).or_insert(1);
         self.unigram_cont_total = self.unigram_cont.values().sum();
         self.tri_discounts = estimate_discounts(&counts_of_counts(self.trigram.values().copied()));
         self.bi_discounts =
             estimate_discounts(&counts_of_counts(self.bigram_cont.values().copied()));
-        // History follower-type stats (same buckets prob() used to rescan for).
-        let mut tri_stats: HashMap<(String, String), (u64, u64, u64, u64)> =
-            HashMap::with_capacity(self.bigram.len());
-        for ((a, b, _), &c) in &self.trigram {
-            let e = tri_stats.entry((a.clone(), b.clone())).or_default();
-            e.0 += c;
-            match c {
-                1 => e.1 += 1,
-                2 => e.2 += 1,
-                _ => e.3 += 1,
-            }
-        }
-        self.tri_hist_stats = tri_stats;
-        let mut bi_stats: HashMap<String, (u64, u64, u64, u64)> =
-            HashMap::with_capacity(self.vocab.len());
+        let mut bi_stats: HashMap<u32, (u64, u64, u64, u64)> = map_with_capacity(self.vocab.len());
         for ((u, _), &cc) in &self.bigram_cont {
-            let e = bi_stats.entry(u.clone()).or_default();
+            let e = bi_stats.entry(*u).or_default();
             e.0 += cc;
             match cc {
                 1 => e.1 += 1,
@@ -268,16 +320,21 @@ impl KnTrigram {
         self.bi_discounts
     }
     pub fn count_unigram(&self, w: &str) -> u64 {
-        self.unigram.get(w).copied().unwrap_or(0)
+        self.id(w)
+            .and_then(|id| self.unigram.get(&id).copied())
+            .unwrap_or(0)
     }
     pub fn count_bigram(&self, a: &str, b: &str) -> u64 {
-        self.bigram.get(&(a.into(), b.into())).copied().unwrap_or(0)
+        match (self.id(a), self.id(b)) {
+            (Some(x), Some(y)) => self.bigram.get(&(x, y)).copied().unwrap_or(0),
+            _ => 0,
+        }
     }
     pub fn count_trigram(&self, a: &str, b: &str, c: &str) -> u64 {
-        self.trigram
-            .get(&(a.into(), b.into(), c.into()))
-            .copied()
-            .unwrap_or(0)
+        match (self.id(a), self.id(b), self.id(c)) {
+            (Some(x), Some(y), Some(z)) => self.trigram.get(&(x, y, z)).copied().unwrap_or(0),
+            _ => 0,
+        }
     }
 
     fn map_word<'a>(&'a self, w: &'a str) -> &'a str {
@@ -295,7 +352,11 @@ impl KnTrigram {
             let v = self.prediction_vocabulary().len().max(1) as f64;
             return 1.0 / v;
         }
-        self.unigram_cont.get(w).copied().unwrap_or(0) as f64 / self.unigram_cont_total as f64
+        let cc = self
+            .id(w)
+            .and_then(|id| self.unigram_cont.get(&id).copied())
+            .unwrap_or(0);
+        cc as f64 / self.unigram_cont_total as f64
     }
 
     /// Modified KN `P(w | u)` (bigram level, continuation counts).
@@ -304,15 +365,17 @@ impl KnTrigram {
         let w = self.map_word(w);
         let lower = self.unigram_prob(w);
         // cc(u,.) total and follower type counts by continuation count.
-        let (total, n1, n2, n3) = self.bi_hist_stats.get(u).copied().unwrap_or((0, 0, 0, 0));
+        let (total, n1, n2, n3) = self
+            .id(u)
+            .and_then(|id| self.bi_hist_stats.get(&id).copied())
+            .unwrap_or((0, 0, 0, 0));
         if total == 0 {
             return lower;
         }
-        let cc = self
-            .bigram_cont
-            .get(&(u.into(), w.into()))
-            .copied()
-            .unwrap_or(0);
+        let cc = match (self.id(u), self.id(w)) {
+            (Some(a), Some(b)) => self.bigram_cont.get(&(a, b)).copied().unwrap_or(0),
+            _ => 0,
+        };
         let d = self.bi_discounts.for_count(cc);
         let lambda_num = self.bi_discounts.d1 * n1 as f64
             + self.bi_discounts.d2 * n2 as f64
@@ -323,19 +386,22 @@ impl KnTrigram {
 
     /// Modified KN `P(w | w1, w2)` (trigram level, raw counts).
     pub fn prob(&self, w1: &str, w2: &str, w: &str) -> f64 {
-        let w1 = self.map_word(w1).to_string();
-        let w2 = self.map_word(w2).to_string();
-        let w = self.map_word(w).to_string();
-        let lower = self.bigram_prob(&w2, &w);
-        let (total, n1, n2, n3) = self
-            .tri_hist_stats
-            .get(&(w1.clone(), w2.clone()))
-            .copied()
-            .unwrap_or((0, 0, 0, 0));
+        let w1 = self.map_word(w1);
+        let w2 = self.map_word(w2);
+        let w = self.map_word(w);
+        let lower = self.bigram_prob(w2, w);
+        let (total, n1, n2, n3) = match (self.id(w1), self.id(w2)) {
+            (Some(a), Some(b)) => self
+                .tri_hist_stats
+                .get(&(a, b))
+                .copied()
+                .unwrap_or((0, 0, 0, 0)),
+            _ => (0, 0, 0, 0),
+        };
         if total == 0 {
             return lower;
         }
-        let c = self.count_trigram(&w1, &w2, &w);
+        let c = self.count_trigram(w1, w2, w);
         let d = self.tri_discounts.for_count(c);
         let lambda_num = self.tri_discounts.d1 * n1 as f64
             + self.tri_discounts.d2 * n2 as f64
@@ -360,21 +426,44 @@ impl KnTrigram {
     pub fn inspectable(&self) -> InspectableModel {
         InspectableModel {
             vocabulary: self.vocab.iter().cloned().collect(),
-            unigram_counts: self.unigram.iter().map(|(k, v)| (k.clone(), *v)).collect(),
+            unigram_counts: self
+                .unigram
+                .iter()
+                .map(|(id, v)| (self.tokens[*id as usize].clone(), *v))
+                .collect(),
             bigram_counts: self
                 .bigram
                 .iter()
-                .map(|((a, b), v)| (key2(a, b), *v))
+                .map(|((a, b), v)| {
+                    (
+                        key2(&self.tokens[*a as usize], &self.tokens[*b as usize]),
+                        *v,
+                    )
+                })
                 .collect(),
             trigram_counts: self
                 .trigram
                 .iter()
-                .map(|((a, b, c), v)| (key3(a, b, c), *v))
+                .map(|((a, b, c), v)| {
+                    (
+                        key3(
+                            &self.tokens[*a as usize],
+                            &self.tokens[*b as usize],
+                            &self.tokens[*c as usize],
+                        ),
+                        *v,
+                    )
+                })
                 .collect(),
             bigram_continuation_counts: self
                 .bigram_cont
                 .iter()
-                .map(|((a, b), v)| (key2(a, b), *v))
+                .map(|((a, b), v)| {
+                    (
+                        key2(&self.tokens[*a as usize], &self.tokens[*b as usize]),
+                        *v,
+                    )
+                })
                 .collect(),
             trigram_discounts: self.tri_discounts,
             bigram_discounts: self.bi_discounts,
@@ -387,32 +476,86 @@ impl KnTrigram {
     /// space, so the split is unambiguous. Continuation counts, discounts,
     /// and history stats are re-derived by `finalize()`, which reproduces
     /// the snapshot's stored values for any snapshot taken from a model.
-        pub fn from_inspectable(snap: &InspectableModel) -> Result<Self, String> {
+    pub fn from_inspectable(snap: &InspectableModel) -> Result<Self, String> {
         let mut m = Self::new();
         m.vocab = snap.vocabulary.iter().cloned().collect();
         m.total_tokens = snap.total_tokens;
-        m.unigram = HashMap::with_capacity(snap.unigram_counts.len());
-        m.bigram = HashMap::with_capacity(snap.bigram_counts.len());
-        m.trigram = HashMap::with_capacity(snap.trigram_counts.len());
+        // Pre-intern the vocabulary so plain-vocab tokens keep stable low
+        // ids, then every key token (n-gram keys may reference `<s>`,
+        // which never enters the vocabulary).
+        for w in &snap.vocabulary {
+            m.intern(w);
+        }
+        m.unigram = map_with_capacity(snap.unigram_counts.len());
+        m.bigram = map_with_capacity(snap.bigram_counts.len());
+        m.trigram = map_with_capacity(snap.trigram_counts.len());
         for (k, &v) in &snap.unigram_counts {
-            m.unigram.insert(k.clone(), v);
+            let id = m.intern(k);
+            m.unigram.insert(id, v);
         }
         for (k, &v) in &snap.bigram_counts {
             let p: Vec<&str> = k.split(' ').collect();
             if p.len() != 2 {
                 return Err(format!("bad bigram key {k:?}"));
             }
-            m.bigram.insert((p[0].into(), p[1].into()), v);
+            let a = m.intern(p[0]);
+            let b = m.intern(p[1]);
+            m.bigram.insert((a, b), v);
         }
         for (k, &v) in &snap.trigram_counts {
             let p: Vec<&str> = k.split(' ').collect();
             if p.len() != 3 {
                 return Err(format!("bad trigram key {k:?}"));
             }
-            m.trigram.insert((p[0].into(), p[1].into(), p[2].into()), v);
+            let a = m.intern(p[0]);
+            let b = m.intern(p[1]);
+            let c = m.intern(p[2]);
+            m.trigram.insert((a, b, c), v);
         }
         m.finalize();
         Ok(m)
+    }
+
+    /// Raw count tables for the binary codec (`crate::binary`): vocabulary,
+    /// unigram/bigram/trigram counts, and total tokens. Continuation
+    /// structures and discounts are re-derived by `finalize()` on decode,
+    /// exactly as the JSON `from_inspectable` path does.
+        pub(crate) fn binary_parts(&self) -> BinaryParts<'_> {
+        (
+            &self.vocab,
+            &self.tokens,
+            &self.token_id,
+            &self.unigram,
+            &self.bigram,
+            &self.trigram,
+            self.total_tokens,
+        )
+    }
+
+    /// Rebuild a model from decoded binary tables. Same contract as
+    /// `from_inspectable`: counts are stored verbatim, everything else is
+    /// re-derived by `finalize()`.
+    pub(crate) fn from_binary_parts(
+        tokens: Vec<String>,
+        vocab: BTreeSet<String>,
+        unigram: HashMap<u32, u64>,
+        bigram: HashMap<(u32, u32), u64>,
+        trigram: HashMap<(u32, u32, u32), u64>,
+        total_tokens: u64,
+    ) -> Self {
+        let mut m = Self::new();
+        m.token_id = map_with_capacity(tokens.len());
+        for (i, t) in tokens.iter().enumerate() {
+            m.token_id.insert(t.clone(), i as u32);
+        }
+        m.tokens = tokens;
+        m.vocab = vocab;
+        m.unigram = unigram;
+        m.bigram = bigram;
+        m.trigram = trigram;
+        m.total_tokens = total_tokens;
+        m.finalize();
+        m
     }
 
     /// Number of stored trigram entries (the prunable size).
@@ -475,30 +618,44 @@ impl KnTrigram {
         if self.trigram.len() <= max_trigram_entries {
             return self.clone();
         }
-        let mut scored: Vec<(f64, String, String, String)> = self
+        let mut scored: Vec<(f64, u32, u32, u32)> = self
             .trigram
             .iter()
             .map(|((a, b, c), &cnt)| {
-                let p = self.prob(a, b, c).max(1e-12);
-                let pb = self.bigram_prob(b, c).max(1e-12);
-                (
-                    cnt as f64 * (p.ln() - pb.ln()),
-                    a.clone(),
-                    b.clone(),
-                    c.clone(),
-                )
+                let (sa, sb, sc) = (
+                    self.tokens[*a as usize].as_str(),
+                    self.tokens[*b as usize].as_str(),
+                    self.tokens[*c as usize].as_str(),
+                );
+                let p = self.prob(sa, sb, sc).max(1e-12);
+                let pb = self.bigram_prob(sb, sc).max(1e-12);
+                (cnt as f64 * (p.ln() - pb.ln()), *a, *b, *c)
             })
             .collect();
+        // Ties break on the token strings (not the arbitrary intern ids),
+        // so pruning stays deterministic and identical to the pre-intern
+        // order.
         scored.sort_by(|x, y| {
             x.0.partial_cmp(&y.0)
                 .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| (&x.1, &x.2, &x.3).cmp(&(&y.1, &y.2, &y.3)))
+                .then_with(|| {
+                    (
+                        self.tokens[x.1 as usize].as_str(),
+                        self.tokens[x.2 as usize].as_str(),
+                        self.tokens[x.3 as usize].as_str(),
+                    )
+                        .cmp(&(
+                            self.tokens[y.1 as usize].as_str(),
+                            self.tokens[y.2 as usize].as_str(),
+                            self.tokens[y.3 as usize].as_str(),
+                        ))
+                })
         });
         let remove = self.trigram.len() - max_trigram_entries;
-        let drop_set: HashSet<(String, String, String)> = scored
+        let drop_set: HashSet<(u32, u32, u32)> = scored
             .iter()
             .take(remove)
-            .map(|(_, a, b, c)| (a.clone(), b.clone(), c.clone()))
+            .map(|(_, a, b, c)| (*a, *b, *c))
             .collect();
         let mut m = self.clone();
         m.trigram.retain(|k, _| !drop_set.contains(k));
@@ -513,11 +670,7 @@ impl KnTrigram {
     /// is a pure filter, so it is deterministic. Removed n-grams back
     /// off exactly as unseen ones do (standard cutoff semantics);
     /// unigram counts are untouched.
-    pub fn count_cutoff_pruned(
-        &self,
-        min_bigram_count: u64,
-        min_trigram_count: u64,
-    ) -> Self {
+    pub fn count_cutoff_pruned(&self, min_bigram_count: u64, min_trigram_count: u64) -> Self {
         let mut m = self.clone();
         if min_bigram_count > 1 {
             m.bigram.retain(|_, c| *c >= min_bigram_count);
