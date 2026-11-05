@@ -187,17 +187,10 @@ fn peak_dbfs(mono: &[i16]) -> f32 {
         20.0 * peak.log10()
     }
 }
-/// Silence floor for sealed takes: peak below 0.01 (-40 dBFS) is a muted
-/// input stream, not speech. Measured 2026-10-30/31: muted takes peak
-/// 0.00003..0.00034, quietest real speech 0.1096.
-const SILENT_TAKE_PEAK_FLOOR: f32 = 0.01;
-
+/// Record-time silence gate, sharing the single floor predicate in
+/// `fse::instrument` (same floor the sealed-session validators enforce).
 fn take_is_silent(mono: &[i16]) -> bool {
-    let peak = mono
-        .iter()
-        .map(|s| s.unsigned_abs() as f32 / 32768.0)
-        .fold(0.0f32, f32::max);
-    peak < SILENT_TAKE_PEAK_FLOOR
+    fse::instrument::take_is_silent(mono)
 }
 /// Sealed take: Enter, exact-frame capture, then `[r]`edo. A redo
 /// re-captures the SAME position in place (same stem, same order slot);

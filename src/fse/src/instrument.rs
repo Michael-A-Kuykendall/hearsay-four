@@ -40,6 +40,26 @@ pub fn is_plausible_rate(rate_hz: u32) -> bool {
 pub const MIN_SECS: f64 = 2.5;
 pub const MAX_SECS: f64 = 3.5;
 
+/// Silence floor for sealed takes: peak below 0.01 (-40 dBFS) is a muted
+/// input stream, not speech. Measured 2026-10-30/31: muted takes peak
+/// 0.00003..0.00034, quietest real speech 0.1096. Shared by the
+/// record-time gate (`capture` record-session) and both sealed-session
+/// validators below; any below-floor take REJECTs.
+pub const SILENT_TAKE_PEAK_FLOOR: f32 = 0.01;
+
+/// Normalized peak amplitude of i16 mono samples (0.0..~1.0).
+pub fn take_peak(mono: &[i16]) -> f32 {
+    mono.iter()
+        .map(|s| s.unsigned_abs() as f32 / 32768.0)
+        .fold(0.0f32, f32::max)
+}
+
+/// True when a take is silent (peak below [`SILENT_TAKE_PEAK_FLOOR`]).
+/// Single shared predicate for the record-time gate and both validators.
+pub fn take_is_silent(mono: &[i16]) -> bool {
+    take_peak(mono) < SILENT_TAKE_PEAK_FLOOR
+}
+
 /// Base config name the frozen string must start with (cross-checked against
 /// tuning_grid()[0] at the phase-test use site).
 pub const FROZEN_BASE: &str = "base_cmn_d_dd_lifter22_pre097";
@@ -134,7 +154,7 @@ pub struct AcceptSummary {
 /// violation reported. Check order (documented in
 /// docs/design/phase-test-instrument.md): metadata -> order hash -> manifest
 /// hash -> vocab multiset (unknown, duplicate, missing) -> positional order
-/// -> sidecar -> headers -> durations.
+/// -> sidecar -> headers -> durations -> speech presence.
 pub fn validate_session(dir: &Path) -> Result<AcceptSummary, String> {
     // 1. session.meta exists + parses with all required keys.
     let meta_raw = std::fs::read_to_string(dir.join("session.meta")).map_err(|_| {
@@ -348,6 +368,16 @@ pub fn validate_session(dir: &Path) -> Result<AcceptSummary, String> {
                 "REJECT: {file} duration {secs:.2}s outside {MIN_SECS}-{MAX_SECS}s"
             ));
         }
+        // 10. Speech presence: every take must reach the shared silence
+        // floor (defense in depth for the 2026-10-30 muted session).
+        let pcm = corpus::audio::decode_wav(&dir.join(file))
+            .map_err(|e| format!("REJECT: {file} unreadable WAV: {e}"))?;
+        let peak = take_peak(&pcm.samples);
+        if peak < SILENT_TAKE_PEAK_FLOOR {
+            return Err(format!(
+                "REJECT: {file} below speech floor (silent take, peak {peak:.5} < {SILENT_TAKE_PEAK_FLOOR})"
+            ));
+        }
     }
     Ok(AcceptSummary {
         labels: rows.len(),
@@ -363,6 +393,7 @@ pub fn validate_session(dir: &Path) -> Result<AcceptSummary, String> {
 /// what is protocol-specific: the label count, the label vocabulary (none:
 /// labels may be phrases or sentences), and the take window
 /// (`window_secs` ± 0.5 s, the same tolerance shape as the strict 3.0 ± 0.5).
+/// Both validators also enforce speech presence (shared silence floor).
 pub fn validate_session_general(
     dir: &Path,
     expected_labels: usize,
@@ -569,6 +600,16 @@ pub fn validate_session_general(
                 window_secs + 0.5
             ));
         }
+        // Speech presence: every take must reach the shared silence floor
+        // (defense in depth for the 2026-10-30 muted session).
+        let pcm = corpus::audio::decode_wav(&dir.join(file))
+            .map_err(|e| format!("REJECT: {file} unreadable WAV: {e}"))?;
+        let peak = take_peak(&pcm.samples);
+        if peak < SILENT_TAKE_PEAK_FLOOR {
+            return Err(format!(
+                "REJECT: {file} below speech floor (silent take, peak {peak:.5} < {SILENT_TAKE_PEAK_FLOOR})"
+            ));
+        }
     }
     Ok(AcceptSummary {
         labels: rows.len(),
@@ -684,8 +725,33 @@ mod tests {
         };
         let mut w = hound::WavWriter::create(path, spec).unwrap();
         let n = (secs * rate as f64) as usize;
-        for _ in 0..n {
-            w.write_sample(0i16).unwrap();
+        for i in 0..n {
+            let t = i as f64 / rate as f64;
+            let s = (8000.0 * (2.0 * std::f64::consts::PI * 440.0 * t).sin()) as i16;
+            w.write_sample(s).unwrap();
+        }
+        w.finalize().unwrap();
+    }
+
+    fn write_silent_wav(path: &Path, rate: u32, secs: f64) {
+        let spec = hound::WavSpec {
+            channels: 1,
+            sample_rate: rate,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let mut w = hound::WavWriter::create(path, spec).unwrap();
+        let n = (secs * rate as f64) as usize;
+        for i in 0..n {
+            // Muted-stream signature: +/-1 LSB dither only, no speech.
+            let s = if i % 6 == 0 {
+                1i16
+            } else if i % 11 == 0 {
+                -1i16
+            } else {
+                0i16
+            };
+            w.write_sample(s).unwrap();
         }
         w.finalize().unwrap();
     }
@@ -765,8 +831,8 @@ mod tests {
         std::fs::write(dir.join("SHA256SUMS"), &sums).unwrap();
     }
     /// Build an N-label general session at an explicit device rate
-    /// (native-rate instrument output; content is silence, which the
-    /// validator never inspects).
+    /// (native-rate instrument output; content is an audible sine so the
+    /// speech-presence section accepts it).
     fn build_general_session_at_rate(dir: &Path, labels: &[&str], secs: f64, rate: u32) {
         let seed = 11u64;
         let frames = (secs * rate as f64).round() as u32;
@@ -1125,5 +1191,49 @@ mod tests {
         assert!(parse_frozen_config("base_cmn_d_dd_lifter22_pre097+dtw_bogus+band0.2").is_err());
         assert!(parse_frozen_config("wrong_base+dtw_baseline+band0.2").is_err());
         assert!(parse_frozen_config("base_cmn_d_dd_lifter22_pre097+dtw_baseline+band9").is_err());
+    }
+
+    #[test]
+    fn silent_floor_shared_predicate_matches_record_gate() {
+        assert_eq!(SILENT_TAKE_PEAK_FLOOR, 0.01);
+        assert!(take_is_silent(&vec![0i16; 48_000]));
+        let mut dithered = vec![0i16; 48_000];
+        for (i, s) in dithered.iter_mut().enumerate() {
+            if i % 6 == 0 {
+                *s = 1;
+            } else if i % 11 == 0 {
+                *s = -1;
+            }
+        }
+        assert!(take_is_silent(&dithered));
+        let speech: Vec<i16> = (0..48_000)
+            .map(|i| ((i as f64 * 0.05).sin() * 0.1 * 32768.0) as i16)
+            .collect();
+        assert!(!take_is_silent(&speech));
+    }
+
+    #[test]
+    fn instrument_rejects_silent_take() {
+        let dir = test_dir("silent_take");
+        build_session(&dir, None);
+        write_silent_wav(&dir.join("utt005.wav"), 16_000, 3.0);
+        refresh_hashes(&dir);
+        let e = validate_session(&dir).expect_err("silent take rejects");
+        assert!(e.starts_with("REJECT:"), "violation: {e}");
+        assert!(e.contains("utt005.wav"), "violation: {e}");
+        assert!(e.contains("speech floor"), "violation: {e}");
+    }
+
+    #[test]
+    fn general_rejects_silent_take() {
+        let dir = test_dir("general_silent");
+        let labels = ["the birch canoe", "glue the sheet", "dark blue background"];
+        build_general_session(&dir, &labels, 3.0);
+        write_silent_wav(&dir.join("utt001.wav"), 16_000, 3.0);
+        refresh_hashes(&dir);
+        let e = validate_session_general(&dir, 3, 3.0).expect_err("silent take rejects");
+        assert!(e.starts_with("REJECT:"), "violation: {e}");
+        assert!(e.contains("utt001.wav"), "violation: {e}");
+        assert!(e.contains("speech floor"), "violation: {e}");
     }
 }

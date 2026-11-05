@@ -159,4 +159,117 @@ mod tests {
         );
         std::fs::remove_dir_all(&dir).ok();
     }
+
+    fn write_tone_wav(path: &Path, freq: f64, secs: f64) {
+        let spec = hound::WavSpec {
+            channels: 1,
+            sample_rate: 16_000,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let mut w = hound::WavWriter::create(path, spec).unwrap();
+        let n = (secs * 16_000.0) as usize;
+        for i in 0..n {
+            let t = i as f64 / 16_000.0;
+            let s = (8000.0 * (2.0 * std::f64::consts::PI * freq * t).sin()) as i16;
+            w.write_sample(s).unwrap();
+        }
+        w.finalize().unwrap();
+    }
+
+    fn write_muted_wav(path: &Path, secs: f64) {
+        let spec = hound::WavSpec {
+            channels: 1,
+            sample_rate: 16_000,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let mut w = hound::WavWriter::create(path, spec).unwrap();
+        let n = (secs * 16_000.0) as usize;
+        for i in 0..n {
+            let s = if i % 6 == 0 {
+                1i16
+            } else if i % 11 == 0 {
+                -1i16
+            } else {
+                0i16
+            };
+            w.write_sample(s).unwrap();
+        }
+        w.finalize().unwrap();
+    }
+
+    /// Build a synthetic 2-label general session; `silent_second` mutes take 2.
+    /// Same layout `record-session --validate --labels 2 --dur 3.0` checks.
+    fn build_two_label_session(dir: &Path, silent_second: bool) {
+        if dir.exists() {
+            std::fs::remove_dir_all(dir).unwrap();
+        }
+        std::fs::create_dir_all(dir).unwrap();
+        let prompts = vec!["alpha phrase".to_string(), "beta phrase".to_string()];
+        write_tone_wav(&dir.join("utt000.wav"), 440.0, 3.0);
+        if silent_second {
+            write_muted_wav(&dir.join("utt001.wav"), 3.0);
+        } else {
+            write_tone_wav(&dir.join("utt001.wav"), 550.0, 3.0);
+        }
+        let order_txt = build_order_txt(9, &prompts);
+        std::fs::write(dir.join("order.txt"), &order_txt).unwrap();
+        let rows = vec![
+            ("utt000.wav".to_string(), prompts[0].clone(), 16000, 48000),
+            ("utt001.wav".to_string(), prompts[1].clone(), 16000, 48000),
+        ];
+        let manifest = build_manifest_tsv(&rows);
+        std::fs::write(dir.join("manifest.tsv"), &manifest).unwrap();
+        let meta = build_session_meta(
+            "fixture",
+            16000,
+            "2026-10-29T00:00:00Z",
+            9,
+            &fse::instrument::sha256_hex(order_txt.as_bytes()),
+            &fse::instrument::sha256_hex(manifest.as_bytes()),
+            "fixture",
+            2,
+        );
+        std::fs::write(dir.join("session.meta"), &meta).unwrap();
+        write_sums_file(
+            dir,
+            &[
+                "utt000.wav".to_string(),
+                "utt001.wav".to_string(),
+                "manifest.tsv".to_string(),
+                "order.txt".to_string(),
+            ],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn validate_rejects_session_with_silent_take() {
+        let dir = std::env::temp_dir().join("seal_validate_silent_vyz");
+        build_two_label_session(&dir, true);
+        let e = fse::instrument::validate_session_general(&dir, 2, 3.0)
+            .expect_err("silent take must REJECT");
+        assert!(e.starts_with("REJECT:"), "violation: {e}");
+        assert!(e.contains("utt001.wav"), "violation: {e}");
+        assert!(e.contains("speech floor"), "violation: {e}");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn validate_accepts_session_without_silent_take() {
+        let dir = std::env::temp_dir().join("seal_validate_audible_vyz");
+        build_two_label_session(&dir, false);
+        let s = fse::instrument::validate_session_general(&dir, 2, 3.0)
+            .expect("audible session accepts");
+        assert_eq!(s.labels, 2);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn record_gate_shares_validator_floor() {
+        assert_eq!(fse::instrument::SILENT_TAKE_PEAK_FLOOR, 0.01);
+        assert!(fse::instrument::take_is_silent(&vec![0i16; 100]));
+        assert!(!fse::instrument::take_is_silent(&vec![8000i16; 100]));
+    }
 }
