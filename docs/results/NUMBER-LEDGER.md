@@ -19,6 +19,7 @@ lives in `docs/results/` so the numbers are citable from the repo.
 | 6 | sub20 tune best (lm8/wip0) WER | 0.8332 | landed |
 | 7 | Headline WER (final AM, full dev) | TBD | pending |
 | 8 | LIVE RTF (live mic) | TBD | pending |
+| 9 | theta-zero A6 rows decision | STAND | landed |
 
 ## 1. Fallback 9-cell best WER 0.7233
 
@@ -179,3 +180,44 @@ lives in `docs/results/` so the numbers are citable from the repo.
   `train.log.attempt2-badroot`, `train.log.attempt3-fresh`,
   `subset.tsv.pre-crash` in `data/models/r3v2-full93/`.
 - `stage_per.log` lines 1-4 are watcher start/relaunch markers, not scores.
+
+## 9. theta-zero A6 rows: STAND (decision)
+
+- Decision: STAND — Run 1 INSURANCE (theta_live 0.0, 1600/1600 cells) and
+  Run 2 th50 (theta_live 0.0, 1600/1600 cells) in
+  `docs/results/A6-FABRIC-EXPERIMENT.md` remain citable. No A6 annotation.
+  Bead `hearsay-four-b2t7--decide-theta-zero-standing`.
+- Post-fix-p50 coincidence question (falsification gate): NOT a coincidence.
+  `scripts/a6/out/recal_postfix.json` (main checkout) `liveness_ws10`
+  [p5,p25,p50,p75,p95] =
+  [-10.65227, -4.29674, 0.0, 750.67131, 1805.48889]; p50 is exactly 0.0 at
+  all w_sequence (4/6/8/10) while p25 scales linearly with w
+  (-1.71870 x 2.5 = -4.29674) and p5/p75/p95 all moved from pre-fix
+  ([0,0,0,751.89861,1808.32765] acoustic-only). Recalibration provably ran
+  post-fix (p25 moved 0 -> -4.29); p50 stability is structural zero-mass
+  (acoustic_llr quantiles unchanged [0,0,0,751.90,1808.33], 50%+ at
+  exactly 0.0; nearest-rank percentile returns the actual data value,
+  NaN on empty — `src/experiment/src/calibrate.rs`). Sequence channel
+  confirmed active post-fix (`sequence_llr` [-1.45,-0.81,-0.37,-0.004,
+  +1.63] vs pre-fix all 0.0; case fix in `src/hearsay/src/lib.rs`
+  lowercases before LM lookup).
+- theta_live=0 semantics (not keep-all-alive): `src/fabric/src/decision.rs`
+  live iff `L(h) >= theta_live`; theta 0 is the post-fix median split
+  (~50% of 3,285,300 DEV tokens below). Empirical activity at theta 0:
+  J-horizon (j100) arm B pruned 218,693; gates SENSITIVITY theta 0 vs
+  751.9 differ 200/200; Run 1/2 th50 arm C peak dormant 17-64 with late
+  rescues. Keep-all-alive would be theta -inf (cf. SANITY `-1e15`).
+- Corroboration off the zero-mass point: Run 2 th25 (theta -4.2967)
+  replicates B-identical-C (799/800 per-utt b_hyp==c_hyp; sole diff
+  th25-500 one insertion, dWER -0.0002 CI [-0.0007,0.0000]);
+  rev_winner=0 at all 24 C cells (both thetas) — no revival ever entered
+  a committed tiling. Headline verdict robust to moving off theta 0.
+- Frozen-config note: frozen winner (`scripts/a6/frozen_real.json` cand 7,
+  theta 751.89861, dev 16624/18316) is pre-fix tuned; the p25/p50/p75
+  sweep thetas are the deliberate owner-ordered post-fix quantile design
+  (`scripts/a6/headline3.sh`), documented, not a frozen violation.
+- Size: 2 rows x 1600 cells, 0 FAIL; Run 1 and th50 WER/S/D/I identical
+  cell by cell (e.g. budget-50 B 0.9455 S1239/D3043/I1).
+- CI status: underlying rows carry degenerate [0,0] paired-bootstrap CIs
+  (10k resamples, pinned seed) + th25-500 [-0.0007,0.0000]; decision
+  itself carries no CI.
