@@ -138,6 +138,9 @@ pub fn build_entries(
                 match lexicon.sources.get(upper) {
                     Some(lexicon::LexiconSource::Cmudict) => tier1_words += 1,
                     Some(lexicon::LexiconSource::LibrispeechG2p) => tier2_words += 1,
+                    // The decoder loads two tiers only; tier-3 never reaches
+                    // this table, so the arm only keeps the match exhaustive.
+                    Some(lexicon::LexiconSource::OwnerBookG2p) => {}
                     None => {}
                 }
                 for pron in prons {

@@ -20,7 +20,7 @@ use std::time::Instant;
 use corpus::audio::{decode_file, to_mono};
 use fse::{FEATURE_DIM, extract_features_cmvn, window_audio};
 use hmm::{HmmSet, TrainConfig, UttData};
-use lexicon::{TIER1_IDENTITY, TieredLexicon, load_tiered};
+use lexicon::{TIER1_IDENTITY, TieredLexicon, load_tiered, load_tiered_three};
 
 type Lexicon = HashMap<String, Vec<Vec<String>>>;
 
@@ -45,6 +45,19 @@ fn librispeech_lexicon_path() -> PathBuf {
     }
     let lane = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     lane.join("data/lexicon/librispeech-lexicon.txt")
+}
+
+/// Tier-3 rule-engine pronunciation file (personal data, outside the repo).
+/// Override with `OWNER_BOOK_G2P`; default is the owner's personal dir.
+fn owner_book_g2p_path() -> PathBuf {
+    if let Ok(path) = std::env::var("OWNER_BOOK_G2P") {
+        let cand = PathBuf::from(path);
+        if cand.is_file() {
+            return cand;
+        }
+    }
+    let home = std::env::var("HOME").unwrap_or_else(|_| "~".to_string());
+    PathBuf::from(home).join("hearsay-personal/owner-book-g2p.txt")
 }
 
 fn load_lexicon() -> TieredLexicon {
@@ -134,15 +147,21 @@ fn phones_for_train(lex: &Lexicon, text: &str) -> Option<Vec<String>> {
 /// the utterance census, and attributes each hit to its tier via the table
 /// provenance. Prints `wordscan_*` COUNTS ONLY — never the words themselves —
 /// so it is safe to run over personal text (e.g. the owner-book stripped
-/// text) and paste the output into beads or notes.
-fn wordlist_scan(text_path: &str, tier1_path: &str, tier2_path: &str) {
-    let tiered = load_tiered(tier1_path, tier2_path).expect("read tiered lexicon");
+/// text) and paste the output into beads or notes. `book_path` adds the
+/// optional tier-3 rule-engine file; `None` keeps the original two-tier
+/// census byte-identical (no `wordscan_tier3_*` lines).
+fn wordlist_scan(text_path: &str, tier1_path: &str, tier2_path: &str, book_path: Option<&Path>) {
+    let tiered = match book_path {
+        Some(path) => load_tiered_three(tier1_path, tier2_path, path).expect("read tiered lexicon"),
+        None => load_tiered(tier1_path, tier2_path).expect("read tiered lexicon"),
+    };
     let text = std::fs::read_to_string(text_path).expect("read text");
     let sents = lm::normalize_text(&text);
     let mut tok_total = 0usize;
     let mut num_tokens = 0usize;
     let mut tier1_tok = 0usize;
     let mut tier2_tok = 0usize;
+    let mut tier3_tok = 0usize;
     let mut miss_tok = 0usize;
     let mut tier_of_type: HashMap<String, u8> = HashMap::new();
     let mut types: HashSet<String> = HashSet::new();
@@ -166,6 +185,10 @@ fn wordlist_scan(text_path: &str, tier1_path: &str, tier2_path: &str) {
                     tier2_tok += 1;
                     tier_of_type.entry(up).or_insert(2);
                 }
+                Some(lexicon::LexiconSource::OwnerBookG2p) => {
+                    tier3_tok += 1;
+                    tier_of_type.entry(up).or_insert(3);
+                }
                 None => {
                     miss_tok += 1;
                     tier_of_type.entry(up).or_insert(0);
@@ -176,6 +199,7 @@ fn wordlist_scan(text_path: &str, tier1_path: &str, tier2_path: &str) {
     // Per-type tier is first-seen attribution; token counts are exact.
     let tier1_types = tier_of_type.values().filter(|v| **v == 1).count();
     let tier2_types = tier_of_type.values().filter(|v| **v == 2).count();
+    let tier3_types = tier_of_type.values().filter(|v| **v == 3).count();
     let miss_types = tier_of_type.values().filter(|v| **v == 0).count();
     println!("wordscan_sentences={}", sents.len());
     println!("wordscan_tokens_total={tok_total}");
@@ -186,6 +210,10 @@ fn wordlist_scan(text_path: &str, tier1_path: &str, tier2_path: &str) {
     println!("wordscan_tier1_tokens={tier1_tok}");
     println!("wordscan_tier2_types={tier2_types}");
     println!("wordscan_tier2_tokens={tier2_tok}");
+    if book_path.is_some() {
+        println!("wordscan_tier3_types={tier3_types}");
+        println!("wordscan_tier3_tokens={tier3_tok}");
+    }
     println!("wordscan_missing_types={miss_types}");
     println!("wordscan_missing_tokens={miss_tok}");
 }
@@ -200,13 +228,33 @@ struct Row {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     // ---- wordlist-scan mode: count-only free-text census, no audio ----
+    // Single-arg form resolves all three tiers from their default paths
+    // (tier-3 only when its personal-data file exists); the three-arg form
+    // keeps the original two-tier census with explicit tier paths.
+    if args.len() == 3 && args[1] == "wordlist-scan" {
+        let tier1 = lexicon_table_path();
+        let tier2 = librispeech_lexicon_path();
+        let book = owner_book_g2p_path();
+        let book_opt = book.is_file().then_some(book);
+        match &book_opt {
+            Some(path) => eprintln!("tier3: {}", path.display()),
+            None => eprintln!("tier3: none (personal file not found)"),
+        }
+        wordlist_scan(
+            &args[2],
+            tier1.to_str().expect("tier1 path utf-8"),
+            tier2.to_str().expect("tier2 path utf-8"),
+            book_opt.as_deref(),
+        );
+        return;
+    }
     if args.len() == 5 && args[1] == "wordlist-scan" {
-        wordlist_scan(&args[2], &args[3], &args[4]);
+        wordlist_scan(&args[2], &args[3], &args[4], None);
         return;
     }
     assert!(
         args.len() == 5 || (args.len() == 6 && args[5] == "lexscan"),
-        "usage: r2_perf <manifest.tsv> <wav_root> <max_hours> <bw_repeats> [lexscan] | r2_perf wordlist-scan <text.txt> <tier1.tsv> <tier2.txt>"
+        "usage: r2_perf <manifest.tsv> <wav_root> <max_hours> <bw_repeats> [lexscan] | r2_perf wordlist-scan <text.txt> [<tier1.tsv> <tier2.txt>]"
     );
     let manifest_path = PathBuf::from(&args[1]);
     let wav_root = PathBuf::from(&args[2]);
