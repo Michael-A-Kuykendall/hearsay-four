@@ -61,7 +61,39 @@ impl PronTrie {
         trie
     }
 
-    /// Child of `node` reached by `phone`, if any.
+    /// Build a trie over word-internal triphone unit keys.
+    ///
+    /// Each entry's phone string is expanded position-wise with
+    /// `hmm::triphone::unit_keys_for_word`: full `L-C+R` units
+    /// word-internally, biphone units (`C+R` / `L-C`) at the word edges, and
+    /// the bare center phone for single-phone words. Node labels are the
+    /// unit keys (the decoder's acoustic lookup resolves them against the
+    /// tied model, falling back to the center monophone for unseen units);
+    /// word identity, homophone sharing, and LM lookahead still operate on
+    /// words, unchanged from [`PronTrie::build`]. Cross-word contexts are
+    /// excluded: every word starts with no left context and ends with no
+    /// right context. Entries with an empty phone string are skipped.
+    ///
+    /// Note: words sharing a center-phone prefix but diverging later do NOT
+    /// share prefix nodes (the edge units carry the differing right
+    /// context), so a triphone trie is wider than its monophone twin.
+    pub fn build_triphone(entries: &[PronEntry]) -> Self {
+        let expanded: Vec<PronEntry> = entries
+            .iter()
+            .map(|entry| PronEntry {
+                word: entry.word.clone(),
+                phones: hmm::triphone::unit_keys_for_word(&entry.phones),
+            })
+            .collect();
+        Self::build(&expanded)
+    }
+
+    /// Child of `node` reached by the exact arc label, if any.
+    ///
+    /// The label is a monophone on [`PronTrie::build`] tries and a unit key
+    /// on [`PronTrie::build_triphone`] tries; matching is exact in both
+    /// cases (no center backoff — use `hmm::triphone::center_of_unit` when
+    /// a center view is needed).
     pub fn child(&self, node: usize, phone: &str) -> Option<usize> {
         self.find_child(node, phone)
     }
@@ -188,5 +220,55 @@ mod tests {
         assert!(la.iter().all(|&v| v == -99.0));
         let empty = PronTrie::build(&[entry("W", &[])]);
         assert_eq!(empty.build_lookahead(&scores, -99.0), vec![-99.0]);
+    }
+
+    #[test]
+    fn triphone_build_expands_word_internal_units() {
+        // 3-phone word: biphone edges + full triphone inside.
+        let trie = PronTrie::build_triphone(&[entry("W", &["AH", "B", "D"])]);
+        // root + AH+B + AH-B+D + B-D
+        assert_eq!(trie.nodes.len(), 4);
+        let n1 = trie.child(0, "AH+B").expect("first unit");
+        let n2 = trie.child(n1, "AH-B+D").expect("middle unit");
+        let n3 = trie.child(n2, "B-D").expect("last unit");
+        assert_eq!(trie.nodes[n3].words, vec!["W".to_string()]);
+        // Centers recover the monophone string.
+        let centers: Vec<&str> = [n1, n2, n3]
+            .iter()
+            .map(|&n| hmm::triphone::center_of_unit(trie.nodes[n].phone.as_deref().unwrap()))
+            .collect();
+        assert_eq!(centers, vec!["AH", "B", "D"]);
+    }
+
+    #[test]
+    fn triphone_build_splits_shared_prefix_by_right_context() {
+        // Same center prefix AH, diverging tails: the edge units differ, so
+        // the prefix is NOT shared (word-internal right context).
+        let trie =
+            PronTrie::build_triphone(&[entry("AB", &["AH", "B"]), entry("AD", &["AH", "D"])]);
+        // root + AH+B + AH-B + AH+D + AH-D
+        assert_eq!(trie.nodes.len(), 5);
+        assert!(trie.child(0, "AH").is_none(), "no monophone arc remains");
+        let ab1 = trie.child(0, "AH+B").expect("AB first unit");
+        let ab2 = trie.child(ab1, "AH-B").expect("AB second unit");
+        assert_eq!(trie.nodes[ab2].words, vec!["AB".to_string()]);
+        let ad1 = trie.child(0, "AH+D").expect("AD first unit");
+        let ad2 = trie.child(ad1, "AH-D").expect("AD second unit");
+        assert_eq!(trie.nodes[ad2].words, vec!["AD".to_string()]);
+        assert_eq!(trie.word_count(), 2);
+    }
+
+    #[test]
+    fn triphone_build_single_phone_word_uses_monophone_key() {
+        let trie = PronTrie::build_triphone(&[entry("S", &["AH"])]);
+        assert_eq!(trie.nodes.len(), 2);
+        let n = trie.child(0, "AH").expect("monophone unit");
+        assert_eq!(trie.nodes[n].words, vec!["S".to_string()]);
+    }
+
+    #[test]
+    fn triphone_build_skips_empty_pronunciation() {
+        let trie = PronTrie::build_triphone(&[entry("W", &[])]);
+        assert!(trie.is_empty());
     }
 }
