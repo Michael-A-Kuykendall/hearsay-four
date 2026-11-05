@@ -26,11 +26,13 @@ fn workspace_dir() -> PathBuf {
     crate_dir().join("../..")
 }
 
-/// Deterministic stub scorer: fixed boundary LLR, per-pair table, default.
+/// Deterministic stub scorer: fixed boundary LLR, per-pair table, default,
+/// plus an optional uniform LEXICAL hook (contract v1.5, section 3).
 struct MapScorer {
     boundary: f64,
     pairs: HashMap<(String, String), f64>,
     default: f64,
+    lex: Option<f64>,
 }
 
 impl SequenceScorer for MapScorer {
@@ -44,6 +46,10 @@ impl SequenceScorer for MapScorer {
                 .unwrap_or(self.default),
         }
     }
+
+    fn lexical_llr(&self, _word: &str) -> Option<f64> {
+        self.lex
+    }
 }
 
 fn map_scorer(boundary: f64, pairs: &[(&str, &str, f64)], default: f64) -> MapScorer {
@@ -54,6 +60,7 @@ fn map_scorer(boundary: f64, pairs: &[(&str, &str, f64)], default: f64) -> MapSc
             .map(|(a, b, v)| ((a.to_string(), b.to_string()), *v))
             .collect(),
         default,
+        lex: None,
     }
 }
 
@@ -744,4 +751,198 @@ fn sequence_llr_lowercases_lattice_words() {
     let lower = scorer.sequence_llr(Some("a"), "b");
     assert_ne!(upper, 0.0, "observed uppercase pair must score, not OOV-floor");
     assert_eq!(upper, lower, "scorer must be case-insensitive");
+}
+
+#[test]
+fn lexical_llr_case_folds_and_matches_interpolated_unigram() {
+    // Contract v1.5, section 3: LEXICAL evidence is ln P_unigram over the
+    // same interpolated unigram null the SEQUENCE llr divides by; the
+    // scorer lowercases internally (LM vocab lowercase, lattices upper).
+    let general = KnTrigram::train(&[
+        vec!["hello".to_string(), "world".to_string()],
+        vec!["hello".to_string()],
+    ]);
+    let personal = KnTrigram::train(&[vec!["hello".to_string(), "world".to_string()]]);
+    let lm = InterpolatedLm::new(general, personal, 0.25).expect("weight in range");
+    let s = InterpolatedScorer::new(&lm);
+    let mix = |g: f64, p: f64| (0.75 * g + 0.25 * p).clamp(0.0, 1.0).max(1e-12);
+    let u = mix(
+        lm.general().unigram_prob("world"),
+        lm.personal().unigram_prob("world"),
+    );
+    assert_ne!(s.lexical_llr("world"), 0.0, "observed word has mass");
+    assert_eq!(
+        s.lexical_llr("WORLD"),
+        s.lexical_llr("world"),
+        "lexical must be case-insensitive"
+    );
+    assert!(approx(s.lexical_llr("WORLD"), u.ln()));
+    // The trait hook (what bridge intake calls) agrees with the exact value.
+    let hook = SequenceScorer::lexical_llr(&s, "WORLD").expect("hook supplies");
+    assert!(approx(hook, u.ln()));
+    // Per-word cancellation: lex + seq = ln P_cond, i.e. the unigram
+    // terms vanish rather than merely shrinking (pair and boundary).
+    let c = mix(
+        lm.general().bigram_prob("hello", "world"),
+        lm.personal().bigram_prob("hello", "world"),
+    );
+    assert!(approx(
+        s.lexical_llr("world") + s.sequence_llr(Some("hello"), "world"),
+        c.ln()
+    ));
+    let c0 = mix(
+        lm.general().bigram_prob("<s>", "hello"),
+        lm.personal().bigram_prob("<s>", "hello"),
+    );
+    assert!(approx(
+        s.lexical_llr("HELLO") + s.sequence_llr(None, "HELLO"),
+        c0.ln()
+    ));
+    // Scorers that cannot supply unigrams report None; the bridge then
+    // falls back to the lattice-carried value.
+    let stub = map_scorer(0.0, &[], 0.0);
+    assert_eq!(stub.lexical_llr("world"), None);
+}
+
+/// `lat_text` variant that also emits per-token `lexical_llr` (legacy
+/// lattice-carried LEXICAL, for the SIL-skip fallback test).
+fn lat_text_lex(
+    utterance: &str,
+    toks: &[(u64, &str, u32, u32, f64, Option<f64>)],
+    arcs: &[(u64, u64)],
+) -> String {
+    let mut s = format!(
+        "{{\"format\":\"hearsay-word-lattice\",\"version_major\":1,\"version_minor\":0,\
+         \"utterance\":\"{utterance}\",\"frame_shift_ms\":10.0,\"producer\":\"p0tb-test\"}}\n"
+    );
+    for (id, w, st, en, a, lex) in toks {
+        let lex_json = match lex {
+            Some(v) => format!(",\"lexical_llr\":{v}"),
+            None => String::new(),
+        };
+        s.push_str(&format!(
+            "{{\"t\":{{\"id\":{id},\"word\":\"{w}\",\"start\":{st},\"end\":{en},\
+             \"source\":\"t\",\"acoustic_llr\":{a}{lex_json}}}}}\n"
+        ));
+    }
+    for (f, t) in arcs {
+        s.push_str(&format!("{{\"a\":{{\"from\":{f},\"to\":{t}}}}}\n"));
+    }
+    s
+}
+
+#[test]
+fn sil_takes_no_lexical_even_when_lattice_carries_it() {
+    // Contract v1.5, section 3: SIL tokens take no LEXICAL evidence — not
+    // even the legacy lattice-carried value. WORD tokens keep the lattice
+    // fallback when the scorer cannot supply unigrams (stub lex None).
+    // S = acoustic 1.0 + 2.0 + boundary 0.0 + pair 0.0 + word lex 7.0;
+    // the SIL-carried 50.0 must not appear (10.0, not 60.0).
+    let lat = read(&lat_text_lex(
+        "sil-skip",
+        &[
+            (1, "SIL", 0, 30, 1.0, Some(50.0)),
+            (2, "word", 30, 60, 2.0, Some(7.0)),
+        ],
+        &[(1, 2)],
+    ));
+    let scorer = map_scorer(0.0, &[("SIL", "word", 0.0)], 0.0);
+    let out = decode_lattice(&lat, &scorer, DecisionParams::default()).expect("decodes");
+    assert_eq!(
+        out.transcript,
+        vec!["SIL".to_string(), "word".to_string()]
+    );
+    assert_eq!(out.commits.len(), 1);
+    assert!(
+        approx(out.commits[0].winner_score, 10.0),
+        "S={} want 10.0 (SIL lex excluded)",
+        out.commits[0].winner_score
+    );
+}
+
+#[test]
+fn unigram_cancel_exact_on_two_word_lattice() {
+    // Contract v1.5, section 3 (load-bearing): with w_sequence = 6 the
+    // LEXICAL ln P_unigram terms cancel the -ln P_unigram denominators
+    // inside the SEQUENCE llrs, so S(winner) = acoustic sum + 6 * sum ln
+    // P_bigram over (boundary, pair) — exactly, up to float rounding. The
+    // expected conditionals come from the LM's public rows, independent of
+    // the scorer under test. Lattice words are UPPERCASE (decoder vocab);
+    // the scorer folds case (no case-bug reintroduction).
+    let general = KnTrigram::train(&[
+        vec!["the".to_string(), "cat".to_string(), "sat".to_string()],
+        vec!["the".to_string(), "dog".to_string(), "ran".to_string()],
+        vec!["a".to_string(), "cat".to_string(), "ran".to_string()],
+    ]);
+    let personal = KnTrigram::train(&[vec!["the".to_string(), "cat".to_string()]]);
+    let lm = InterpolatedLm::new(general, personal, 0.25).expect("weight in range");
+    let scorer = InterpolatedScorer::new(&lm);
+    let lat = read(&lat_text(
+        "cancel",
+        &[(1, "THE", 0, 30, 3.0), (2, "CAT", 30, 60, 4.0)],
+        &[(1, 2)],
+    ));
+    let mut params = DecisionParams::default();
+    params.w_sequence = 6.0;
+    // Isolate the tiling score from the liveness gate: v1.5 LEXICAL terms
+    // are large-negative (ln P_unigram), which rescales L(h) below
+    // theta_live = 0 for these small acoustics; the cancel property is
+    // about S(T), so admit every token to the tiling pool here. The SIL
+    // test above and the dev5 pins cover the production theta = 0 gate.
+    params.theta_live = -1e9;
+    let out = decode_lattice(&lat, &scorer, params).expect("decodes");
+    assert_eq!(
+        out.transcript,
+        vec!["THE".to_string(), "CAT".to_string()]
+    );
+    assert_eq!(out.commits.len(), 1);
+    let mix = |g: f64, p: f64| (0.75 * g + 0.25 * p).clamp(0.0, 1.0).max(1e-12);
+    let b1 = mix(
+        lm.general().bigram_prob("<s>", "the"),
+        lm.personal().bigram_prob("<s>", "the"),
+    );
+    let b2 = mix(
+        lm.general().bigram_prob("the", "cat"),
+        lm.personal().bigram_prob("the", "cat"),
+    );
+    let expected = 3.0 + 4.0 + 6.0 * (b1.ln() + b2.ln());
+    assert!(
+        approx(out.commits[0].winner_score, expected),
+        "S={} expected={expected}",
+        out.commits[0].winner_score
+    );
+    // Non-vacuity: the unigrams must differ from 1.0, else the v1.4
+    // (no-LEXICAL) score would coincide with the cancelled score and this
+    // test could not fail pre-change.
+    let u1 = mix(
+        lm.general().unigram_prob("the"),
+        lm.personal().unigram_prob("the"),
+    );
+    let u2 = mix(
+        lm.general().unigram_prob("cat"),
+        lm.personal().unigram_prob("cat"),
+    );
+    assert!(u1 < 1.0 && u2 < 1.0, "test needs nontrivial unigrams");
+}
+
+#[test]
+fn ufe4_scratch_print_dev5() {
+    if dev5_paths().is_none() {
+        return;
+    }
+    let pop = gate_population();
+    let lm = resolve_lm();
+    let outs = decode_all(&pop, &lm);
+    let total_words: usize = outs.iter().map(|o| o.transcript.len()).sum();
+    let total_gaps: usize = outs.iter().map(|o| o.gaps.len()).sum();
+    println!("WORDS={total_words} GAPS={total_gaps}");
+    for o in &outs {
+        println!(
+            "UTT={} N={} GAPS={:?} TX={}",
+            o.utterance,
+            o.transcript.len(),
+            o.gaps,
+            o.transcript.join(" ")
+        );
+    }
 }
