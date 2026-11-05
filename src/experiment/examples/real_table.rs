@@ -152,6 +152,8 @@ fn main() {
     let lm_fn = |prev: &str, word: &str| {
         scorer.sequence_llr(if prev == "<s>" { None } else { Some(prev) }, word)
     };
+    // v1.5 LEXICAL hook: same scorer, same unigram the bridge attaches.
+    let lex_fn = |word: &str| Some(scorer.lexical_llr(word));
 
     let a_tot = score_corpus(&refs, &a_hyps);
     let (a_errs, denoms) = per_utterance_errors(&refs, &a_hyps);
@@ -195,8 +197,10 @@ fn main() {
             .zip(refs.iter())
             .zip(a_errs.iter())
         {
-            let bo = run_fabric_arm(lat, Arm::B, &params, &lm_fn).expect("arm B run");
-            let co = run_fabric_arm(lat, Arm::C, &params, &lm_fn).expect("arm C run");
+            let bo =
+                run_fabric_arm(lat, Arm::B, &params, &lm_fn, Some(&lex_fn)).expect("arm B run");
+            let co =
+                run_fabric_arm(lat, Arm::C, &params, &lm_fn, Some(&lex_fn)).expect("arm C run");
             bl = bl.max(bo.peak_live);
             bd = bd.max(bo.peak_dormant);
             bt = bt.max(bo.peak_total);

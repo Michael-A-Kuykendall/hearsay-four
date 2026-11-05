@@ -95,9 +95,9 @@ pub fn run_budget_table(fxs: &[Fixture]) -> BudgetTable {
         let (mut be, mut bs, mut ce, mut cs) = (0.0, 0.0, 0.0, 0.0);
         let mut rescues = 0usize;
         for f in fxs {
-            let bo = run_fabric_arm(&f.lattice, Arm::B, &params, &fixtures::fixture_bigram)
+            let bo = run_fabric_arm(&f.lattice, Arm::B, &params, &fixtures::fixture_bigram, None)
                 .expect("arm B run");
-            let co = run_fabric_arm(&f.lattice, Arm::C, &params, &fixtures::fixture_bigram)
+            let co = run_fabric_arm(&f.lattice, Arm::C, &params, &fixtures::fixture_bigram, None)
                 .expect("arm C run");
             bl = bl.max(bo.peak_live);
             bd = bd.max(bo.peak_dormant);

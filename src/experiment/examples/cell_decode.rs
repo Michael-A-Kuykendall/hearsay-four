@@ -56,6 +56,8 @@ fn main() {
     let lm = lm::persist::load_interpolated(&lm_path).expect("load lm");
     let scorer = InterpolatedScorer::new(&lm);
     let lm_fn = |a: &str, b: &str| scorer.sequence_llr(if a == "<s>" { None } else { Some(a) }, b);
+    // v1.5 LEXICAL hook: same scorer, same unigram the bridge attaches.
+    let lex_fn = |w: &str| Some(scorer.lexical_llr(w));
     let text = std::fs::read_to_string(&shard).expect("read shard");
     // Last-utterance lattice cache: shard lines group tasks by utt, so
     // consecutive lines usually share one lattice parse.
@@ -102,7 +104,7 @@ fn main() {
                 lat
             }
         };
-        let o = match run_fabric_arm(&lat, arm, &params, &lm_fn) {
+        let o = match run_fabric_arm(&lat, arm, &params, &lm_fn, Some(&lex_fn)) {
             Ok(o) => o,
             Err(e) => {
                 // Loud but non-fatal: leave a FAIL marker (retried on

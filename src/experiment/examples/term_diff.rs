@@ -16,8 +16,7 @@ fn take_value(args: &[String], i: &mut usize, name: &str) -> String {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    let (mut utt, mut lat_dir, mut lm_path) =
-        (String::new(), String::new(), String::new());
+    let (mut utt, mut lat_dir, mut lm_path) = (String::new(), String::new(), String::new());
     let mut i = 0;
     while i + 1 < args.len() {
         i += 1;
@@ -63,8 +62,7 @@ fn main() {
         }
     }
     let best_ids = a2::oracle::acoustic_best_path_ids(&lat);
-    let by_id: HashMap<u64, &lattice::Token> =
-        lat.tokens.iter().map(|t| (t.id, t)).collect();
+    let by_id: HashMap<u64, &lattice::Token> = lat.tokens.iter().map(|t| (t.id, t)).collect();
     let incoming: HashMap<u64, Vec<u64>> = {
         let mut m: HashMap<u64, Vec<u64>> = HashMap::new();
         for a in &lat.arcs {
@@ -84,11 +82,8 @@ fn main() {
             if let Some(preds) = incoming.get(id) {
                 for p in preds {
                     if let Some(pt) = by_id.get(p) {
-                        let v = hearsay::SequenceScorer::sequence_llr(
-                            &scorer,
-                            Some(&pt.word),
-                            &t.word,
-                        );
+                        let v =
+                            hearsay::SequenceScorer::sequence_llr(&scorer, Some(&pt.word), &t.word);
                         if v > sq {
                             sq = v;
                         }

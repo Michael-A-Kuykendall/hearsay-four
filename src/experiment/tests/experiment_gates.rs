@@ -13,6 +13,7 @@ use experiment::oracle_sweep::{SWEEP_KS, render_sweep_markdown, sweep_corpus, sw
 use experiment::sampling::{TEST200_PER_SPEAKER, TEST200_ROWS, sample_test200_rows};
 use experiment::scoring::{delta_ci, one_best_path, per_utterance_errors, score_corpus};
 use experiment::table::{BUDGETS, render_markdown, run_budget_table};
+use std::cell::{Cell, RefCell};
 
 fn w(xs: &[&str]) -> Vec<String> {
     xs.iter().map(|s| s.to_string()).collect()
@@ -139,8 +140,8 @@ fn one_best_matches_fixture_expectations() {
 fn arm_b_prunes_arm_c_revives_on_identical_inputs() {
     let u1 = u1_revival();
     let params = ArmParams::fixture_defaults(500);
-    let b = run_fabric_arm(&u1.lattice, Arm::B, &params, &fixture_bigram).expect("arm B");
-    let c = run_fabric_arm(&u1.lattice, Arm::C, &params, &fixture_bigram).expect("arm C");
+    let b = run_fabric_arm(&u1.lattice, Arm::B, &params, &fixture_bigram, None).expect("arm B");
+    let c = run_fabric_arm(&u1.lattice, Arm::C, &params, &fixture_bigram, None).expect("arm C");
     assert!(b.committed && c.committed);
     assert_eq!(b.hypothesis, w(&["the", "bat", "sat", "down"]));
     assert_eq!(c.hypothesis, w(&["the", "cat", "sat", "down"]));
@@ -170,8 +171,10 @@ fn arms_agree_on_clean_bulk_absent() {
     for f in [u2_clean(), u3_bulk(), u4_absent()] {
         for &budget in &BUDGETS {
             let params = ArmParams::fixture_defaults(budget);
-            let b = run_fabric_arm(&f.lattice, Arm::B, &params, &fixture_bigram).expect("arm B");
-            let c = run_fabric_arm(&f.lattice, Arm::C, &params, &fixture_bigram).expect("arm C");
+            let b =
+                run_fabric_arm(&f.lattice, Arm::B, &params, &fixture_bigram, None).expect("arm B");
+            let c =
+                run_fabric_arm(&f.lattice, Arm::C, &params, &fixture_bigram, None).expect("arm C");
             assert!(b.committed && c.committed, "{} @ {budget}", f.id);
             assert_eq!(b.hypothesis, c.hypothesis, "{} @ {budget}", f.id);
         }
@@ -181,7 +184,8 @@ fn arms_agree_on_clean_bulk_absent() {
             &u2_clean().lattice,
             Arm::C,
             &ArmParams::fixture_defaults(50),
-            &fixture_bigram
+            &fixture_bigram,
+            None
         )
         .expect("c")
         .hypothesis,
@@ -192,7 +196,8 @@ fn arms_agree_on_clean_bulk_absent() {
             &u4_absent().lattice,
             Arm::C,
             &ArmParams::fixture_defaults(50),
-            &fixture_bigram
+            &fixture_bigram,
+            None
         )
         .expect("c")
         .hypothesis,
@@ -215,6 +220,7 @@ fn empty_lattice_commits_nothing_without_panic() {
             arm,
             &ArmParams::fixture_defaults(50),
             &fixture_bigram,
+            None,
         )
         .expect("empty run");
         assert!(!o.committed);
@@ -297,4 +303,41 @@ fn commit_diagnostics_counts_proven_dormant_on_oracle() {
     let (touch, changed) = commit_diagnostics(events, &[9, 11, 13, 42]);
     assert_eq!(touch, 2, "revived 9 + dormant-evicted 11 on oracle");
     assert_eq!(changed, 1, "only revived 7 made the winner");
+}
+#[test]
+fn closure_lexical_hook_engages_word_tokens() {
+    // v1.5 LEXICAL engagement: a Some hook must fire for WORD tokens during
+    // a real arm run. Falsification: reverting ClosureScorer::lexical_llr to
+    // the default None leaves the counter at 0 and fails this test.
+    let u1 = u1_revival();
+    let params = ArmParams::fixture_defaults(500);
+    let calls = Cell::new(0usize);
+    let seen = RefCell::new(Vec::new());
+    let lex = |w: &str| {
+        calls.set(calls.get() + 1);
+        seen.borrow_mut().push(w.to_string());
+        Some(-(w.len() as f64))
+    };
+    let o = run_fabric_arm(&u1.lattice, Arm::C, &params, &fixture_bigram, Some(&lex))
+        .expect("arm C with lexical hook");
+    assert!(o.committed);
+    assert!(calls.get() > 0, "hook fired for WORD tokens");
+    assert!(
+        seen.borrow().iter().all(|w| w != "SIL"),
+        "hook never fires for SIL: {:?}",
+        seen.borrow()
+    );
+}
+#[test]
+fn closure_lexical_none_hook_preserves_baseline() {
+    // Pre-v1.5 behavior: a None hook runs the arm unchanged (bridge falls
+    // back to lattice-carried values, all None on fixtures). Guards the
+    // run_fabric_arm signature refactor against behavior drift.
+    let u1 = u1_revival();
+    let params = ArmParams::fixture_defaults(500);
+    let b = run_fabric_arm(&u1.lattice, Arm::B, &params, &fixture_bigram, None).expect("arm B");
+    let c = run_fabric_arm(&u1.lattice, Arm::C, &params, &fixture_bigram, None).expect("arm C");
+    assert!(b.committed && c.committed);
+    assert_eq!(b.hypothesis, w(&["the", "bat", "sat", "down"]));
+    assert_eq!(c.hypothesis, w(&["the", "cat", "sat", "down"]));
 }

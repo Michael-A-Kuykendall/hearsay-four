@@ -95,11 +95,19 @@ impl ArmParams {
 /// `None` (utterance-start boundary) maps to the `"<s>"` predecessor.
 struct ClosureScorer<'a> {
     lm: &'a dyn Fn(&str, &str) -> f64,
+    /// Unigram hook behind [`hearsay::SequenceScorer::lexical_llr`] (v1.5
+    /// LEXICAL wiring). `None` keeps the pre-v1.5 behavior: no LEXICAL
+    /// unary from the scorer (bridge falls back to lattice-carried values).
+    lex: Option<&'a dyn Fn(&str) -> Option<f64>>,
 }
 
 impl hearsay::SequenceScorer for ClosureScorer<'_> {
     fn sequence_llr(&self, prev: Option<&str>, word: &str) -> f64 {
         (self.lm)(prev.unwrap_or("<s>"), word)
+    }
+
+    fn lexical_llr(&self, word: &str) -> Option<f64> {
+        self.lex.and_then(|f| f(word))
     }
 }
 
@@ -143,14 +151,17 @@ impl ArmOutcome {
 /// Run arm B or C over one lattice through the bridge.
 ///
 /// `lm(a, b)` supplies `llr_SEQ(a -> b)` over word labels; `("<s>", w)`
-/// supplies utterance-start boundary pairs. The bridge rejects lattices
-/// with dangling arcs (returned as `Err`); an empty lattice commits
-/// nothing without error.
+/// supplies utterance-start boundary pairs. `lex`, when `Some`, supplies
+/// `ln P_unigram(w)` per word for the v1.5 LEXICAL cancel; `None` leaves
+/// the scorer silent (bridge falls back to lattice-carried values). The
+/// bridge rejects lattices with dangling arcs (returned as `Err`); an
+/// empty lattice commits nothing without error.
 pub fn run_fabric_arm(
     lat: &Lattice,
     arm: Arm,
     params: &ArmParams,
     lm: &dyn Fn(&str, &str) -> f64,
+    lex: Option<&dyn Fn(&str) -> Option<f64>>,
 ) -> Result<ArmOutcome, String> {
     assert!(
         arm == Arm::B || arm == Arm::C,
@@ -180,7 +191,7 @@ pub fn run_fabric_arm(
             span_sec,
         });
     }
-    let scorer = ClosureScorer { lm };
+    let scorer = ClosureScorer { lm, lex };
     let t0 = Instant::now();
     let out = hearsay::decode_lattice(lat, &scorer, params.decision_params(arm))?;
     let elapsed_sec = t0.elapsed().as_secs_f64();
@@ -294,6 +305,7 @@ pub fn decode_demo_lattice(lat: &Lattice, budget: usize) -> Result<hearsay::Brid
     let params = ArmParams::fixture_defaults(budget);
     let scorer = ClosureScorer {
         lm: &crate::fixtures::fixture_bigram,
+        lex: None,
     };
     hearsay::decode_lattice(lat, &scorer, params.decision_params(Arm::C))
 }

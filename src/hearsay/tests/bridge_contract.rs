@@ -848,10 +848,7 @@ fn sil_takes_no_lexical_even_when_lattice_carries_it() {
     ));
     let scorer = map_scorer(0.0, &[("SIL", "word", 0.0)], 0.0);
     let out = decode_lattice(&lat, &scorer, DecisionParams::default()).expect("decodes");
-    assert_eq!(
-        out.transcript,
-        vec!["SIL".to_string(), "word".to_string()]
-    );
+    assert_eq!(out.transcript, vec!["SIL".to_string(), "word".to_string()]);
     assert_eq!(out.commits.len(), 1);
     assert!(
         approx(out.commits[0].winner_score, 10.0),
@@ -891,10 +888,7 @@ fn unigram_cancel_exact_on_two_word_lattice() {
     // test above and the dev5 pins cover the production theta = 0 gate.
     params.theta_live = -1e9;
     let out = decode_lattice(&lat, &scorer, params).expect("decodes");
-    assert_eq!(
-        out.transcript,
-        vec!["THE".to_string(), "CAT".to_string()]
-    );
+    assert_eq!(out.transcript, vec!["THE".to_string(), "CAT".to_string()]);
     assert_eq!(out.commits.len(), 1);
     let mix = |g: f64, p: f64| (0.75 * g + 0.25 * p).clamp(0.0, 1.0).max(1e-12);
     let b1 = mix(

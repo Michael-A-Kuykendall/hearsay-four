@@ -61,6 +61,19 @@ impl FeedLm {
             }
         }
     }
+
+    /// Unigram behind the v1.5 LEXICAL hook: `ln P_uni(w)` for real feeds
+    /// (same value the bridge attaches), `None` for synthetic feeds
+    /// (no unigram exists there, so the hook stays silent per word).
+    pub fn lex_score(&self, w: &str) -> Option<f64> {
+        match self {
+            FeedLm::Synthetic => None,
+            FeedLm::Real(lm) => {
+                let scorer = hearsay::InterpolatedScorer::new(lm);
+                Some(scorer.lexical_llr(w))
+            }
+        }
+    }
 }
 
 /// Utterance source for a tuning/sweep run.
@@ -604,8 +617,9 @@ pub fn tune_arm_b(
             let mut q = p.clone();
             q.budget = budget;
             let lm_fn = |a: &str, b: &str| lm.score(a, b);
+            let lex_fn = |w: &str| lm.lex_score(w);
             for u in dev {
-                match run_fabric_arm(&u.lattice, Arm::B, &q, &lm_fn) {
+                match run_fabric_arm(&u.lattice, Arm::B, &q, &lm_fn, Some(&lex_fn)) {
                     Ok(o) => {
                         let s = output::wer(&u.reference, &o.hypothesis);
                         errs += (s.substitutions + s.deletions + s.insertions) as u32;
@@ -734,7 +748,8 @@ pub fn sweep_test(
         let (budget, arm, params) = &meta[t.cell];
         let u = &test[t.utt];
         let lm_fn = |a: &str, b: &str| lm.score(a, b);
-        match run_fabric_arm(&u.lattice, *arm, params, &lm_fn) {
+        let lex_fn = |w: &str| lm.lex_score(w);
+        match run_fabric_arm(&u.lattice, *arm, params, &lm_fn, Some(&lex_fn)) {
             Ok(o) => Ok(CellRun {
                 hyp: o.hypothesis,
                 pruned: o.pruned,
@@ -1235,10 +1250,11 @@ mod tests {
         let lm = FeedLm::Synthetic;
         let params = ArmParams::fixture_defaults(500);
         let lm_fn = |a: &str, b: &str| lm.score(a, b);
+        let lex_fn = |w: &str| lm.lex_score(w);
         let mut gaps = 0;
         for u in utts.iter().take(4) {
-            let b = run_fabric_arm(&u.lattice, Arm::B, &params, &lm_fn).expect("B");
-            let c = run_fabric_arm(&u.lattice, Arm::C, &params, &lm_fn).expect("C");
+            let b = run_fabric_arm(&u.lattice, Arm::B, &params, &lm_fn, Some(&lex_fn)).expect("B");
+            let c = run_fabric_arm(&u.lattice, Arm::C, &params, &lm_fn, Some(&lex_fn)).expect("C");
             let correct = &u.reference[1];
             let b_pruned = b.pruned.iter().any(|e| e == correct);
             let c_commits = c.hypothesis.iter().any(|e| e == correct);
