@@ -320,8 +320,10 @@ Reading: the fabric's commit wins on acoustic (11770.1 vs 11705.9)
 while the 1-best wins the lexical term (-522.0 vs -577.3, commoner
 words); seqmax is near-tied (+38.9 vs +40.9). S_fabric > S_1best, so
 the commit is the argmax -- the DP is consistent; the gate theory was
-not. Lane worktree retained with `sanity.tsv`, `term_diff`,
-`dump_1best` evidence. Post-deadline: thread a lex closure through
+not. Lane evidence preserved on branch `bead/ufe4-unigram-cancel-lexical-postrewrite`
+(commit `c7a8b52`: v1.5 wiring, `term_diff`, `dump_1best`, dev5 scratch).
+Raw `sanity.tsv`/cells were lane-local regenerable outputs (rerun reproduces);
+the verdict and term table above are the record. Post-deadline: thread a lex closure through
 `run_fabric_arm` into `ClosureScorer`, re-SANITY against a corrected
 (decoder-score, not acoustic-score) gate.
 
