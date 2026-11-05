@@ -29,9 +29,9 @@ cargo run --release -p a2 --bin a2_dev -- \
 | K | oracle errs | oracle WER | gap vs 1-best (pts) | mean tokens | mean arcs |
 |---|-------------|------------|---------------------|-------------|-----------|
 | 3 | 19 | 0.0450 | 1.19 | 924 | 58,028 |
-| 5 | 19 | 0.0450 | 1.19 | 1,373 | 136,977 |
-| 10 | 19 | 0.0450 | 1.19 | 2,197 | 367,412 |
-| 20 | 19 | 0.0450 | 1.19 | 2,994 | 681,271 |
+| 5 | 19 | 0.0450 | 1.19 | 1,373 | 136,979 |
+| 10 | 19 | 0.0450 | 1.19 | 2,197 | 367,418 |
+| 20 | 19 | 0.0450 | 1.19 | 2,994 | 681,179 |
 
 - Sweep is FLAT: top-3 already contains every oracle-fixable error; K>3
   adds only lattice bulk (arcs grow 12× from K=3 to K=20 for zero gain).
@@ -79,3 +79,15 @@ gap; keep for future non-ceiling data).
   prune arcs (span dedup / posterior threshold) before any A6 rerun.
 - Lattices + CSV in `/tmp/a2-dev-full/` (NOT in repo); regenerate via the
   A2 command, then the sweep command above.
+
+## Lane p3o reproduction (2026-11-05, bead `hearsay-four-p3o--lattice-format-oracle`)
+
+Full DEV-A regenerate + resweep from this lane (release, frozen config,
+`--wip 5 --max-live 8000 --beam 800`, templates read-only from main
+`sessions/run1-16k`, phrase list sha `c3d03d55…b5cc`): every gate column
+reproduces exactly — 1-best 24/422 = 0.0569; oracle 19/422 = 0.0450 at
+K=3/5/10/20; gap 1.19 pts; CI [-0.0234, −0.0024]; mean tokens
+924/1373/2197/2994. Mean arcs refreshed to current-code values
+(136,979 / 367,418 / 681,179; drift ≤0.02% from the post-A5
+acoustic-best carve-out in `src/a2/src/oracle.rs`, verdict unaffected).
+Chosen K stays **3**; acoustic-bottleneck NO-GO verdict stands.
