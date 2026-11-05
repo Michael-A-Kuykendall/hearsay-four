@@ -525,9 +525,20 @@ fn dev5_one_pass_transcripts_pinned_with_direction() {
     // under budget pressure, proven by
     // one_pass_preserves_weak_midchain_word_with_strong_successor).
     // Pins the transcripts word-for-word plus the never-worse direction
-    // bounds from the recorded two-phase baseline (134 words, 0 gaps).
+    // bounds from the recorded two-phase baseline (130 words, 4 gaps).
     // Skipped when dev5 lattices are absent; exact pins apply only under
     // the fallback LM (the shipped LM would legitimately change output).
+    // 9l06 re-pin (STALE PIN verdict, was 134/0): the 7mge pins pre-date
+    // three intended changes -- lowercase LM scoring (f3ba477: one flip
+    // THA->THE in 0023), v1.4 token interning (4x A->UH flips at unchanged
+    // 134/0 with the arc rule ablated), and the v1.4 arc-constrained
+    // tiling DP (2d11c3f: phantom non-arc stitches excluded, -4 words,
+    // +4 gaps, all in 1272-135031-0000 at (86,89) (405,432) (447,450)
+    // (473,482)). A same-version two-phase mirror decodes all 5 dev5
+    // utterances byte-identically (130 words, same 4 gaps), so the
+    // never-worse direction still holds -- only the absolute numbers
+    // moved. Main's shipped LM masked the drift by skipping these pins
+    // (hence the Nov 4 17/17 with stale pins in the tree).
     if dev5_paths().is_none() {
         eprintln!("data/lattices/dev5 absent: skipping one-pass pin test");
         return;
@@ -552,33 +563,33 @@ fn dev5_one_pass_transcripts_pinned_with_direction() {
     let total_words: usize = outs.iter().map(|o| o.transcript.len()).sum();
     let total_gaps: usize = outs.iter().map(|o| o.gaps.len()).sum();
     assert_eq!(
-        total_words, 134,
-        "one-pass keeps all 134 two-phase dev5 words (never fewer)"
+        total_words, 130,
+        "one-pass keeps all 130 two-phase dev5 words (never fewer)"
     );
     assert_eq!(
-        total_gaps, 0,
-        "one-pass adds no dev5 gaps over the two-phase baseline of 0"
+        total_gaps, 4,
+        "one-pass adds no dev5 gaps over the two-phase baseline of 4"
     );
     let pinned: &[(&str, &str)] = &[
         (
             "1272-128104-0001",
-            "BUN AU AW OI OOZE MS TER COOL COURAGE MEN ER ER ZILLAH STING CHURCH KING'S AN WHOSE MATTER CONE",
+            "BUN AU AW OI OOZE SONS TER COOL COURAGE MEN RILL A STING CHURCH KING'S AN WHOSE MATTER CONE",
         ),
         (
             "1272-135031-0000",
-            "THEE COO INNS HUE RISK LEAK EEL IN CE OF OF CONK RING THA OO LOVE LIEU RUSE KIN SOUS FUZZ POOH COO FU GO WUZ VO KNOW MME PAUL THE CAP HAULED PAW ER SHAGGY CID CE ERROR BURR ER COOING OO DOE VAN",
+            "THEE COO INNS HE RISK LEAK EEL IN CE OF OF CONK RING THE OO LOVE LEAR UP NCE A FUZZ POOH COO FU GO WUZ VO KNOW MME PAUL THE CAP HAULED PAW ER SHAGGY SID CE ERROR THORPE COOING OO GO VAN",
         ),
         (
             "1272-135031-0013",
-            "FUCK INK FOR MME SHEW DIG E UNS THAN IN A MAN ALL FORCED CUFF NONE",
+            "FUCK INK FORM SHEW DIG E UNS THAN IN A MAN ALL FORCED CUFF NONE",
         ),
         (
             "1272-135031-0019",
-            "NUT AX FOR DICK PER MURK COO BEARD SOOTH FAWN TWEAK A NONE",
+            "NUT AX FOR DICK PER MURK TO BEARD SOOTH FAWN TWEAK A NONE",
         ),
         (
             "1272-135031-0023",
-            "THA COW OAR GOO O WHEN TO THE BEEN GONG A KEMP HOW NOON AH MC SHOES TWOS CE BURR GOOD OO E U SH TUG NUKE THA PUT MO WOOD HAS SHEWN DEUCE O MME ODD NCE A NONE",
+            "THE COW OAR GOO O WHEN TO THE BEEN GONG A KEMP HOW NOON AH MC SHOES TWOS CE BURR GOOD OO E U SH TUG NUKE THA PUT MO WOOD HAS SHEWN DO SO MUD NCE A NONE",
         ),
     ];
     for (utt, words) in pinned {
