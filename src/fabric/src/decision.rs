@@ -19,7 +19,7 @@ use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, VecDeque};
 
 /// The frozen spec version implemented by this module (§14).
-pub const SPEC_VERSION: &str = "1.4";
+pub const SPEC_VERSION: &str = "1.5";
 
 /// Label of the sentence-start pseudo-token `t0` (§4 boundary pair).
 pub const SENTENCE_START: &str = "<s>";
@@ -127,6 +127,8 @@ pub enum Arm {
 #[derive(Debug, Clone, PartialEq)]
 pub struct DecisionParams {
     pub w_acoustic: f64,
+    /// Superseded by contract v1.5 (section 3): LEXICAL is weighted by
+    /// w_sequence. Retained for struct compatibility; `weight()` ignores it.
     pub w_lexical: f64,
     pub w_sequence: f64,
     pub w_speaker: f64,
@@ -179,7 +181,9 @@ impl DecisionParams {
     pub fn weight(&self, class: SourceClass) -> f64 {
         match class {
             SourceClass::Acoustic => self.w_acoustic,
-            SourceClass::Lexical => self.w_lexical,
+            // Contract v1.5, section 3: the LEXICAL channel carries ln P_unigram
+            // and must share the SEQUENCE weight so the pair cancels exactly.
+            SourceClass::Lexical => self.w_sequence,
             SourceClass::Sequence => self.w_sequence,
             SourceClass::Speaker => self.w_speaker,
             SourceClass::Verify => self.w_verify,

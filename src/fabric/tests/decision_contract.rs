@@ -27,7 +27,7 @@ fn token(fact: u64, label: &str, start: u32, end: u32) -> Token {
 
 #[test]
 fn spec_version_is_cited() {
-    assert_eq!(SPEC_VERSION, "1.4");
+    assert_eq!(SPEC_VERSION, "1.5");
     // Every class names its declared null (§3 rule 1).
     for class in [
         SourceClass::Acoustic,
@@ -39,6 +39,23 @@ fn spec_version_is_cited() {
     ] {
         assert!(!class.declared_null().is_empty());
     }
+}
+
+#[test]
+fn lexical_class_shares_sequence_weight() {
+    // Contract v1.5, section 3: LEXICAL carries ln P_unigram and must
+    // share the SEQUENCE weight so the unigram cancel is exact; the
+    // w_lexical field is retained for struct compatibility and ignored.
+    let mut p = DecisionParams::default();
+    p.w_sequence = 6.0;
+    p.w_lexical = 1.0;
+    assert_eq!(p.weight(SourceClass::Lexical), 6.0);
+    assert_eq!(p.weight(SourceClass::Sequence), 6.0);
+    let mut d = DecisionFabric::new(p);
+    let h = d.mint_token("reef", TokenKind::Word, 0, 10).expect("token");
+    d.add_unary(h, SourceClass::Lexical, 2.0, no_premises())
+        .expect("lexical");
+    assert_eq!(d.unary_sum(h), 12.0, "6.0 * 2.0, not 1.0 * 2.0");
 }
 
 #[test]

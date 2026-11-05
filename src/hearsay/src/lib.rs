@@ -82,6 +82,20 @@ const PROB_FLOOR: f64 = 1e-12;
 /// `ln(P(word | history) / P_unigram(word))`.
 pub trait SequenceScorer {
     fn sequence_llr(&self, prev: Option<&str>, word: &str) -> f64;
+
+    /// Unigram-cancel LEXICAL evidence (contract v1.5, section 3):
+    /// ln P_unigram(word).
+    ///
+    /// The bridge attaches the returned value as the token's LEXICAL unary
+    /// (SIL tokens excepted); weighted by w_sequence it cancels the
+    /// -ln P_unigram denominator inside every SEQUENCE llr, so a full
+    /// cover scores the decoder path score plus a constant. Implementations
+    /// that cannot supply unigram evidence (e.g. bigram-closure adapters)
+    /// return None and the bridge falls back to the lattice-carried
+    /// lexical_llr, if any.
+    fn lexical_llr(&self, _word: &str) -> Option<f64> {
+        None
+    }
 }
 
 /// Interpolated-KN bigram-over-unigram [`SequenceScorer`].
@@ -113,6 +127,19 @@ impl<'a> InterpolatedScorer<'a> {
             + lambda * self.lm.personal().unigram_prob(word))
         .clamp(0.0, 1.0)
     }
+
+    /// Unigram-cancel LEXICAL evidence (contract v1.5, section 3):
+    /// ln P_unigram(word) over the same interpolated unigram null that
+    /// [`SequenceScorer::sequence_llr`] divides by.
+    ///
+    /// Lowercases like `sequence_llr`: the LM vocabulary is lowercase
+    /// (normalize.rs) while lattice words are uppercase (decoder vocab).
+    /// This inherent method is the exact value; the trait hook of the same
+    /// name wraps it in `Some` for bridge intake (inherent methods take
+    /// precedence, so concrete callers see this `f64` directly).
+    pub fn lexical_llr(&self, word: &str) -> f64 {
+        self.uni_prob(&word.to_lowercase()).max(PROB_FLOOR).ln()
+    }
 }
 
 impl SequenceScorer for InterpolatedScorer<'_> {
@@ -127,6 +154,10 @@ impl SequenceScorer for InterpolatedScorer<'_> {
         let w_low = word.to_lowercase();
         (self.cond_prob(&h_low, &w_low).max(PROB_FLOOR) / self.uni_prob(&w_low).max(PROB_FLOOR))
             .ln()
+    }
+
+    fn lexical_llr(&self, word: &str) -> Option<f64> {
+        Some(InterpolatedScorer::lexical_llr(self, word))
     }
 }
 
@@ -298,8 +329,21 @@ pub fn decode_lattice(
         fabric
             .add_unary(fact, SourceClass::Acoustic, t.acoustic_llr, BTreeSet::new())
             .map_err(dec_err)?;
+        // LEXICAL intake (contract v1.5, section 3): every WORD token takes
+        // scorer-computed ln P_unigram(word) as its LEXICAL unary, which the
+        // w_sequence weight turns into the exact cancel of the -ln P_unigram
+        // denominator inside SEQUENCE llrs. The scorer value wins over the
+        // legacy lattice-carried lexical_llr (kept as fallback for scorers
+        // that cannot supply unigrams); SIL tokens take no LEXICAL evidence
+        // under either source.
+        if t.word != "SIL" {
+            if let Some(llr) = scorer.lexical_llr(&t.word).or(t.lexical_llr) {
+                fabric
+                    .add_unary(fact, SourceClass::Lexical, llr, BTreeSet::new())
+                    .map_err(dec_err)?;
+            }
+        }
         for (class, llr) in [
-            (SourceClass::Lexical, t.lexical_llr),
             (SourceClass::Speaker, t.speaker_llr),
             (SourceClass::Verify, t.verify_llr),
         ] {
