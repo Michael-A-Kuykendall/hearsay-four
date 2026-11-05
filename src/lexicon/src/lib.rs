@@ -13,7 +13,10 @@ use std::collections::HashMap;
 use arena::{Arena, Candidate};
 use fabric::FactId;
 
+pub mod rules;
 pub mod word_match;
+
+pub use rules::{RULE_ENGINE_ID, rule_g2p};
 
 #[cfg(test)]
 mod ppt_tests;
@@ -46,14 +49,19 @@ pub enum LexiconSource {
     Cmudict,
     /// Tier-2: `librispeech-lexicon.txt` (Sequitur classical G2P). Gap fill.
     LibrispeechG2p,
+    /// Tier-3: `owner-book-g2p.txt` ([`RULE_ENGINE_ID`] rule-based
+    /// pronunciations for book words missing from both upper tiers).
+    /// Personal-data file: lives outside the repo, never tracked.
+    OwnerBookG2p,
 }
 
 impl LexiconSource {
-    /// Stable provenance token: `cmudict` or `librispeech-g2p`.
+    /// Stable provenance token: `cmudict`, `librispeech-g2p`, or `owner-book-g2p`.
     pub fn as_str(self) -> &'static str {
         match self {
             LexiconSource::Cmudict => "cmudict",
             LexiconSource::LibrispeechG2p => "librispeech-g2p",
+            LexiconSource::OwnerBookG2p => "owner-book-g2p",
         }
     }
 }
@@ -244,6 +252,14 @@ impl TieredLexicon {
             .filter(|s| **s == LexiconSource::LibrispeechG2p)
             .count()
     }
+
+    /// Words supplied by tier-3 (`owner-book-g2p.txt` rule-engine gap fill).
+    pub fn tier3_words(&self) -> usize {
+        self.sources
+            .values()
+            .filter(|s| **s == LexiconSource::OwnerBookG2p)
+            .count()
+    }
 }
 
 /// Ingest two CMUdict-shaped texts as one tiered table with provenance.
@@ -287,6 +303,50 @@ pub fn load_tiered(
     let tier1 = master_tsv_to_cmudict(&master);
     let tier2 = std::fs::read_to_string(librispeech_path.as_ref())?;
     Ok(ingest_tiered(&tier1, &tier2))
+}
+
+/// Ingest three CMUdict-shaped texts as one tiered table with provenance.
+///
+/// Tier-3 (`owner-book-g2p.txt`, [`RULE_ENGINE_ID`] rule-based
+/// pronunciations for book words missing from both upper tiers) fills only
+/// words neither tier-1 nor tier-2 covers, tagged
+/// [`LexiconSource::OwnerBookG2p`]. Otherwise the merge policy matches
+/// [`ingest_tiered`]: tiers never overwrite each other, so every word in
+/// `table` keeps exactly one entry in `sources`.
+pub fn ingest_tiered_three(tier1_text: &str, tier2_text: &str, tier3_text: &str) -> TieredLexicon {
+    let mut tiered = ingest_tiered(tier1_text, tier2_text);
+    for line in tier3_text.lines() {
+        if let Some(entry) = parse_cmudict_line_with_source(line, LexiconSource::OwnerBookG2p) {
+            if tiered.table.contains_key(&entry.word) {
+                continue;
+            }
+            tiered.sources.insert(entry.word.clone(), entry.source);
+            tiered
+                .table
+                .entry(entry.word)
+                .or_default()
+                .push(entry.phones);
+        }
+    }
+    tiered
+}
+
+/// Load the three-tier lexicon from its on-disk sources.
+///
+/// Same inputs as [`load_tiered`], plus `book_g2p_path`: the tier-3
+/// `owner-book-g2p.txt` (CMUdict-shaped `WORD PHONES...` lines, `;;;`
+/// comments allowed). The tier-3 file lives outside the repo (personal
+/// data); see [`ingest_tiered_three`] for the merge policy.
+pub fn load_tiered_three(
+    master_tsv_path: impl AsRef<std::path::Path>,
+    librispeech_path: impl AsRef<std::path::Path>,
+    book_g2p_path: impl AsRef<std::path::Path>,
+) -> std::io::Result<TieredLexicon> {
+    let master = std::fs::read_to_string(master_tsv_path.as_ref())?;
+    let tier1 = master_tsv_to_cmudict(&master);
+    let tier2 = std::fs::read_to_string(librispeech_path.as_ref())?;
+    let tier3 = std::fs::read_to_string(book_g2p_path.as_ref())?;
+    Ok(ingest_tiered_three(&tier1, &tier2, &tier3))
 }
 
 /// The closed ~30-word experiment vocabulary (uppercased), mirroring
@@ -588,8 +648,33 @@ DOG  D AO1 G
     fn lexicon_source_tokens_are_stable() {
         assert_eq!(LexiconSource::Cmudict.as_str(), "cmudict");
         assert_eq!(LexiconSource::LibrispeechG2p.as_str(), "librispeech-g2p");
+        assert_eq!(LexiconSource::OwnerBookG2p.as_str(), "owner-book-g2p");
         assert_eq!(LexiconSource::Cmudict.to_string(), "cmudict");
         assert_eq!(LexiconSource::LibrispeechG2p.to_string(), "librispeech-g2p");
+        assert_eq!(LexiconSource::OwnerBookG2p.to_string(), "owner-book-g2p");
+    }
+
+    #[test]
+    fn tiered_three_fills_only_words_both_upper_tiers_lack() {
+        let tiered = ingest_tiered_three(
+            "ALPHA  AE L F AH\nBETA  B EY T AH\n",
+            "BETA  B IY T AH\nGAMMA  G AE M AH\n",
+            ";;; rule-engine output\nBETA  B EH T AH\nGAMMA  G IY M AH\nDELTA  D EH L T AH\n",
+        );
+        // Upper tiers win where they cover; tier-3 fills only the gap.
+        assert_eq!(tiered.tier1_words(), 2);
+        assert_eq!(tiered.tier2_words(), 1);
+        assert_eq!(tiered.tier3_words(), 1);
+        let beta: Vec<Vec<String>> = vec![
+            vec!["B", "EY", "T", "AH"]
+                .into_iter()
+                .map(str::to_string)
+                .collect(),
+        ];
+        assert_eq!(tiered.table["BETA"], beta);
+        assert_eq!(tiered.sources["GAMMA"], LexiconSource::LibrispeechG2p);
+        assert_eq!(tiered.sources["DELTA"], LexiconSource::OwnerBookG2p);
+        assert_eq!(tiered.table.len(), 4);
     }
 
     #[test]

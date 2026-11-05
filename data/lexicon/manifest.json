@@ -20,6 +20,18 @@
     "words_gapfill": 134363,
     "source_tag": "librispeech-g2p"
   },
+  "tier3": {
+    "path": "~/hearsay-personal/owner-book-g2p.txt (personal data, outside the repo; override with OWNER_BOOK_G2P env)",
+    "format": "WORD<2 spaces>PHONES, stress-stripped ARPABET from lexicon::rule_g2p (RULE_ENGINE_ID lexicon-rules-v1); ;;; header lines; parsed by lexicon::parse_cmudict_line_with_source",
+    "recipe": "cargo run --release -p hmm --example book_g2p -- <owner-book.stripped.txt> <out.tier3.txt>",
+    "sha256": "36a4da535d2fbe3deba28d8c7c4903142880558cd3bddc138aeffe1eeda2eb82",
+    "lines": 183,
+    "header_lines": 3,
+    "words_gapfill": 180,
+    "tokens_covered": 278,
+    "source_tag": "owner-book-g2p",
+    "gate": "cargo run --release -p hmm --example r2_perf -- wordlist-scan ~/hearsay-personal/owner-book.stripped.txt => wordscan_missing_types=0 wordscan_missing_tokens=0 wordscan_tier3_types=180 wordscan_tier3_tokens=278"
+  },
   "merged_table_words": 259107,
   "census_measured_2026_10_31": {
     "tool": "cargo run --release -p hmm --example r2_perf -- <manifest> <wav_root> 9999 1 lexscan (BETTER_VOICE_ROOT set; exact R2 scan logic, two-tier load)",
