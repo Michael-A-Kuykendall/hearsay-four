@@ -1,6 +1,6 @@
 # Fabric Decision Contract — Specification
 
-Spec version: 1.4 (amends 1.3: section 7 arc-constrained tilings + token interning; amends 1.2: section 8 sealing; amends 1.1: section 10 unopposed margin; amends 1.0: section 8 tiling exclusion; see docs/design/a4-budget-semantics.md)
+Spec version: 1.5 (amends 1.4: section 3 LEXICAL unigram cancel + shared SEQUENCE weight; amends 1.3: section 7 arc-constrained tilings + token interning; amends 1.2: section 8 sealing; amends 1.1: section 10 unopposed margin; amends 1.0: section 8 tiling exclusion; see docs/design/a4-budget-semantics.md)
 
 Author: Michael A. Kuykendall
 Status: Frozen-candidate v1.0 (bead hearsay-four-p7u / A4a)
@@ -8,7 +8,7 @@ Date: 2026-10-27
 Relates to: Master Plan v3 §6 A4 (parent bead hearsay-four-enu, closed by
 split); implemented by hearsay-four-dg8 (A4b); consumed by A5
 (hearsay-four-p3o), A6 (hearsay-four-cjj), P2 (hearsay-four-ofy).
-Spec version: **1.4** — A4b must cite this version string in its code and
+Spec version: **1.5** — A4b must cite this version string in its code and
 tests. Amendments happen on DEV only, bump the version, and re-freeze
 (§14).
 
@@ -94,6 +94,21 @@ Rules that apply to every class:
    (§7, §10), not by negative USER `llr`s. Retracting the correction
    retracts the justification and the token reverts to its other
    evidence (weakening, §2).
+
+Amendment 1.5 (section 3): LEXICAL carries `ln P_unigram(word)` (R1
+interpolated unigram via `InterpolatedScorer::lexical_llr`,
+`PROB_FLOOR`-floored, lowercased lookup), attached by the scorer at
+bridge intake for every non-SIL WORD token (SIL takes none; the scorer
+value wins over lattice-carried `lexical_llr`). LEXICAL shares
+`w_sequence` (`w_lexical` retained for struct compatibility and
+ignored) so the cancel of the `−ln P_unigram` denominator inside
+SEQUENCE llrs is exact: `S(T)` = decoder path score + const. The
+phone-based LEXICAL null in the §3 table above is the unimplemented
+reference — no phone-unigram scorer exists in the pipeline; revisit if
+one is built. Code: `SPEC_VERSION = "1.5"`
+(`src/fabric/src/decision.rs:22`); tests `spec_version_is_cited`,
+`lexical_class_shares_sequence_weight`. Bead
+`hearsay-four-ufe4--unigram-cancel-lexical`.
 
 ## 4. Tiling score `S(T)` — what decides commits
 

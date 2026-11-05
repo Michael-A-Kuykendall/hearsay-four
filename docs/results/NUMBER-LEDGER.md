@@ -21,6 +21,7 @@ lives in `docs/results/` so the numbers are citable from the repo.
 | 8 | LIVE RTF (live mic) | TBD | pending |
 | 9 | A6 th75 stall diagnosis (dormant-context saturation storm) | stall mechanism, row dropped pending C-hi perf fix | landed |
 | 10 | theta-zero A6 rows decision | STAND | landed |
+| 11 | v1.5 LEXICAL cancel SANITY rerun (DEV-200) | PASS: C 0.7030 vs A 0.6624, \|d\| 0.0406; cancel engaged 199/200 | landed |
 
 ## 1. Fallback 9-cell best WER 0.7233
 
@@ -307,3 +308,42 @@ lives in `docs/results/` so the numbers are citable from the repo.
 - CI status: underlying rows carry degenerate [0,0] paired-bootstrap CIs
   (10k resamples, pinned seed) + th25-500 [-0.0007,0.0000]; decision
   itself carries no CI.
+
+## 11. v1.5 LEXICAL cancel SANITY rerun (DEV-200): PASS
+
+- Verdict: PASS — arm C (infinite budget, wseq 6, theta 0) WER 0.7030
+  (3219/4579) vs arm A 0.6624 (3033/4579), |d| = 0.0406 within the 0.10
+  bound; lattice-1best diagnostic 0.6805 (|arm-lat1| 0.0225).
+  Bead `hearsay-four-ufe4--unigram-cancel-lexical`.
+- Pre-fix record reproduced by ablation: the `--no-lex` OFF leg scores
+  C 0.8469 (3878/4579), |d| 0.1845, FAIL — exactly the standing pre-fix
+  FAIL verdict (0.8469). The ablation is a valid pre-v1.5 baseline.
+- Cancel-active rerank rate (engagement): 199/200 transcripts differ
+  ON-vs-OFF (0.9950, 95% CI [0.9850,1.0000]) — CI excludes 0, the
+  cancel is decisively active.
+- Identical-rate (arm-A agreement): ON 20/200 (0.1000, CI
+  [0.0600,0.1450]) vs OFF 1/200 (0.0050, CI [0.0000,0.0150]).
+- dWER ON−OFF: −0.1439, CI [−0.1631,−0.1252], excludes 0.
+- FINDING 4 (`hwsv` under-commit) resolved by this rerun, no follow-up:
+  0/200 empty hypotheses both legs; hyp/ref length ratio ON mean 1.002
+  median 1.000 (OFF 1.104) — the fabric commits full-length transcripts
+  once scoring is correct. The old 85.5%-vs-64.3% gap was mis-scoring
+  (dead SEQUENCE channel + missing cancel), not a commit defect.
+- Artifacts (main checkout, untracked per `scripts/a6/out/` precedent):
+  `scripts/a6/out/sanity_v15_rerun.tsv` (200 rows + header; = ON-leg
+  sanity TSV), `scripts/a6/out/gates_v15/`
+  (`shard.txt`, `cells_on/`, `cells_off/`, `sanity_on.tsv`,
+  `sanity_off.tsv`). Rerun: release `cell_decode` + queue args
+  `18446744073709551615 C 1 6 0 0 10 20`, DEV-200 manifest
+  `data/wer71g/tune200s/strat200.manifest.tsv`, LM
+  `data/lm-text/r1v2-full/lm-r1v2-interpolated.json`, lat dir
+  `data/lattices/dev200`; collect via `gate_collect --mode sanity`.
+- Code: bridge attach `src/hearsay/src/lib.rs`, `ClosureScorer` lex hook
+  (`LexHook`) `src/experiment/src/arms.rs`, `FeedLm::lex_score`
+  `src/experiment/src/sweep.rs`, `--no-lex` ablation
+  `src/experiment/examples/cell_decode.rs`. Contract v1.5 §3 note,
+  doc sha256
+  `0aaed08b112036a20d974b86f9265ae04c0966732f4b0fe0f5bcce5d01183db6`.
+- CI status: all CIs paired-bootstrap, 10k resamples, seed 0
+  (`/tmp/ufe4_compare.py`; error totals cross-checked equal to
+  gate_collect: 3219/3033/200).
